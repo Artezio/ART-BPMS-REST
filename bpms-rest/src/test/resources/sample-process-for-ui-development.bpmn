@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC" xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:activiti="http://activiti.org/bpmn" targetNamespace="http://www.artezio.com/test" exporter="Camunda Modeler" exporterVersion="3.0.1">
+  <process id="sampleProcessForUIDev" name="Sample process for UI development" isExecutable="true" camunda:candidateStarterGroups="testGroup">
+    <startEvent id="startevent1" name="Start">
+      <extensionElements>
+        <activiti:formProperty id="stringValEnum" name="Enumerated string value" type="enum">
+          <activiti:value id="v1" name="Sample string value 1" />
+          <activiti:value id="v2" name="Sample string value 2" />
+          <activiti:value id="v3" name="Sample string value 3" />
+          <activiti:value id="v4" name="Sample string value 4" />
+          <activiti:value id="v5" name="Sample string value 5" />
+        </activiti:formProperty>
+        <activiti:formProperty id="strVal" name="String value" type="string" default="initial string val" required="true" />
+        <activiti:formProperty id="boolVal" name="Boolean value" type="boolean" default="true" />
+        <activiti:formProperty id="dateVal" name="Date value" type="date" datePattern="dd-MM-yyyy hh:mm" />
+        <activiti:formProperty id="doubleVal" name="Double value" type="double" default="123" />
+        <activiti:formProperty id="intVal" name="Int value" type="long" default="456" />
+        <activiti:formProperty id="longVal" name="Long value" type="long" default="789" />
+      </extensionElements>
+    </startEvent>
+    <userTask id="usertask1" name="User Task" activiti:candidateGroups="experts">
+      <extensionElements>
+        <activiti:formProperty id="strVal" name="String value for update" type="string" />
+      </extensionElements>
+    </userTask>
+    <endEvent id="endevent1" name="End" />
+    <sequenceFlow id="flow1" sourceRef="startevent1" targetRef="usertask1" />
+    <sequenceFlow id="flow2" sourceRef="usertask1" targetRef="endevent1" />
+    <dataObject id="stringValEnum" name="Enumerated string value" />
+    <dataObject id="strVal" name="String value">
+      <extensionElements>
+        <activiti:value>initial string value</activiti:value>
+      </extensionElements>
+    </dataObject>
+    <dataObject id="boolVal" name="Boolean value">
+      <extensionElements>
+        <activiti:value>true</activiti:value>
+      </extensionElements>
+    </dataObject>
+    <dataObject id="dateVal" name="Date time value">
+      <extensionElements>
+        <activiti:value>2013-09-16T11:23:00</activiti:value>
+      </extensionElements>
+    </dataObject>
+    <dataObject id="doubleVal" name="Double value">
+      <extensionElements>
+        <activiti:value>123.0</activiti:value>
+      </extensionElements>
+    </dataObject>
+    <dataObject id="intVal" name="Integer value">
+      <extensionElements>
+        <activiti:value>456</activiti:value>
+      </extensionElements>
+    </dataObject>
+    <dataObject id="longVal" name="Long value">
+      <extensionElements>
+        <activiti:value>789</activiti:value>
+      </extensionElements>
+    </dataObject>
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_sampleProcessForUIDev">
+    <bpmndi:BPMNPlane id="BPMNPlane_sampleProcessForUIDev" bpmnElement="sampleProcessForUIDev">
+      <bpmndi:BPMNShape id="BPMNShape_startevent1" bpmnElement="startevent1">
+        <omgdc:Bounds x="160" y="91" width="35" height="35" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="165" y="126" width="25" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_usertask1" bpmnElement="usertask1">
+        <omgdc:Bounds x="370" y="81" width="105" height="55" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_endevent1" bpmnElement="endevent1">
+        <omgdc:Bounds x="630" y="91" width="35" height="35" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="638" y="126" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="BPMNEdge_flow1" bpmnElement="flow1">
+        <omgdi:waypoint x="195" y="108" />
+        <omgdi:waypoint x="370" y="108" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_flow2" bpmnElement="flow2">
+        <omgdi:waypoint x="475" y="108" />
+        <omgdi:waypoint x="630" y="108" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC" xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsd="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.activiti.org/test" exporter="Camunda Modeler" exporterVersion="3.0.1">
+  <process id="testProcessStartableByTestUser" name="My process 2" isExecutable="true" camunda:candidateStarterUsers="testUser">
+    <startEvent id="startevent1" name="Start">
+      <extensionElements>
+        <camunda:formProperty id="strVal" name="Any string value" type="string" default="test initial value" />
+      </extensionElements>
+    </startEvent>
+    <endEvent id="endevent1" name="End" />
+    <userTask id="usertask1" name="Sample task" camunda:candidateGroups="responsibles">
+      <extensionElements>
+        <camunda:formProperty id="testStrInput" name="Test string input" type="string" expression="${strVal}" />
+      </extensionElements>
+    </userTask>
+    <sequenceFlow id="flow3" sourceRef="startevent1" targetRef="usertask1" />
+    <dataObject id="strVal" name="Sample value" />
+    <sequenceFlow id="flow4" sourceRef="usertask1" targetRef="endevent1" />
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_testProcessStartableByTestUser">
+    <bpmndi:BPMNPlane id="BPMNPlane_testProcessStartableByTestUser" bpmnElement="testProcessStartableByTestUser">
+      <bpmndi:BPMNShape id="BPMNShape_startevent1" bpmnElement="startevent1">
+        <omgdc:Bounds x="156" y="91" width="35" height="35" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="161" y="126" width="25" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_endevent1" bpmnElement="endevent1">
+        <omgdc:Bounds x="575" y="91" width="35" height="35" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="583" y="126" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_usertask1" bpmnElement="usertask1">
+        <omgdc:Bounds x="345" y="81" width="105" height="55" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="BPMNEdge_flow3" bpmnElement="flow3">
+        <omgdi:waypoint x="191" y="108" />
+        <omgdi:waypoint x="345" y="108" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_flow4" bpmnElement="flow4">
+        <omgdi:waypoint x="450" y="108" />
+        <omgdi:waypoint x="575" y="108" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

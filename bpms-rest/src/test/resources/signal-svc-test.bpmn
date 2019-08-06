@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_0wt2ovg" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="3.1.0">
+  <bpmn:process id="signalSvcTest" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1">
+      <bpmn:outgoing>SequenceFlow_1dolgcf</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="SequenceFlow_1dolgcf" sourceRef="StartEvent_1" targetRef="signalReceiver" />
+    <bpmn:endEvent id="EndEvent_0cxwf3p">
+      <bpmn:incoming>SequenceFlow_0q4e9uq</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="SequenceFlow_0q4e9uq" sourceRef="signalReceiver" targetRef="EndEvent_0cxwf3p" />
+    <bpmn:intermediateCatchEvent id="signalReceiver">
+      <bpmn:incoming>SequenceFlow_1dolgcf</bpmn:incoming>
+      <bpmn:outgoing>SequenceFlow_0q4e9uq</bpmn:outgoing>
+      <bpmn:signalEventDefinition signalRef="Signal_08oibxq" />
+    </bpmn:intermediateCatchEvent>
+  </bpmn:process>
+  <bpmn:signal id="Signal_08oibxq" name="Test signal" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="signalSvcTest">
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_1">
+        <dc:Bounds x="179" y="81" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_1dolgcf_di" bpmnElement="SequenceFlow_1dolgcf">
+        <di:waypoint x="215" y="99" />
+        <di:waypoint x="354" y="99" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="EndEvent_0cxwf3p_di" bpmnElement="EndEvent_0cxwf3p">
+        <dc:Bounds x="551" y="81" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_0q4e9uq_di" bpmnElement="SequenceFlow_0q4e9uq">
+        <di:waypoint x="390" y="99" />
+        <di:waypoint x="551" y="99" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="IntermediateCatchEvent_0dgbnyt_di" bpmnElement="signalReceiver">
+        <dc:Bounds x="354" y="81" width="36" height="36" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

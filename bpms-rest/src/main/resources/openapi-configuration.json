@@ -1,0 +1,10 @@
+{
+  "prettyPrint": "true",
+  "openAPI": {
+    "servers": [
+      {
+        "url": "/bpms-rest"
+      }
+    ]
+  }
+}

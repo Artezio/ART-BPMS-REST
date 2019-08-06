@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<process-application xmlns="http://www.camunda.org/schema/1.0/ProcessApplication">
+    <process-engine name="default">
+        <configuration>org.camunda.config.JtaProcessConfiguration</configuration>
+        <datasource>java:/datasources/CamundaDS</datasource>
+        <properties>
+            <property name="databaseSchemaUpdate">true</property>
+            <property name="authorizationEnabled">false</property>
+            <property name="history">full</property>
+            <property name="transactionManagerJndiName">java:/TransactionManager</property>
+            <property name="jobExecutorDeploymentAware">true</property>
+            <property name="jobExecutorActivate">true</property>
+            <property name="defaultSerializationFormat">application/json</property>
+        </properties>
+        <plugins>
+            <plugin>
+                <class>org.camunda.spin.plugin.impl.SpinProcessEnginePlugin</class>
+            </plugin>
+            <plugin>
+                <class>org.camunda.feel.CamundaFeelEnginePlugin</class>
+            </plugin>
+        </plugins>
+    </process-engine>
+</process-application>

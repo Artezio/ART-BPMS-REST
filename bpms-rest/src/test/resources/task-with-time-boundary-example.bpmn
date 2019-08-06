@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC" xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:activiti="http://activiti.org/bpmn" targetNamespace="http://www.activiti.org/test" exporter="Camunda Modeler" exporterVersion="3.0.1">
+  <process id="timerBoundaryTaskExample" name="My process" isExecutable="true" camunda:candidateStarterGroups="testGroup">
+    <startEvent id="startevent1" name="Start" />
+    <userTask id="timerBoundariedTask" name="User Task" activiti:candidateGroups="experts" />
+    <endEvent id="endevent1" name="End" />
+    <sequenceFlow id="flow1" sourceRef="startevent1" targetRef="timerBoundariedTask" />
+    <sequenceFlow id="flow2" sourceRef="timerBoundariedTask" targetRef="endevent1" />
+    <boundaryEvent id="boundarytimer1" name="Timer" attachedToRef="timerBoundariedTask">
+      <timerEventDefinition>
+        <timeDuration>P1D</timeDuration>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="flow3" sourceRef="boundarytimer1" targetRef="endevent1" />
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_timerBoundaryTaskExample">
+    <bpmndi:BPMNPlane id="BPMNPlane_timerBoundaryTaskExample" bpmnElement="timerBoundaryTaskExample">
+      <bpmndi:BPMNShape id="BPMNShape_startevent1" bpmnElement="startevent1">
+        <omgdc:Bounds x="170" y="93" width="35" height="35" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="175" y="128" width="25" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_timerBoundariedTask" bpmnElement="timerBoundariedTask">
+        <omgdc:Bounds x="340" y="81" width="105" height="55" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_boundarytimer1" bpmnElement="boundarytimer1">
+        <omgdc:Bounds x="440" y="121" width="30" height="30" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="441" y="151" width="29" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_endevent1" bpmnElement="endevent1">
+        <omgdc:Bounds x="570" y="91" width="35" height="35" />
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="578" y="126" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="BPMNEdge_flow1" bpmnElement="flow1">
+        <omgdi:waypoint x="205" y="110" />
+        <omgdi:waypoint x="340" y="108" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_flow2" bpmnElement="flow2">
+        <omgdi:waypoint x="445" y="108" />
+        <omgdi:waypoint x="570" y="108" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_flow3" bpmnElement="flow3">
+        <omgdi:waypoint x="470" y="136" />
+        <omgdi:waypoint x="587" y="135" />
+        <omgdi:waypoint x="587" y="126" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>
