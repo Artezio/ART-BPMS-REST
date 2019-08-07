@@ -216,8 +216,8 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
                 "test-process-with-start-form.bpmn");
         String validatedVariablesJson = "validatedJsonWithFileValues";
         List<Map<String, Object>> expectedFileValues = asList(
-                getFileValue(getFile("testFile.png")),
-                getFileValue(getFile("testFile.png")));
+                getFileAsAttributesMap(getFile("testFile.png")),
+                getFileAsAttributesMap(getFile("testFile.png")));
         Map<String, Object> submittedFormValues = new HashMap<String, Object>() {{
             put("testFiles", expectedFileValues);
         }};

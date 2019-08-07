@@ -5,7 +5,6 @@ import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.bpm.services.integration.FileStorage;
 import com.artezio.bpm.services.integration.cdi.ConcreteImplementation;
-import com.artezio.bpm.utils.Base64Utils;
 import com.artezio.bpm.validation.VariableValidator;
 import com.artezio.formio.client.exceptions.FormNotFoundException;
 import com.artezio.logging.Log;
@@ -36,7 +35,6 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -54,7 +52,6 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 public class TaskSvc {
 
     private static final String SUBMISSION_STATE_VARIABLE_NAME = "state";
-    private static final String FILE_STORAGE_URL = System.getenv("FILE_STORAGE_URL");
 
     @Inject
     private TaskService taskService;
@@ -163,7 +160,6 @@ public class TaskSvc {
         inputVariables = !skipValidation(taskId, submissionState)
                 ? validateAndMergeToTaskVariables(inputVariables, taskId)
                 : new HashMap<>();
-        inputVariables = convertVariablesToFileRepresentations(inputVariables, taskId);
         inputVariables.put(SUBMISSION_STATE_VARIABLE_NAME, submissionState);
         ProcessInstance processInstance = getProcessInstance(taskId);
         Map<String, String> processExtensions = getProcessExtensions(taskId);
@@ -241,7 +237,7 @@ public class TaskSvc {
     }
 
     private byte[] decodeFromBase64(String encodedString) {
-        return Base64.getDecoder().decode(encodedString);
+        return Base64.getMimeDecoder().decode(encodedString);
     }
 
     private String cleanUpVariableName(String variableName) {
@@ -252,68 +248,6 @@ public class TaskSvc {
         return formService.shouldSkipValidation(taskId, submissionState);
     }
 
-    private Map<String, Object> convertVariablesToFileRepresentations(Map<String, Object> taskVariables, String taskId) {
-        return convertVariablesToFileRepresentations("", taskVariables, taskId);
-    }
-
-    private Map<String, Object> convertVariablesToFileRepresentations(String objectVariableName, Map<String, Object> objectVariableAttributes, String taskId) {
-        return objectVariableAttributes.entrySet().stream()
-                .peek(objectAttribute -> {
-                    Object attributeValue = objectVariableAttributes.get(objectAttribute.getKey());
-                    String attributeName = objectAttribute.getKey();
-                    String attributePath = !objectVariableName.isEmpty()
-                            ? objectVariableName + "/" + attributeName
-                            : attributeName;
-                    if (isFileVariable(attributeName, taskId)) {
-                        attributeValue = convertVariablesToFileRepresentations(attributeValue);
-                    } else if (isObjectVariable(attributeValue)) {
-                        attributeValue = convertVariablesToFileRepresentations(attributePath, (Map<String, Object>) attributeValue, taskId);
-                    } else if (isArrayVariable(attributeValue)) {
-                        attributeValue = ((List<Object>) attributeValue).stream()
-                                .map(objectVariable -> convertVariablesToFileRepresentations(attributePath + "[*]", (Map<String, Object>) objectVariable, taskId))
-                                .collect(Collectors.toList());
-                    }
-                    objectAttribute.setValue(attributeValue);
-                })
-                .collect(HashMap::new, (m, e) -> m.put(e.getKey(), objectVariableAttributes.get(e.getKey())), HashMap::putAll);
-    }
-
-    private List<Map<String, Object>> convertVariablesToFileRepresentations(Object fileVariableValue) {
-        return ((List<Map<String, Object>>) fileVariableValue).stream()
-                .map(this::storeFileInFileStorageIfNeeded)
-                .collect(Collectors.toList());
-    }
-
-    private Map<String, Object> storeFileInFileStorageIfNeeded(Map<String, Object> fileAttributes) {
-        String url = (String)fileAttributes.get("url");
-        return Base64Utils.isBase64DataUrl(url)
-                ? storeFileInFileStorage(fileAttributes)
-                : fileAttributes;
-    }
-
-    private Map<String, Object> storeFileInFileStorage(Map<String, Object> fileAttributes) {
-        Map<String, Object> storedFileAttributes = new HashMap<>(fileAttributes);
-        try (InputStream dataStream = Base64Utils.getData((String)fileAttributes.get("url"))) {
-            String fileId = fileStorage.store(dataStream);
-            storedFileAttributes.put("url", fileId);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to store the file in the storage", e);
-        }
-        storedFileAttributes.put("storage", "url");
-        return storedFileAttributes;
-    }
-
-    private boolean isFileVariable(String variableName, String taskId) {
-        return variablesMapper.isFileVariable(variableName, formService.getTaskFormDefinition(taskId));
-    }
-
-    private boolean isArrayVariable(Object variableValue) {
-        return variableValue instanceof List;
-    }
-
-    private boolean isObjectVariable(Object variableValue) {
-        return variableValue instanceof Map;
-    }
 
     private Map<String, Object> validateAndMergeToTaskVariables(Map<String, Object> inputVariables, String taskId)
             throws IOException, FormNotFoundException {

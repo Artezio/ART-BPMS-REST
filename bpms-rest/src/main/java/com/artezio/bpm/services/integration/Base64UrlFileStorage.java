@@ -3,15 +3,15 @@ package com.artezio.bpm.services.integration;
 import com.artezio.bpm.services.integration.cdi.DefaultImplementation;
 import com.artezio.logging.Log;
 import org.apache.commons.io.IOUtils;
+import org.apache.tika.Tika;
 
 import javax.inject.Named;
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
+import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URLConnection;
 import java.nio.charset.Charset;
 import java.util.Base64;
+import java.util.Optional;
 
 import static com.artezio.logging.Log.Level.CONFIG;
 
@@ -25,7 +25,7 @@ public class Base64UrlFileStorage implements FileStorage {
         try {
             byte[] data = IOUtils.toByteArray(dataStream);
             String encodedBytes = Base64.getMimeEncoder().encodeToString(data);
-            String dataHeader = String.format("data:%s;base64,", guessContentType(data));
+            String dataHeader = String.format("data:%s;base64,", getContentType(data));
             return dataHeader + encodedBytes;
         } catch (IOException e) {
             throw new RuntimeException("An error occured while serializing the file to base64 url components", e);
@@ -37,11 +37,10 @@ public class Base64UrlFileStorage implements FileStorage {
         return IOUtils.toInputStream(id, Charset.forName("UTF-8"));
     }
 
-    private String guessContentType(byte[] data) {
-        try (InputStream is = new BufferedInputStream(new ByteArrayInputStream(data))) {
-            return URLConnection.guessContentTypeFromStream(is);
-        } catch (IOException e) {
-            throw new RuntimeException("Exception while reading bytes from array.", e);
-        }
+    private String getContentType(byte[] data) {
+        String guessedContentType = new Tika().detect(data);
+        return Optional
+                .ofNullable(guessedContentType)
+                .orElse(MediaType.APPLICATION_OCTET_STREAM);
     }
 }
