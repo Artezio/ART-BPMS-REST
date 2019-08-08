@@ -2,16 +2,14 @@ package com.artezio.bpm.services;
 
 import com.artezio.formio.client.FormClient;
 import com.artezio.formio.client.exceptions.FormNotFoundException;
-import com.artezio.logging.Log;
 import org.camunda.bpm.engine.FormService;
+import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.TaskService;
 import org.camunda.bpm.engine.task.Task;
 
 import javax.inject.Inject;
 import javax.inject.Named;
 import java.util.Map;
-
-import static com.artezio.logging.Log.Level.CONFIG;
 
 @Named
 public class FormSvc {
@@ -20,6 +18,8 @@ public class FormSvc {
     private FormClient formClient;
     @Inject
     private TaskService taskService;
+    @Inject
+    private RepositoryService repositoryService;
     @Inject
     private FormService formService;
 
@@ -64,12 +64,26 @@ public class FormSvc {
                 .singleResult();
         String processDefinitionId = task.getProcessDefinitionId();
         String formKey = formService.getTaskFormKey(processDefinitionId, task.getTaskDefinitionKey());
-        return withoutDeploymentPrefix(formKey);
+        return getFormKeyWithVersion(withoutDeploymentPrefix(formKey));
     }
 
     private String getStartFormKey(String processDefinitionId) {
         String formKey = formService.getStartFormKey(processDefinitionId);
-        return withoutDeploymentPrefix(formKey);
+        return getFormKeyWithVersion(withoutDeploymentPrefix(formKey));
+    }
+
+    private String getLatestDeploymentId() {
+        return repositoryService.createDeploymentQuery()
+                .orderByDeploymentTime()
+                .desc()
+                .list()
+                .get(0)
+                .getId();
+    }
+
+    private String getFormKeyWithVersion(String formKey) {
+        String deploymentId = getLatestDeploymentId();
+        return formKey + "-" + deploymentId;
     }
 
     private String withoutDeploymentPrefix(String formKey) {
