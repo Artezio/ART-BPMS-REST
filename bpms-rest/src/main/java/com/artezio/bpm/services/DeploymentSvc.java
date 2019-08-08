@@ -75,6 +75,11 @@ public class DeploymentSvc {
         }
     }
 
+    @PermitAll
+    public String getLatestDeploymentId() {
+        return getLatestDeployment().getId();
+    }
+
     @RolesAllowed("BPMSAdmin")
     @GET
     @Path("/")

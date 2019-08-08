@@ -35,7 +35,7 @@ public class FormDeployer {
         formIds.stream()
                 .map(formId -> formId.endsWith(".json") ? formId.substring(0, formId.length() - 5) : formId)
                 .forEach(formId ->
-                        formClient.uploadFormIfNotExists(formId, uploadNestedForms(deploymentSvc.getForm(formId))));
+                        formClient.uploadFormIfNotExists(uploadNestedForms(getFormDefinitionWithVersion(deploymentSvc.getForm(formId)))));
     }
 
     protected String uploadNestedForms(String formDefinition) {
@@ -46,7 +46,7 @@ public class FormDeployer {
         }
     }
 
-    protected JsonNode uploadNestedForms(JsonNode definition) {
+    protected JsonNode uploadNestedForms(JsonNode definition) throws IOException {
         if (isNestedForm(definition) && !definition.get("path").asText().isEmpty()) {
             return uploadNestedForm(definition);
         }
@@ -59,7 +59,7 @@ public class FormDeployer {
         return definition;
     }
 
-    protected JsonNode uploadNestedForms(ObjectNode node) {
+    protected JsonNode uploadNestedForms(ObjectNode node) throws IOException {
         node = node.deepCopy();
         List<String> fieldNames = new ArrayList<>();
         node.fieldNames().forEachRemaining(fieldNames::add);
@@ -70,7 +70,7 @@ public class FormDeployer {
         return node;
     }
 
-    protected JsonNode uploadNestedForms(ArrayNode node) {
+    protected JsonNode uploadNestedForms(ArrayNode node) throws IOException {
         node = node.deepCopy();
         for (int i = 0; i < node.size(); i++) {
             JsonNode nodeWithReplacedIds = uploadNestedForms(node.get(i));
@@ -79,13 +79,15 @@ public class FormDeployer {
         return node;
     }
 
-    protected JsonNode uploadNestedForm(JsonNode referenceDefinition) {
+    protected JsonNode uploadNestedForm(JsonNode referenceDefinition) throws IOException {
         String formPath = referenceDefinition.get("path").asText().substring(1);
-        formClient.uploadFormIfNotExists(formPath, uploadNestedForms(deploymentSvc.getForm(formPath)));
-        return setNestedFormFields(referenceDefinition);
+        JsonNode formDefinitionWithVersion = OBJECT_MAPPER.readTree(getFormDefinitionWithVersion(referenceDefinition.toString()));
+        JsonNode fullFormDefinitionWithVersion = OBJECT_MAPPER.readTree(getFormDefinitionWithVersion(deploymentSvc.getForm(formPath)));
+        formClient.uploadFormIfNotExists(uploadNestedForms(fullFormDefinitionWithVersion.toString()));
+        return setNestedFormFields(formDefinitionWithVersion);
     }
 
-    protected JsonNode setNestedFormFields(JsonNode referenceDefinition) {
+    protected JsonNode setNestedFormFields(JsonNode referenceDefinition) throws IOException {
         ObjectNode modifiedNode = referenceDefinition.deepCopy();
         String id = formClient.getFormDefinition(referenceDefinition.get("path").asText()).get("_id").asText();
         modifiedNode.put("form", id);
@@ -131,6 +133,23 @@ public class FormDeployer {
                 && node.has("form")
                 && node.has("type")
                 && node.get("type").asText().equals("form");
+    }
+
+    private String getFormDefinitionWithVersion(String form) {
+        String latestDeploymentId = deploymentSvc.getLatestDeploymentId();
+        try {
+            ObjectNode formDefinition = (ObjectNode) OBJECT_MAPPER.readTree(form);
+            formDefinition.put("path", formDefinition.get("path").asText() + "-" + latestDeploymentId);
+            if (formDefinition.has("name")) {
+                formDefinition.put("name", formDefinition.get("name").asText() + "-" + latestDeploymentId);
+            }
+            if (formDefinition.has("machineName")) {
+                formDefinition.put("machineName", formDefinition.get("machineName").asText() + "-" + latestDeploymentId);
+            }
+            return formDefinition.toString();
+        } catch (IOException e) {
+            throw new RuntimeException("Error while parsing json form definition", e);
+        }
     }
 
 }
