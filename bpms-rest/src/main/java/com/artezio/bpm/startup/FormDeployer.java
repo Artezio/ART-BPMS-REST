@@ -23,6 +23,7 @@ import java.util.List;
 public class FormDeployer {
 
     private final static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private final static boolean IS_FORM_VERSIONING_ENABLED = Boolean.parseBoolean(System.getProperty("FORM_VERSIONING", "true"));
 
     @Inject
     private DeploymentSvc deploymentSvc;
@@ -35,7 +36,7 @@ public class FormDeployer {
         formIds.stream()
                 .map(formId -> formId.endsWith(".json") ? formId.substring(0, formId.length() - 5) : formId)
                 .forEach(formId ->
-                        formClient.uploadFormIfNotExists(uploadNestedForms(getFormDefinitionWithVersion(deploymentSvc.getForm(formId)))));
+                        formClient.uploadFormIfNotExists(uploadNestedForms(getFormDefinition(deploymentSvc.getForm(formId)))));
     }
 
     protected String uploadNestedForms(String formDefinition) {
@@ -81,10 +82,10 @@ public class FormDeployer {
 
     protected JsonNode uploadNestedForm(JsonNode referenceDefinition) throws IOException {
         String formPath = referenceDefinition.get("path").asText().substring(1);
-        JsonNode formDefinitionWithVersion = OBJECT_MAPPER.readTree(getFormDefinitionWithVersion(referenceDefinition.toString()));
-        JsonNode fullFormDefinitionWithVersion = OBJECT_MAPPER.readTree(getFormDefinitionWithVersion(deploymentSvc.getForm(formPath)));
-        formClient.uploadFormIfNotExists(uploadNestedForms(fullFormDefinitionWithVersion.toString()));
-        return setNestedFormFields(formDefinitionWithVersion);
+        JsonNode formDefinition = OBJECT_MAPPER.readTree(getFormDefinition(referenceDefinition.toString()));
+        JsonNode fullFormDefinition = OBJECT_MAPPER.readTree(getFormDefinition(deploymentSvc.getForm(formPath)));
+        formClient.uploadFormIfNotExists(uploadNestedForms(fullFormDefinition.toString()));
+        return setNestedFormFields(formDefinition);
     }
 
     protected JsonNode setNestedFormFields(JsonNode referenceDefinition) throws IOException {
@@ -135,7 +136,10 @@ public class FormDeployer {
                 && node.get("type").asText().equals("form");
     }
 
-    private String getFormDefinitionWithVersion(String form) {
+    private String getFormDefinition(String form) {
+        if (!IS_FORM_VERSIONING_ENABLED) {
+            return form;
+        }
         String latestDeploymentId = deploymentSvc.getLatestDeploymentId();
         try {
             ObjectNode formDefinition = (ObjectNode) OBJECT_MAPPER.readTree(form);
