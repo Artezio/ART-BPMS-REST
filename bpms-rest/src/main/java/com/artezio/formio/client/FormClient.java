@@ -72,14 +72,18 @@ public class FormClient {
         return form.toString();
     }
 
-    @Log(level = CONFIG, beforeExecuteMessage = "Uploading form '{0}'")
-    public void uploadFormIfNotExists(String path, String formDefinition) {
+    @Log(level = CONFIG, beforeExecuteMessage = "Uploading form")
+    public void uploadFormIfNotExists(String formDefinition) {
+        String path = null;
         try {
+            path = MAPPER.readTree(formDefinition).get("path").asText();
             uploadForm(formDefinition);
         } catch (BadRequestException bre) {
             // BadRequest is thrown for both cases: 1) form already exists; 2) form definition is invalid
             // Try to load the form. If the form not exists, an exception will be thrown again to show that form definition is invalid
             getFormService().getForm(path, true);
+        } catch (IOException e) {
+            throw new RuntimeException("Error while uploading a form", e);
         }
     }
 

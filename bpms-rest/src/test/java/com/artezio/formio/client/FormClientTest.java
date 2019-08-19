@@ -153,33 +153,33 @@ public class FormClientTest extends ServiceTest {
 
     @Test
     public void testUploadFormIfNotExists() {
-        String formDefinition = "{\"formKey\":\"keeey\"}";
+        String formDefinition = "{\"formKey\":\"keeey\", \"path\":\"formPath\"}";
 
         when(formApiProxy.createForm(formDefinition)).thenReturn(formDefinitionNode);
 
-        formio.uploadFormIfNotExists("form1", formDefinition);
+        formio.uploadFormIfNotExists(formDefinition);
     }
 
     @Test
     public void testUploadFormIfNotExists_formAlreadyExists() {
-        String formDefinition = "{\"formKey\":\"keeey\"}";
         String formPath = "/form1";
+        String formDefinition = "{\"formKey\":\"keeey\", \"path\":\"" + formPath + "\"}";
 
         when(formApiProxy.createForm(formDefinition)).thenThrow(BadRequestException.class);
         when(formApiProxy.getForm(formPath, true)).thenReturn(formDefinitionNode);
 
-        formio.uploadFormIfNotExists(formPath, formDefinition);
+        formio.uploadFormIfNotExists(formDefinition);
     }
 
     @Test(expected = BadRequestException.class)
     public void testUploadFormIfNotExists_formDefinitionIsInvalid() {
-        String formDefinition = "\"formKey:\"keeey\"}";
         String formPath = "/form1";
+        String formDefinition = "{\"formKey\":\"keeey\", \"path\":\"" + formPath +"\"}";
 
         when(formApiProxy.createForm(formDefinition)).thenThrow(BadRequestException.class);
-        when(formApiProxy.getForm(formPath, true)).thenThrow(BadRequestException.class);
+        when(formApiProxy.getForm("/form1", true)).thenThrow(BadRequestException.class);
 
-        formio.uploadFormIfNotExists(formPath, formDefinition);
+        formio.uploadFormIfNotExists(formDefinition);
     }
 
     @Test

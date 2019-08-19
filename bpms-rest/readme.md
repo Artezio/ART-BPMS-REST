@@ -9,6 +9,7 @@ The following properties are used to outline corner-cases from Formio client to 
 #### Environment
 The environment is configured through the following JVM arguments:
 
+* `FORM_VERSIONING` - a flag which indicates whether form versioning is enabled
 * `FORMIO_LOGIN` - an email to login to formio server. Default: `root@root.root`
 * `FORMIO_PASSWORD` - a password to login to formio server. Default: `root` 
 * `FORMIO_URL` - a URL to formio server. Default: `http://localhost:3001`

@@ -23,6 +23,7 @@ import java.util.List;
 public class FormDeployer {
 
     private final static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private final static boolean IS_FORM_VERSIONING_ENABLED = Boolean.parseBoolean(System.getProperty("FORM_VERSIONING", "true"));
 
     @Inject
     private DeploymentSvc deploymentSvc;
@@ -35,7 +36,7 @@ public class FormDeployer {
         formIds.stream()
                 .map(formId -> formId.endsWith(".json") ? formId.substring(0, formId.length() - 5) : formId)
                 .forEach(formId ->
-                        formClient.uploadFormIfNotExists(formId, uploadNestedForms(deploymentSvc.getForm(formId))));
+                        formClient.uploadFormIfNotExists(uploadNestedForms(getFormDefinition(deploymentSvc.getForm(formId)))));
     }
 
     protected String uploadNestedForms(String formDefinition) {
@@ -46,7 +47,7 @@ public class FormDeployer {
         }
     }
 
-    protected JsonNode uploadNestedForms(JsonNode definition) {
+    protected JsonNode uploadNestedForms(JsonNode definition) throws IOException {
         if (isNestedForm(definition) && !definition.get("path").asText().isEmpty()) {
             return uploadNestedForm(definition);
         }
@@ -59,7 +60,7 @@ public class FormDeployer {
         return definition;
     }
 
-    protected JsonNode uploadNestedForms(ObjectNode node) {
+    protected JsonNode uploadNestedForms(ObjectNode node) throws IOException {
         node = node.deepCopy();
         List<String> fieldNames = new ArrayList<>();
         node.fieldNames().forEachRemaining(fieldNames::add);
@@ -70,7 +71,7 @@ public class FormDeployer {
         return node;
     }
 
-    protected JsonNode uploadNestedForms(ArrayNode node) {
+    protected JsonNode uploadNestedForms(ArrayNode node) throws IOException {
         node = node.deepCopy();
         for (int i = 0; i < node.size(); i++) {
             JsonNode nodeWithReplacedIds = uploadNestedForms(node.get(i));
@@ -79,13 +80,15 @@ public class FormDeployer {
         return node;
     }
 
-    protected JsonNode uploadNestedForm(JsonNode referenceDefinition) {
+    protected JsonNode uploadNestedForm(JsonNode referenceDefinition) throws IOException {
         String formPath = referenceDefinition.get("path").asText().substring(1);
-        formClient.uploadFormIfNotExists(formPath, uploadNestedForms(deploymentSvc.getForm(formPath)));
-        return setNestedFormFields(referenceDefinition);
+        JsonNode formDefinition = OBJECT_MAPPER.readTree(getFormDefinition(referenceDefinition.toString()));
+        JsonNode fullFormDefinition = OBJECT_MAPPER.readTree(getFormDefinition(deploymentSvc.getForm(formPath)));
+        formClient.uploadFormIfNotExists(uploadNestedForms(fullFormDefinition.toString()));
+        return setNestedFormFields(formDefinition);
     }
 
-    protected JsonNode setNestedFormFields(JsonNode referenceDefinition) {
+    protected JsonNode setNestedFormFields(JsonNode referenceDefinition) throws IOException {
         ObjectNode modifiedNode = referenceDefinition.deepCopy();
         String id = formClient.getFormDefinition(referenceDefinition.get("path").asText()).get("_id").asText();
         modifiedNode.put("form", id);
@@ -131,6 +134,26 @@ public class FormDeployer {
                 && node.has("form")
                 && node.has("type")
                 && node.get("type").asText().equals("form");
+    }
+
+    private String getFormDefinition(String form) {
+        if (!IS_FORM_VERSIONING_ENABLED) {
+            return form;
+        }
+        String latestDeploymentId = deploymentSvc.getLatestDeploymentId();
+        try {
+            ObjectNode formDefinition = (ObjectNode) OBJECT_MAPPER.readTree(form);
+            formDefinition.put("path", formDefinition.get("path").asText() + "-" + latestDeploymentId);
+            if (formDefinition.has("name")) {
+                formDefinition.put("name", formDefinition.get("name").asText() + "-" + latestDeploymentId);
+            }
+            if (formDefinition.has("machineName")) {
+                formDefinition.put("machineName", formDefinition.get("machineName").asText() + "-" + latestDeploymentId);
+            }
+            return formDefinition.toString();
+        } catch (IOException e) {
+            throw new RuntimeException("Error while parsing json form definition", e);
+        }
     }
 
 }
