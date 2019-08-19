@@ -96,7 +96,7 @@ public class ProcessDefinitionSvc {
         ProcessInstance processInstance = processDefinition.hasStartFormKey()
                 ? startProcessByFormSubmission(processDefinition, inputVariables)
                 : startProcess(processDefinition, inputVariables);
-        return TaskRepresentation.fromEntity(taskService.getNextAssignedTask(processInstance));
+        return TaskRepresentation.fromEntity(taskService.getNextAssignedTask(processInstance.getProcessInstanceId()));
     }
 
     @GET

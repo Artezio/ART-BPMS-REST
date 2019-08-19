@@ -713,7 +713,7 @@ public class TaskSvcTest extends ServiceTest {
         Deployment deployment = createDeployment("tasks", "process-with-assigned-task.bpmn");
         ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("Process_with_assigned_task");
 
-        Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance);
+        Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance.getProcessInstanceId());
 
         assertNotNull(nextAssignedTask);
         assertEquals("Task 1", nextAssignedTask.getName());
@@ -725,7 +725,7 @@ public class TaskSvcTest extends ServiceTest {
         Deployment deployment = createDeployment("tasks", "process-with-two-simultaneous-assigned-tasks.bpmn");
         ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("Process_with_two_simultaneous_assigned_tasks");
 
-        Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance);
+        Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance.getProcessInstanceId());
 
         assertNull(nextAssignedTask);
     }
@@ -736,7 +736,7 @@ public class TaskSvcTest extends ServiceTest {
         Deployment deployment = createDeployment("tasks", "test-process-startable-by-testUser.bpmn");
         ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("testProcessStartableByTestUser");
 
-        Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance);
+        Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance.getProcessInstanceId());
 
         assertNull(nextAssignedTask);
     }

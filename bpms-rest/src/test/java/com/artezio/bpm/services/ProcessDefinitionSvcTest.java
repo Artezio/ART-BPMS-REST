@@ -133,7 +133,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
         createDeployment("test-deployment",
                 "test-process-startable-by-testGroup.bpmn");
 
-        expect(taskSvc.getNextAssignedTask(anyObject(ProcessInstance.class))).andReturn(null);
+        expect(taskSvc.getNextAssignedTask(anyObject(String.class))).andReturn(null);
         expect(identitySvc.userId()).andReturn(TEST_USER_ID);
         expect(identitySvc.userGroups()).andReturn(asList(TEST_GROUP_ID));
         replay(taskSvc, identitySvc);
@@ -182,7 +182,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
             processVariablesCapture.getValue().put("booleanFormVariable", Boolean.TRUE);
             return null;
         });
-        expect(taskSvc.getNextAssignedTask(anyObject(ProcessInstance.class))).andReturn(null);
+        expect(taskSvc.getNextAssignedTask(anyObject(String.class))).andReturn(null);
         expect(formSvc.dryValidationAndCleanupStartForm(anyString(), eq(submittedFormValues)))
                 .andReturn(validatedVariablesJson);
         expect(variablesMapper.convertVariablesToEntities(capture(processVariablesCapture), anyObject(Map.class)))
@@ -231,7 +231,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
         expect(identitySvc.userId()).andReturn(TEST_USER_ID);
         expect(formSvc.dryValidationAndCleanupStartForm(anyString(), eq(submittedFormValues)))
                 .andReturn(validatedVariablesJson);
-        expect(taskSvc.getNextAssignedTask(anyObject(ProcessInstance.class))).andReturn(null);
+        expect(taskSvc.getNextAssignedTask(anyObject(String.class))).andReturn(null);
         expect(identitySvc.userGroups()).andReturn(asList(TEST_GROUP_ID));
         expect(variablesMapper.convertVariablesToEntities(capture(processVariablesCapture), anyObject(Map.class)))
             .andStubAnswer(processVariablesCapture::getValue);

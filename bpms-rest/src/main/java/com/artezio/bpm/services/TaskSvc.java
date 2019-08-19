@@ -12,10 +12,8 @@ import com.jayway.jsonpath.JsonPath;
 import io.swagger.v3.oas.annotations.Operation;
 import net.minidev.json.JSONArray;
 import org.apache.commons.lang3.StringUtils;
-import org.camunda.bpm.engine.FormService;
-import org.camunda.bpm.engine.RepositoryService;
-import org.camunda.bpm.engine.RuntimeService;
-import org.camunda.bpm.engine.TaskService;
+import org.camunda.bpm.engine.*;
+import org.camunda.bpm.engine.runtime.CaseExecution;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.task.Task;
 import org.camunda.bpm.engine.variable.VariableMap;
@@ -35,10 +33,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.artezio.bpm.services.VariablesMapper.EXTENSION_NAME_PREFIX;
@@ -64,8 +59,11 @@ public class TaskSvc {
     @Inject
     private VariablesMapper variablesMapper;
     @Inject
+    private CaseService caseService;
+    @Inject
     private RuntimeService runtimeService;
-    @Inject @ConcreteImplementation
+    @Inject
+    @ConcreteImplementation
     private FileStorage fileStorage;
     @Inject
     private RepositoryService repositoryService;
@@ -155,25 +153,32 @@ public class TaskSvc {
     @Log(level = CONFIG, beforeExecuteMessage = "Completing task '{0}'", afterExecuteMessage = "Task '{0}' successfully completed")
     public TaskRepresentation complete(@PathParam("task-id") @Valid @NotNull String taskId,
                                        Map<String, Object> inputVariables) throws IOException, FormNotFoundException {
+        Task task = taskService.createTaskQuery()
+                .taskId(taskId)
+                .singleResult();
         ensureAssigned(taskId);
         String submissionState = (String) inputVariables.get(SUBMISSION_STATE_VARIABLE_NAME);
         inputVariables = !skipValidation(taskId, submissionState)
                 ? validateAndMergeToTaskVariables(inputVariables, taskId)
                 : new HashMap<>();
         inputVariables.put(SUBMISSION_STATE_VARIABLE_NAME, submissionState);
-        ProcessInstance processInstance = getProcessInstance(taskId);
-        Map<String, String> processExtensions = getProcessExtensions(taskId);
+        Map<String, String> processExtensions = (task.getProcessDefinitionId() != null)
+                ? getProcessExtensions(taskId)
+                : Collections.emptyMap();
         inputVariables = variablesMapper.convertVariablesToEntities(inputVariables, processExtensions);
         variableValidator.validate(inputVariables);
         taskService.complete(taskId, inputVariables);
-        return TaskRepresentation.fromEntity(getNextAssignedTask(processInstance));
+        Task nextAssignedTask = task.getProcessDefinitionId() != null
+                ? getNextAssignedTask(task.getProcessInstanceId())
+                : getNextAssignedTask(getCaseExecution(task));
+        return TaskRepresentation.fromEntity(nextAssignedTask);
     }
 
     @PermitAll
-    @Log(level = CONFIG, beforeExecuteMessage = "Getting next assigned task")
-    public Task getNextAssignedTask(ProcessInstance processInstance) {
+    @Log(level = CONFIG, beforeExecuteMessage = "Getting next assigned task for process instance")
+    public Task getNextAssignedTask(String processInstanceId) {
         List<Task> assignedTasks = taskService.createTaskQuery()
-                .processInstanceId(processInstance.getId())
+                .processInstanceId(processInstanceId)
                 .taskAssignee(identityService.userId())
                 .list();
         return assignedTasks.size() == 1
@@ -181,13 +186,27 @@ public class TaskSvc {
                 : null;
     }
 
-    protected ProcessInstance getProcessInstance(String taskId) {
-        String processInstanceId = taskService.createTaskQuery()
-                .taskId(taskId)
-                .singleResult()
-                .getProcessInstanceId();
+    @PermitAll
+    @Log(level = CONFIG, beforeExecuteMessage = "Getting next assigned task for case execution")
+    public Task getNextAssignedTask(CaseExecution caseExecution) {
+        List<Task> assignedTasks = taskService.createTaskQuery()
+                .caseInstanceId(caseExecution.getCaseInstanceId())
+                .taskAssignee(identityService.userId())
+                .list();
+        return assignedTasks.size() == 1
+                ? assignedTasks.get(0)
+                : null;
+    }
+
+    protected ProcessInstance getProcessInstance(Task task) {
         return runtimeService.createProcessInstanceQuery()
-                .processInstanceId(processInstanceId)
+                .processInstanceId(task.getProcessInstanceId())
+                .singleResult();
+    }
+
+    protected CaseExecution getCaseExecution(Task task) {
+        return caseService.createCaseExecutionQuery()
+                .caseInstanceId(task.getCaseInstanceId())
                 .singleResult();
     }
 
@@ -214,9 +233,9 @@ public class TaskSvc {
         ExtensionElements extensionElements = processElement.getExtensionElements();
         return extensionElements != null
                 ? extensionElements.getElements().stream()
-                    .flatMap(extensionElement -> ((CamundaProperties) extensionElement).getCamundaProperties().stream())
-                    .filter(extension -> extension.getCamundaName().startsWith(EXTENSION_NAME_PREFIX))
-                    .collect(Collectors.toMap(CamundaProperty::getCamundaName, CamundaProperty::getCamundaValue))
+                .flatMap(extensionElement -> ((CamundaProperties) extensionElement).getCamundaProperties().stream())
+                .filter(extension -> extension.getCamundaName().startsWith(EXTENSION_NAME_PREFIX))
+                .collect(Collectors.toMap(CamundaProperty::getCamundaName, CamundaProperty::getCamundaValue))
                 : emptyMap();
     }
 
@@ -251,7 +270,7 @@ public class TaskSvc {
 
     private Map<String, Object> validateAndMergeToTaskVariables(Map<String, Object> inputVariables, String taskId)
             throws IOException, FormNotFoundException {
-        String formKey =  camundaFormService.getTaskFormData(taskId).getFormKey();
+        String formKey = camundaFormService.getTaskFormData(taskId).getFormKey();
         if (formKey != null) {
             String cleanDataJson = formService.dryValidationAndCleanupTaskForm(taskId, inputVariables);
             Map<String, Object> taskVariables = taskService.getVariables(taskId);

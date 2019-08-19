@@ -3,6 +3,7 @@ package com.artezio.bpm.services;
 import com.artezio.formio.client.FormClient;
 import com.artezio.formio.client.exceptions.FormNotFoundException;
 import com.artezio.logging.Log;
+import org.camunda.bpm.engine.CaseService;
 import org.camunda.bpm.engine.FormService;
 import org.camunda.bpm.engine.TaskService;
 import org.camunda.bpm.engine.task.Task;
@@ -62,9 +63,19 @@ public class FormSvc {
         Task task = taskService.createTaskQuery()
                 .taskId(taskId)
                 .singleResult();
-        String processDefinitionId = task.getProcessDefinitionId();
-        String formKey = formService.getTaskFormKey(processDefinitionId, task.getTaskDefinitionKey());
+        String formKey = task.getProcessDefinitionId() != null
+                ? getProcessTaskFormKey(task)
+                : getCaseTaskFormKey(task);
         return withoutDeploymentPrefix(formKey);
+    }
+
+    private String getProcessTaskFormKey(Task task) {
+        String processDefinitionId = task.getProcessDefinitionId();
+        return formService.getTaskFormKey(processDefinitionId, task.getTaskDefinitionKey());
+    }
+
+    private String getCaseTaskFormKey(Task task) {
+        return formService.getTaskFormData(task.getId()).getFormKey();
     }
 
     private String getStartFormKey(String processDefinitionId) {

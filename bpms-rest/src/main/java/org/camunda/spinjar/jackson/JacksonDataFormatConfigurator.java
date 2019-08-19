@@ -4,6 +4,7 @@ import org.camunda.bpm.engine.variable.impl.value.FileValueImpl;
 import org.camunda.bpm.engine.variable.value.FileValue;
 import org.camunda.spin.impl.json.jackson.format.JacksonJsonDataFormat;
 import org.camunda.spin.spi.DataFormatConfigurator;
+import spinjar.com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.ws.rs.core.MediaType;
 
@@ -14,7 +15,8 @@ public class JacksonDataFormatConfigurator implements DataFormatConfigurator<Jac
 
     @Override
     public void configure(JacksonJsonDataFormat dataFormat) {
-        if (dataFormat.getName().equals(MediaType.APPLICATION_JSON)) {
+        if (dataFormat.getName().equals(MediaType.APPLICATION_JSON)
+                && dataFormat.getObjectMapper().getClass().equals(spinjar.com.fasterxml.jackson.databind.ObjectMapper.class)) {
             spinjar.com.fasterxml.jackson.databind.ObjectMapper objectMapper = dataFormat.getObjectMapper();
             registerSpinjarFileValueSerializers(objectMapper);
         }
