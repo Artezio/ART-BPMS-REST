@@ -7,6 +7,7 @@ import com.artezio.bpm.validation.VariableValidator;
 import com.artezio.formio.client.FormClient;
 import junitx.framework.ListAssert;
 import junitx.util.PrivateAccessor;
+import org.apache.commons.io.IOUtils;
 import org.camunda.bpm.engine.FormService;
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.RuntimeService;
@@ -17,14 +18,9 @@ import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.runtime.ProcessInstanceQuery;
 import org.camunda.bpm.engine.task.Task;
 import org.camunda.bpm.engine.variable.Variables;
+import org.camunda.bpm.engine.variable.value.FileValue;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
-import org.camunda.bpm.model.bpmn.builder.ProcessBuilder;
-import org.camunda.bpm.model.bpmn.impl.BpmnModelInstanceImpl;
-import org.camunda.bpm.model.bpmn.impl.instance.ProcessImpl;
 import org.camunda.bpm.model.bpmn.instance.Process;
-import org.camunda.bpm.model.xml.impl.instance.DomElementImpl;
-import org.camunda.bpm.model.xml.impl.instance.ModelTypeInstanceContext;
-import org.camunda.bpm.model.xml.instance.ModelElementInstance;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -33,8 +29,6 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockSettings;
-import org.mockito.internal.creation.MockSettingsImpl;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import javax.ws.rs.core.MediaType;
@@ -70,7 +64,7 @@ public class TaskSvcTest extends ServiceTest {
     private FormClient formio;
     @Mock
     private VariablesMapper variablesMapper;
-    @org.easymock.Mock
+    @Mock
     private VariableValidator variableValidator;
 
     @Before
@@ -262,8 +256,8 @@ public class TaskSvcTest extends ServiceTest {
         String fileName2 = "testForm.json";
         File file1 = getFile(fileName1);
         File file2 = getFile(fileName2);
-        Map<String, Object> fileValue1 = getFileValue(file1);
-        Map<String, Object> fileValue2 = getFileValue(file2);
+        Map<String, Object> fileValue1 = getFileAsAttributesMap(file1);
+        Map<String, Object> fileValue2 = getFileAsAttributesMap(file2);
         String formKey = "formKey";
         String expected = "{ \"title\": \"form\", " +
                     "[" +
@@ -276,8 +270,8 @@ public class TaskSvcTest extends ServiceTest {
             put(fileVariableName, fileValues);
         }};
 
-        Map<String, Object> fileValueRepresentation1 = getFileValue(file1);
-        Map<String, Object> fileValueRepresentation2 = getFileValue(file2);
+        Map<String, Object> fileValueRepresentation1 = getFileAsAttributesMap(file1);
+        Map<String, Object> fileValueRepresentation2 = getFileAsAttributesMap(file2);
         List<Map<String, Object>> fileValueRepresentations = asList(fileValueRepresentation1, fileValueRepresentation2);
         ArgumentCaptor<Map<String, Object>> convertedTaskVariablesCaptor = ArgumentCaptor.forClass(Map.class);
 
@@ -346,8 +340,8 @@ public class TaskSvcTest extends ServiceTest {
                 container2VariableName + "/" +
                 fileVariableName + "[?(@.originalName == '" + fileName + "')]";
         File file = getFile(fileName);
-        Map<String, Object> fileValue = getFileValue(file);
-        Map<String, Object> convertedFileValue = getFileValue(file);
+        Map<String, Object> fileValue = getFileAsAttributesMap(file);
+        Map<String, Object> convertedFileValue = getFileAsAttributesMap(file);
         String expected = "taskFormJsonWithoutData";
         ArgumentCaptor<Map<String, Object>> convertedTaskVariablesCaptor = ArgumentCaptor.forClass(Map.class);
 
@@ -568,12 +562,13 @@ public class TaskSvcTest extends ServiceTest {
         String candidateUserId = "candidateUserId";
         List<String> candidateGroups = asList("candidateGroup");
         String callerId = "callerId";
-        Map<String, Object> fileValue = getFileValue(getFile(fileName));
+//        Map<String, Object> fileValue = getFileAsAttributesMap(getFile(fileName));
+        FileValue fileValue = getFileValue(getFile(fileName));
         Map<String, Object> variables = new HashMap<String, Object>() {{
             put(fileVariableName, asList(fileValue));
         }};
-        String mimeType = (String) fileValue.get("type");
-        Response expected = Response.ok(getFileContentFromUrl((String) fileValue.get("url")), MediaType.valueOf(mimeType))
+        String mimeType = fileValue.getMimeType();
+        Response expected = Response.ok(IOUtils.toByteArray(fileValue.getValue()), MediaType.valueOf(mimeType))
                 .header("Content-Disposition", "attachment; filename=" + fileName)
                 .build();
 
@@ -599,7 +594,7 @@ public class TaskSvcTest extends ServiceTest {
         String fileVariableName = "testVar";
         String filePath = containerVariableName + "/" + fileVariableName + "[*]/[?(@.originalName == '" + fileName + "')]";
         Map<String, Object> containerVariable = new HashMap<>();
-        Map<String, Object> fileValue = getFileValue(getFile(fileName));
+        Map<String, Object> fileValue = getFileAsAttributesMap(getFile(fileName));
         containerVariable.put(fileVariableName, asList(fileValue));
         Map<String, Object> variables = new HashMap<>();
         variables.put(containerVariableName, containerVariable);
@@ -629,7 +624,7 @@ public class TaskSvcTest extends ServiceTest {
         String candidateUserId = "candidateUserId";
         List<String> candidateGroups = asList("candidateGroup");
         String callerId = "callerId";
-        Map<String, Object> fileValue = getFileValue(getFile(fileName));
+        Map<String, Object> fileValue = getFileAsAttributesMap(getFile(fileName));
         fileValue.put("type", "");
         Map<String, Object> variables = new HashMap<String, Object>() {{
             put(fileVariableName, asList(fileValue));
@@ -658,7 +653,7 @@ public class TaskSvcTest extends ServiceTest {
         String callerId = "callerId";
         String filename = "file.txt";
         Map<String, Object> variables = new HashMap<String, Object>() {{
-            put(filePath, asList(Variables.fileValue(filename).create()));
+            put(filePath, asList(Variables.fileValue(filename).file(new byte[]{}).create()));
         }};
 
         createTask(taskId, callerId, candidateUserId, candidateGroups);
@@ -679,7 +674,7 @@ public class TaskSvcTest extends ServiceTest {
         String callerId = "callerId";
         String filename = "file.txt";
         Map<String, Object> variables = new HashMap<String, Object>() {{
-            put(filePath, asList(Variables.fileValue(filename).create()));
+            put(filePath, asList(Variables.fileValue(filename).file(new byte[]{}).create()));
         }};
 
         createTask(taskId, callerId, candidateUserId, candidateGroups);
@@ -700,7 +695,7 @@ public class TaskSvcTest extends ServiceTest {
         String callerId = "callerId";
         String filename = "file.txt";
         Map<String, Object> variables = new HashMap<String, Object>() {{
-            put(filePath, asList(Variables.fileValue(filename).create()));
+            put(filePath, asList(Variables.fileValue(filename).file(new byte[]{}).create()));
         }};
 
         createTask(taskId, callerId, candidateUserId, candidateGroups);
@@ -718,7 +713,7 @@ public class TaskSvcTest extends ServiceTest {
         Deployment deployment = createDeployment("tasks", "process-with-assigned-task.bpmn");
         ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("Process_with_assigned_task");
 
-        Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance);
+        Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance.getProcessInstanceId());
 
         assertNotNull(nextAssignedTask);
         assertEquals("Task 1", nextAssignedTask.getName());
@@ -730,7 +725,7 @@ public class TaskSvcTest extends ServiceTest {
         Deployment deployment = createDeployment("tasks", "process-with-two-simultaneous-assigned-tasks.bpmn");
         ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("Process_with_two_simultaneous_assigned_tasks");
 
-        Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance);
+        Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance.getProcessInstanceId());
 
         assertNull(nextAssignedTask);
     }
@@ -741,7 +736,7 @@ public class TaskSvcTest extends ServiceTest {
         Deployment deployment = createDeployment("tasks", "test-process-startable-by-testUser.bpmn");
         ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("testProcessStartableByTestUser");
 
-        Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance);
+        Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance.getProcessInstanceId());
 
         assertNull(nextAssignedTask);
     }

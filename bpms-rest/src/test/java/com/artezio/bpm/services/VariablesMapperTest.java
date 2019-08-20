@@ -1,10 +1,5 @@
 package com.artezio.bpm.services;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import junitx.framework.ListAssert;
 import org.apache.commons.io.IOUtils;
 import org.camunda.bpm.engine.variable.value.FileValue;
@@ -13,6 +8,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.junit.MockitoJUnitRunner;
+import spinjar.com.fasterxml.jackson.databind.JsonNode;
+import spinjar.com.fasterxml.jackson.databind.ObjectMapper;
+import spinjar.com.fasterxml.jackson.databind.node.ArrayNode;
+import spinjar.com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import spinjar.com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,9 +42,6 @@ public class VariablesMapperTest {
 
     @After
     public void tearDown() throws NoSuchFieldException, IllegalAccessException {
-        Field fileComponentsCacheField = VariablesMapper.class.getDeclaredField("FILE_FIELDS_CACHE");
-        fileComponentsCacheField.setAccessible(true);
-        ((Map<Integer, Boolean>) fileComponentsCacheField.get(VariablesMapper.class)).clear();
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.artezio.bpm.services.VariablesMapper;
 import com.artezio.formio.client.auth.AddJwtTokenRequestFilter;
 import com.artezio.formio.client.exceptions.FormNotFoundException;
 import com.artezio.formio.client.exceptions.FormValidationException;
+import com.artezio.formio.client.jackson.ObjectMapperProvider;
 import com.artezio.logging.Log;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,9 +14,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import net.minidev.json.JSONArray;
 import org.apache.commons.text.CaseUtils;
+import org.camunda.bpm.engine.variable.value.FileValue;
+import org.camunda.spinjar.jackson.JacksonDataFormatConfigurator;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
+import spinjar.com.fasterxml.jackson.databind.DeserializationFeature;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -25,6 +29,7 @@ import javax.ws.rs.core.UriBuilder;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -38,13 +43,26 @@ public class FormClient {
     private final static Map<String, JsonNode> FORMS_CACHE = new ConcurrentHashMap<>();
     private final static Map<Integer, JSONArray> SUBMIT_BUTTONS_CACHE = new ConcurrentHashMap<>();
 
-    private static ResteasyClient client = new ResteasyClientBuilder()
-            .connectionPoolSize(10)
-            .register(new AddJwtTokenRequestFilter())
-            .build();
+    private final static Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
+    private static ResteasyClient client;
+
+    private final static spinjar.com.fasterxml.jackson.databind.ObjectMapper MAPPER = new spinjar.com.fasterxml.jackson.databind.ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+    static {
+        JacksonDataFormatConfigurator.registerSpinjarFileValueSerializers(MAPPER);
+        client = new ResteasyClientBuilder()
+                .connectionPoolSize(10)
+                .register(new AddJwtTokenRequestFilter())
+                .register(new ObjectMapperProvider())
+                .build();
+    }
 
     @Inject
     private VariablesMapper variablesMapper;
+
+    public FormClient() {
+    }
 
     @Log(level = CONFIG, beforeExecuteMessage = "Getting definition with data for form '{0}'")
     public String getFormWithData(String formPath, Map<String, Object> variables) {
@@ -54,20 +72,25 @@ public class FormClient {
         return form.toString();
     }
 
-    @Log(level = CONFIG, beforeExecuteMessage = "Uploading form '{0}'")
-    public void uploadFormIfNotExists(String path, String formDefinition) {
+    @Log(level = CONFIG, beforeExecuteMessage = "Uploading form")
+    public void uploadFormIfNotExists(String formDefinition) {
+        String path = null;
         try {
+            path = MAPPER.readTree(formDefinition).get("path").asText();
             uploadForm(formDefinition);
         } catch (BadRequestException bre) {
             // BadRequest is thrown for both cases: 1) form already exists; 2) form definition is invalid
             // Try to load the form. If the form not exists, an exception will be thrown again to show that form definition is invalid
             getFormService().getForm(path, true);
+        } catch (IOException e) {
+            throw new RuntimeException("Error while uploading a form", e);
         }
     }
 
     @Log(level = CONFIG, beforeExecuteMessage = "Performing dry validation and cleanup of form '{0}'")
     public String dryValidationAndCleanup(String formPath, Map<String, Object> variables) {
         try {
+            variables = convertVariablesToFileRepresentations(variables, getFormDefinition(formPath).toString());
             JsonNode data = getFormService()
                     .submission(formPath, false, toFormIoSubmissionData(variables))
                     .get("data");
@@ -96,7 +119,8 @@ public class FormClient {
             } else {
                 return rawResponseBody;
             }
-        } catch (IOException ignored) {}
+        } catch (IOException ignored) {
+        }
         return "";
     }
 
@@ -229,7 +253,7 @@ public class FormClient {
             return wrapSubformDataInObject(data, definition);
         }
         if (data.isArray()) {
-            return wrapSubformDataInArray((ArrayNode)data, definition);
+            return wrapSubformDataInArray((ArrayNode) data, definition);
         }
         return data;
     }
@@ -452,18 +476,18 @@ public class FormClient {
     private ArrayNode getArrayWithWrappedByTypeElements(ArrayNode arrayNode) {
         return JsonNodeFactory.instance.arrayNode().addAll(
                 getStream(arrayNode)
-                .filter(element -> element.has("flat"))
-                .map(element -> {
-                    List<Map.Entry<String, JsonNode>> fields = getFieldsStream(element)
-                            .filter(field -> !field.getKey().equals("type"))
-                            .collect(Collectors.toList());
-                    String documentWrapperName = element.get("type").asText();
-                    element = ((ObjectNode) element).retain("type");
-                    ObjectNode documentWrapper = ((ObjectNode) element).putObject(documentWrapperName);
-                    fields.forEach(field -> documentWrapper.put(field.getKey(), field.getValue()));
-                    return element;
-                })
-                .collect(Collectors.toList()));
+                        .filter(element -> element.has("flat"))
+                        .map(element -> {
+                            List<Map.Entry<String, JsonNode>> fields = getFieldsStream(element)
+                                    .filter(field -> !field.getKey().equals("type"))
+                                    .collect(Collectors.toList());
+                            String documentWrapperName = element.get("type").asText();
+                            element = ((ObjectNode) element).retain("type");
+                            ObjectNode documentWrapper = ((ObjectNode) element).putObject(documentWrapperName);
+                            fields.forEach(field -> documentWrapper.put(field.getKey(), field.getValue()));
+                            return element;
+                        })
+                        .collect(Collectors.toList()));
     }
 
     private Optional<JsonNode> findComponentByKey(String key, List<JsonNode> components) {
@@ -480,5 +504,61 @@ public class FormClient {
         return StreamSupport.stream(Spliterators
                 .spliteratorUnknownSize(element.fields(), Spliterator.ORDERED), false);
     }
+
+    private Map<String, Object> convertVariablesToFileRepresentations(Map<String, Object> taskVariables, String formDefinition) {
+        return convertVariablesToFileRepresentations("", taskVariables, formDefinition);
+    }
+
+    private Map<String, Object> convertVariablesToFileRepresentations(String objectVariableName, Map<String, Object> objectVariableAttributes, String formDefinition) {
+        return objectVariableAttributes.entrySet().stream()
+                .peek(objectAttribute -> {
+                    Object attributeValue = objectVariableAttributes.get(objectAttribute.getKey());
+                    String attributeName = objectAttribute.getKey();
+                    String attributePath = !objectVariableName.isEmpty()
+                            ? objectVariableName + "/" + attributeName
+                            : attributeName;
+                    if (isFileVariable(attributeName, formDefinition)) {
+                        attributeValue = convertVariablesToFileRepresentations(attributeValue);
+                    } else if (isObjectVariable(attributeValue)) {
+                        attributeValue = convertVariablesToFileRepresentations(attributePath, (Map<String, Object>) attributeValue, formDefinition);
+                    } else if (isArrayVariable(attributeValue)) {
+                        attributeValue = ((List<Object>) attributeValue).stream()
+                                .map(objectVariable -> convertVariablesToFileRepresentations(attributePath + "[*]", (Map<String, Object>) objectVariable, formDefinition))
+                                .collect(Collectors.toList());
+                    }
+                    objectAttribute.setValue(attributeValue);
+                })
+                .collect(HashMap::new, (m, e) -> m.put(e.getKey(), objectVariableAttributes.get(e.getKey())), HashMap::putAll);
+    }
+
+    private List<FileValue> convertVariablesToFileRepresentations(Object fileVariableValue) {
+        return ((List<Map<String, Object>>) fileVariableValue).stream()
+                .map(this::toFileValue)
+                .collect(Collectors.toList());
+    }
+
+    private FileValue toFileValue(Map<String, Object> attributes) {
+        try {
+            String attributesJson = MAPPER.writeValueAsString(attributes);
+            return MAPPER.readValue(attributesJson, FileValue.class);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not deserialize FileValue", e);
+        }
+    }
+
+    private boolean isFileVariable(String variableName, String formDefinition) {
+        Function<String, JSONArray> fileFieldSearch = key -> JsonPath.read(formDefinition, String.format("$..[?(@.type == 'file' && @.key == '%s')]", variableName));
+        JSONArray fileField = FILE_FIELDS_CACHE.computeIfAbsent(formDefinition + "." + variableName, fileFieldSearch);
+        return !fileField.isEmpty();
+    }
+
+    private boolean isArrayVariable(Object variableValue) {
+        return variableValue instanceof List;
+    }
+
+    private boolean isObjectVariable(Object variableValue) {
+        return variableValue instanceof Map;
+    }
+
 
 }

@@ -1,8 +1,7 @@
 package com.artezio.bpm.services;
 
 import com.artezio.logging.Log;
-import com.jayway.jsonpath.JsonPath;
-import net.minidev.json.JSONArray;
+import org.camunda.spinjar.jackson.JacksonDataFormatConfigurator;
 import spinjar.com.fasterxml.jackson.databind.DeserializationFeature;
 import spinjar.com.fasterxml.jackson.databind.JsonNode;
 import spinjar.com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,8 +10,6 @@ import javax.inject.Named;
 import java.io.IOException;
 import java.util.AbstractMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.artezio.logging.Log.Level.CONFIG;
@@ -21,21 +18,18 @@ import static com.artezio.logging.Log.Level.CONFIG;
 public class VariablesMapper {
 
     public final static String EXTENSION_NAME_PREFIX = "entity.";
-    private final static Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
 
     private final static ObjectMapper MAPPER = new ObjectMapper()
-        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+    static {
+        JacksonDataFormatConfigurator.registerSpinjarFileValueSerializers(MAPPER);
+    }
 
     @Log(level = CONFIG, beforeExecuteMessage = "Updating process variables")
     public void updateVariables(Map<String, Object> existedVariables, String inputVarsJson) throws IOException {
         MAPPER.readTree(inputVarsJson).fields()
                 .forEachRemaining(inputField -> updateVariable(inputField, existedVariables));
-    }
-
-    public boolean isFileVariable(String variableName, String formDefinition) {
-        Function<String, JSONArray> fileFieldSearch = key -> JsonPath.read(formDefinition, String.format("$..[?(@.type == 'file' && @.key == '%s')]", variableName));
-        JSONArray fileField = FILE_FIELDS_CACHE.computeIfAbsent(formDefinition + "." + variableName, fileFieldSearch);
-        return !fileField.isEmpty();
     }
 
     public Map<String, Object> convertEntitiesToMaps(Map<String, Object> variables) {

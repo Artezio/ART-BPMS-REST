@@ -5,7 +5,6 @@ import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.bpm.services.integration.FileStorage;
 import com.artezio.bpm.services.integration.cdi.ConcreteImplementation;
-import com.artezio.bpm.utils.Base64Utils;
 import com.artezio.bpm.validation.VariableValidator;
 import com.artezio.formio.client.exceptions.FormNotFoundException;
 import com.artezio.logging.Log;
@@ -13,10 +12,8 @@ import com.jayway.jsonpath.JsonPath;
 import io.swagger.v3.oas.annotations.Operation;
 import net.minidev.json.JSONArray;
 import org.apache.commons.lang3.StringUtils;
-import org.camunda.bpm.engine.FormService;
-import org.camunda.bpm.engine.RepositoryService;
-import org.camunda.bpm.engine.RuntimeService;
-import org.camunda.bpm.engine.TaskService;
+import org.camunda.bpm.engine.*;
+import org.camunda.bpm.engine.runtime.CaseExecution;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.task.Task;
 import org.camunda.bpm.engine.variable.VariableMap;
@@ -36,11 +33,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.artezio.bpm.services.VariablesMapper.EXTENSION_NAME_PREFIX;
@@ -54,7 +47,6 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 public class TaskSvc {
 
     private static final String SUBMISSION_STATE_VARIABLE_NAME = "state";
-    private static final String FILE_STORAGE_URL = System.getenv("FILE_STORAGE_URL");
 
     @Inject
     private TaskService taskService;
@@ -67,8 +59,11 @@ public class TaskSvc {
     @Inject
     private VariablesMapper variablesMapper;
     @Inject
+    private CaseService caseService;
+    @Inject
     private RuntimeService runtimeService;
-    @Inject @ConcreteImplementation
+    @Inject
+    @ConcreteImplementation
     private FileStorage fileStorage;
     @Inject
     private RepositoryService repositoryService;
@@ -158,26 +153,32 @@ public class TaskSvc {
     @Log(level = CONFIG, beforeExecuteMessage = "Completing task '{0}'", afterExecuteMessage = "Task '{0}' successfully completed")
     public TaskRepresentation complete(@PathParam("task-id") @Valid @NotNull String taskId,
                                        Map<String, Object> inputVariables) throws IOException, FormNotFoundException {
+        Task task = taskService.createTaskQuery()
+                .taskId(taskId)
+                .singleResult();
         ensureAssigned(taskId);
         String submissionState = (String) inputVariables.get(SUBMISSION_STATE_VARIABLE_NAME);
         inputVariables = !skipValidation(taskId, submissionState)
                 ? validateAndMergeToTaskVariables(inputVariables, taskId)
                 : new HashMap<>();
-        inputVariables = convertVariablesToFileRepresentations(inputVariables, taskId);
         inputVariables.put(SUBMISSION_STATE_VARIABLE_NAME, submissionState);
-        ProcessInstance processInstance = getProcessInstance(taskId);
-        Map<String, String> processExtensions = getProcessExtensions(taskId);
+        Map<String, String> processExtensions = (task.getProcessDefinitionId() != null)
+                ? getProcessExtensions(taskId)
+                : Collections.emptyMap();
         inputVariables = variablesMapper.convertVariablesToEntities(inputVariables, processExtensions);
         variableValidator.validate(inputVariables);
         taskService.complete(taskId, inputVariables);
-        return TaskRepresentation.fromEntity(getNextAssignedTask(processInstance));
+        Task nextAssignedTask = task.getProcessDefinitionId() != null
+                ? getNextAssignedTask(task.getProcessInstanceId())
+                : getNextAssignedTask(getCaseExecution(task));
+        return TaskRepresentation.fromEntity(nextAssignedTask);
     }
 
     @PermitAll
-    @Log(level = CONFIG, beforeExecuteMessage = "Getting next assigned task")
-    public Task getNextAssignedTask(ProcessInstance processInstance) {
+    @Log(level = CONFIG, beforeExecuteMessage = "Getting next assigned task for process instance")
+    public Task getNextAssignedTask(String processInstanceId) {
         List<Task> assignedTasks = taskService.createTaskQuery()
-                .processInstanceId(processInstance.getId())
+                .processInstanceId(processInstanceId)
                 .taskAssignee(identityService.userId())
                 .list();
         return assignedTasks.size() == 1
@@ -185,13 +186,27 @@ public class TaskSvc {
                 : null;
     }
 
-    protected ProcessInstance getProcessInstance(String taskId) {
-        String processInstanceId = taskService.createTaskQuery()
-                .taskId(taskId)
-                .singleResult()
-                .getProcessInstanceId();
+    @PermitAll
+    @Log(level = CONFIG, beforeExecuteMessage = "Getting next assigned task for case execution")
+    public Task getNextAssignedTask(CaseExecution caseExecution) {
+        List<Task> assignedTasks = taskService.createTaskQuery()
+                .caseInstanceId(caseExecution.getCaseInstanceId())
+                .taskAssignee(identityService.userId())
+                .list();
+        return assignedTasks.size() == 1
+                ? assignedTasks.get(0)
+                : null;
+    }
+
+    protected ProcessInstance getProcessInstance(Task task) {
         return runtimeService.createProcessInstanceQuery()
-                .processInstanceId(processInstanceId)
+                .processInstanceId(task.getProcessInstanceId())
+                .singleResult();
+    }
+
+    protected CaseExecution getCaseExecution(Task task) {
+        return caseService.createCaseExecutionQuery()
+                .caseInstanceId(task.getCaseInstanceId())
                 .singleResult();
     }
 
@@ -218,9 +233,9 @@ public class TaskSvc {
         ExtensionElements extensionElements = processElement.getExtensionElements();
         return extensionElements != null
                 ? extensionElements.getElements().stream()
-                    .flatMap(extensionElement -> ((CamundaProperties) extensionElement).getCamundaProperties().stream())
-                    .filter(extension -> extension.getCamundaName().startsWith(EXTENSION_NAME_PREFIX))
-                    .collect(Collectors.toMap(CamundaProperty::getCamundaName, CamundaProperty::getCamundaValue))
+                .flatMap(extensionElement -> ((CamundaProperties) extensionElement).getCamundaProperties().stream())
+                .filter(extension -> extension.getCamundaName().startsWith(EXTENSION_NAME_PREFIX))
+                .collect(Collectors.toMap(CamundaProperty::getCamundaName, CamundaProperty::getCamundaValue))
                 : emptyMap();
     }
 
@@ -241,7 +256,7 @@ public class TaskSvc {
     }
 
     private byte[] decodeFromBase64(String encodedString) {
-        return Base64.getDecoder().decode(encodedString);
+        return Base64.getMimeDecoder().decode(encodedString);
     }
 
     private String cleanUpVariableName(String variableName) {
@@ -252,72 +267,10 @@ public class TaskSvc {
         return formService.shouldSkipValidation(taskId, submissionState);
     }
 
-    private Map<String, Object> convertVariablesToFileRepresentations(Map<String, Object> taskVariables, String taskId) {
-        return convertVariablesToFileRepresentations("", taskVariables, taskId);
-    }
-
-    private Map<String, Object> convertVariablesToFileRepresentations(String objectVariableName, Map<String, Object> objectVariableAttributes, String taskId) {
-        return objectVariableAttributes.entrySet().stream()
-                .peek(objectAttribute -> {
-                    Object attributeValue = objectVariableAttributes.get(objectAttribute.getKey());
-                    String attributeName = objectAttribute.getKey();
-                    String attributePath = !objectVariableName.isEmpty()
-                            ? objectVariableName + "/" + attributeName
-                            : attributeName;
-                    if (isFileVariable(attributeName, taskId)) {
-                        attributeValue = convertVariablesToFileRepresentations(attributeValue);
-                    } else if (isObjectVariable(attributeValue)) {
-                        attributeValue = convertVariablesToFileRepresentations(attributePath, (Map<String, Object>) attributeValue, taskId);
-                    } else if (isArrayVariable(attributeValue)) {
-                        attributeValue = ((List<Object>) attributeValue).stream()
-                                .map(objectVariable -> convertVariablesToFileRepresentations(attributePath + "[*]", (Map<String, Object>) objectVariable, taskId))
-                                .collect(Collectors.toList());
-                    }
-                    objectAttribute.setValue(attributeValue);
-                })
-                .collect(HashMap::new, (m, e) -> m.put(e.getKey(), objectVariableAttributes.get(e.getKey())), HashMap::putAll);
-    }
-
-    private List<Map<String, Object>> convertVariablesToFileRepresentations(Object fileVariableValue) {
-        return ((List<Map<String, Object>>) fileVariableValue).stream()
-                .map(this::storeFileInFileStorageIfNeeded)
-                .collect(Collectors.toList());
-    }
-
-    private Map<String, Object> storeFileInFileStorageIfNeeded(Map<String, Object> fileAttributes) {
-        String url = (String)fileAttributes.get("url");
-        return Base64Utils.isBase64DataUrl(url)
-                ? storeFileInFileStorage(fileAttributes)
-                : fileAttributes;
-    }
-
-    private Map<String, Object> storeFileInFileStorage(Map<String, Object> fileAttributes) {
-        Map<String, Object> storedFileAttributes = new HashMap<>(fileAttributes);
-        try (InputStream dataStream = Base64Utils.getData((String)fileAttributes.get("url"))) {
-            String fileId = fileStorage.store(dataStream);
-            storedFileAttributes.put("url", fileId);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to store the file in the storage", e);
-        }
-        storedFileAttributes.put("storage", "url");
-        return storedFileAttributes;
-    }
-
-    private boolean isFileVariable(String variableName, String taskId) {
-        return variablesMapper.isFileVariable(variableName, formService.getTaskFormDefinition(taskId));
-    }
-
-    private boolean isArrayVariable(Object variableValue) {
-        return variableValue instanceof List;
-    }
-
-    private boolean isObjectVariable(Object variableValue) {
-        return variableValue instanceof Map;
-    }
 
     private Map<String, Object> validateAndMergeToTaskVariables(Map<String, Object> inputVariables, String taskId)
             throws IOException, FormNotFoundException {
-        String formKey =  camundaFormService.getTaskFormData(taskId).getFormKey();
+        String formKey = camundaFormService.getTaskFormData(taskId).getFormKey();
         if (formKey != null) {
             String cleanDataJson = formService.dryValidationAndCleanupTaskForm(taskId, inputVariables);
             Map<String, Object> taskVariables = taskService.getVariables(taskId);

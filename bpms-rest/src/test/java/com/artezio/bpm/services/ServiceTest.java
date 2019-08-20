@@ -12,6 +12,7 @@ import org.camunda.bpm.engine.repository.Deployment;
 import org.camunda.bpm.engine.repository.DeploymentBuilder;
 import org.camunda.bpm.engine.task.Task;
 import org.camunda.bpm.engine.test.ProcessEngineRule;
+import org.camunda.bpm.engine.variable.impl.value.builder.FileValueBuilderImpl;
 import org.camunda.bpm.engine.variable.value.FileValue;
 import org.junit.Rule;
 
@@ -19,6 +20,7 @@ import javax.ws.rs.core.Response;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.Base64;
 import java.util.HashMap;
@@ -154,10 +156,10 @@ abstract public class ServiceTest {
         return objectMapper.writeValueAsString(fileValue);
     }
 
-    Map<String, Object> getFileValue(File file) throws IOException {
+    Map<String, Object> getFileAsAttributesMap(File file) throws IOException {
         String mimeType = Files.probeContentType(file.toPath());
         byte[] fileContent = Files.readAllBytes(file.toPath());
-        String base64EncodedFileContent = Base64.getEncoder().encodeToString(fileContent);
+        String base64EncodedFileContent = Base64.getMimeEncoder().encodeToString(fileContent);
         Map<String, Object> fileValue = new HashMap<>();
         fileValue.put("name", file.getName());
         fileValue.put("originalName", file.getName());
@@ -167,6 +169,15 @@ abstract public class ServiceTest {
         fileValue.put("url", "data:" + mimeType + ";base64," + base64EncodedFileContent);
 
         return fileValue;
+    }
+
+    FileValue getFileValue(File file) throws IOException {
+        String mimeType = Files.probeContentType(file.toPath());
+        byte[] fileContent = Files.readAllBytes(file.toPath());
+        return new FileValueBuilderImpl(file.getName())
+                .encoding(Charset.forName("UTF-8"))
+                .mimeType(mimeType)
+                .file(fileContent).create();
     }
 
     byte[] getFileContentFromUrl(String url) {
@@ -179,7 +190,7 @@ abstract public class ServiceTest {
     }
 
     byte[] decodeFromBase64(String encodedString) {
-        return Base64.getDecoder().decode(encodedString);
+        return Base64.getMimeDecoder().decode(encodedString);
     }
 
 }
