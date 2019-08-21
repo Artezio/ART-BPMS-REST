@@ -1,4 +1,4 @@
-package org.camunda.el;
+package com.artezio.camunda.el;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

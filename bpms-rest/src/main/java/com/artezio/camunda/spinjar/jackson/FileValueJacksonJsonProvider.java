@@ -1,4 +1,4 @@
-package org.camunda.spinjar.jackson;
+package com.artezio.camunda.spinjar.jackson;
 
 import spinjar.com.fasterxml.jackson.databind.ObjectMapper;
 import spinjar.com.jayway.jsonpath.spi.json.JacksonJsonProvider;

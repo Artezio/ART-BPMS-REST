@@ -8,12 +8,12 @@ import org.camunda.bpm.engine.variable.value.FileValue;
 
 import java.io.IOException;
 
-import static org.camunda.spinjar.jackson.FileValueSerializer.*;
+import static com.artezio.camunda.spinjar.jackson.FileValueSerializer.*;
 
 public class FileValueSerializer<T extends FileValue> extends StdSerializer<T> {
 
-    public FileValueSerializer(Class<T> t) {
-        super(t);
+    public FileValueSerializer(Class<T> exactClass) {
+        super(exactClass);
     }
 
     @Override

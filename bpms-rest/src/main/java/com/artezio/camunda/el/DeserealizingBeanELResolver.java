@@ -1,4 +1,4 @@
-package org.camunda.el;
+package com.artezio.camunda.el;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,7 +12,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 
-public class DeserealizingBeanELResolver extends BeanELResolver  {
+public class DeserealizingBeanELResolver extends BeanELResolver {
     private final static ObjectMapper OBJECT_MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 

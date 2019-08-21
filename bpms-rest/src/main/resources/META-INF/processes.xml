@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <process-application xmlns="http://www.camunda.org/schema/1.0/ProcessApplication">
     <process-engine name="default">
-        <configuration>org.camunda.config.JtaProcessConfiguration</configuration>
+        <configuration>com.artezio.camunda.config.JtaProcessConfiguration</configuration>
         <datasource>java:/datasources/CamundaDS</datasource>
         <properties>
             <property name="databaseSchemaUpdate">true</property>

@@ -52,10 +52,10 @@ public class FormDeployer {
             return uploadNestedForm(definition);
         }
         if (definition.isArray()) {
-            return uploadNestedForms((ArrayNode)definition);
+            return uploadNestedForms((ArrayNode) definition);
         }
         if (definition.isObject()) {
-            return uploadNestedForms((ObjectNode)definition);
+            return uploadNestedForms((ObjectNode) definition);
         }
         return definition;
     }
@@ -64,7 +64,7 @@ public class FormDeployer {
         node = node.deepCopy();
         List<String> fieldNames = new ArrayList<>();
         node.fieldNames().forEachRemaining(fieldNames::add);
-        for (String fieldName: fieldNames) {
+        for (String fieldName : fieldNames) {
             JsonNode nodeWithReplacedIds = uploadNestedForms(node.get(fieldName));
             node.set(fieldName, nodeWithReplacedIds);
         }
@@ -119,7 +119,7 @@ public class FormDeployer {
             if (objectNode.isContainerNode()) {
                 List<String> fieldNames = new ArrayList<>();
                 node.fieldNames().forEachRemaining(fieldNames::add);
-                for (String fieldName: fieldNames) {
+                for (String fieldName : fieldNames) {
                     JsonNode nodeWithDisabledFields = disableAllFields(node.get(fieldName));
                     objectNode.set(fieldName, nodeWithDisabledFields);
                 }

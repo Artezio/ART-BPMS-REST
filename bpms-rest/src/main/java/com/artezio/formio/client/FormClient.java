@@ -15,7 +15,7 @@ import com.jayway.jsonpath.JsonPath;
 import net.minidev.json.JSONArray;
 import org.apache.commons.text.CaseUtils;
 import org.camunda.bpm.engine.variable.value.FileValue;
-import org.camunda.spinjar.jackson.JacksonDataFormatConfigurator;
+import com.artezio.camunda.spinjar.jackson.JacksonDataFormatConfigurator;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;

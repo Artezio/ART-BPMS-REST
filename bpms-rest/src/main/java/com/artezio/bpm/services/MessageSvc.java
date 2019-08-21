@@ -56,7 +56,7 @@ public class MessageSvc {
                 resultRepresentations.add(MessageCorrelationResultRepresentation.fromMessageCorrelationResult(result));
             } else {
                 correlation.correlateAllWithResult().forEach(messageCorrelationResult ->
-                    resultRepresentations.add(MessageCorrelationResultRepresentation.fromMessageCorrelationResult(messageCorrelationResult)));
+                        resultRepresentations.add(MessageCorrelationResultRepresentation.fromMessageCorrelationResult(messageCorrelationResult)));
             }
         } catch (RestException e) {
             String errorMessage = String.format("Cannot deliver message: %s", e.getMessage());

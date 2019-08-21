@@ -1,7 +1,7 @@
 package com.artezio.bpm.services;
 
+import com.artezio.camunda.spinjar.jackson.JacksonDataFormatConfigurator;
 import com.artezio.logging.Log;
-import org.camunda.spinjar.jackson.JacksonDataFormatConfigurator;
 import spinjar.com.fasterxml.jackson.databind.DeserializationFeature;
 import spinjar.com.fasterxml.jackson.databind.JsonNode;
 import spinjar.com.fasterxml.jackson.databind.ObjectMapper;
