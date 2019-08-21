@@ -1,4 +1,4 @@
-package org.camunda.spinjar.jackson;
+package com.artezio.camunda.spinjar.jackson;
 
 import com.artezio.bpm.services.integration.FileStorage;
 import com.artezio.bpm.services.integration.cdi.ConcreteImplementation;
@@ -18,8 +18,8 @@ import java.nio.charset.Charset;
 
 public class FileValueDeserializer <T extends FileValue> extends StdDeserializer<T> {
 
-    public FileValueDeserializer(Class<?> vc) {
-        super(vc);
+    public FileValueDeserializer(Class<?> exactClass) {
+        super(exactClass);
     }
 
     @Override

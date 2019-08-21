@@ -1,17 +1,16 @@
 package com.artezio.bpm.services;
 
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import org.keycloak.KeycloakPrincipal;
+import org.keycloak.KeycloakSecurityContext;
 
 import javax.annotation.Resource;
 import javax.ejb.SessionContext;
 import javax.ejb.Stateless;
 import javax.inject.Inject;
-
-import org.keycloak.KeycloakPrincipal;
-import org.keycloak.KeycloakSecurityContext;
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 @Stateless
 public class IdentitySvc {

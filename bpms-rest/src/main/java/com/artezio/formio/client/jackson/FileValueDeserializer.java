@@ -7,16 +7,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.camunda.bpm.engine.variable.impl.value.builder.FileValueBuilderImpl;
 import org.camunda.bpm.engine.variable.value.FileValue;
-import org.camunda.spinjar.jackson.MediaType;
+import com.artezio.camunda.spinjar.jackson.MediaType;
 
 import java.io.IOException;
 
-import static org.camunda.spinjar.jackson.FileValueDeserializer.getFileContent;
+import static com.artezio.camunda.spinjar.jackson.FileValueDeserializer.getFileContent;
 
 public class FileValueDeserializer<T extends FileValue> extends StdDeserializer<T> {
 
-    public FileValueDeserializer(Class<?> valueClass) {
-        super(valueClass);
+    public FileValueDeserializer(Class<?> exactClass) {
+        super(exactClass);
     }
 
     @Override

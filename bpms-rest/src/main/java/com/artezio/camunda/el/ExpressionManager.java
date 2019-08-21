@@ -1,4 +1,4 @@
-package org.camunda.el;
+package com.artezio.camunda.el;
 
 import org.camunda.bpm.engine.impl.javax.el.CompositeELResolver;
 import org.camunda.bpm.engine.impl.javax.el.ELResolver;

@@ -1,4 +1,4 @@
-package org.camunda.spinjar.jackson;
+package com.artezio.camunda.spinjar.jackson;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.tika.Tika;
@@ -17,8 +17,8 @@ public class FileValueSerializer<T extends FileValue> extends StdSerializer<T> {
 
     private static final String FILE_STORAGE_URL = System.getenv("FILE_STORAGE_URL");
 
-    public FileValueSerializer(Class<T> t) {
-        super(t);
+    public FileValueSerializer(Class<T> exactClass) {
+        super(exactClass);
     }
 
     @Override
@@ -54,7 +54,7 @@ public class FileValueSerializer<T extends FileValue> extends StdSerializer<T> {
 
     public static boolean isExternalFile(FileValue fileValue) {
         return Optional.ofNullable(fileValue.getMimeType())
-                .map(mimeType -> mimeType.startsWith(org.camunda.spinjar.jackson.MediaType.BPM_FILE_VALUE))
+                .map(mimeType -> mimeType.startsWith(com.artezio.camunda.spinjar.jackson.MediaType.BPM_FILE_VALUE))
                 .orElse(false);
     }
 

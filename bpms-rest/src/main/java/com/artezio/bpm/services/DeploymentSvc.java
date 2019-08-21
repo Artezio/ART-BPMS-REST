@@ -68,7 +68,7 @@ public class DeploymentSvc {
     public String getForm(String formId) {
         Deployment latestDeployment = getLatestDeployment();
         formId = !formId.endsWith(".json") ? formId.concat(".json") : formId;
-        try(InputStream in = repositoryService.getResourceAsStream(latestDeployment.getId(), formId)){
+        try (InputStream in = repositoryService.getResourceAsStream(latestDeployment.getId(), formId)) {
             return IOUtils.toString(in, Charsets.UTF_8);
         } catch (IOException e) {
             throw new RuntimeException("Error on load form " + formId, e);

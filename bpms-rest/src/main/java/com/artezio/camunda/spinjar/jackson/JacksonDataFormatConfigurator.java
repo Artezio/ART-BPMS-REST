@@ -1,10 +1,9 @@
-package org.camunda.spinjar.jackson;
+package com.artezio.camunda.spinjar.jackson;
 
 import org.camunda.bpm.engine.variable.impl.value.FileValueImpl;
 import org.camunda.bpm.engine.variable.value.FileValue;
 import org.camunda.spin.impl.json.jackson.format.JacksonJsonDataFormat;
 import org.camunda.spin.spi.DataFormatConfigurator;
-import spinjar.com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.ws.rs.core.MediaType;
 
@@ -24,10 +23,10 @@ public class JacksonDataFormatConfigurator implements DataFormatConfigurator<Jac
 
     public static void registerSpinjarFileValueSerializers(spinjar.com.fasterxml.jackson.databind.ObjectMapper mapper) {
         spinjar.com.fasterxml.jackson.databind.module.SimpleModule module = new spinjar.com.fasterxml.jackson.databind.module.SimpleModule();
-        module.addSerializer(FileValue.class, new org.camunda.spinjar.jackson.FileValueSerializer<>(FileValue.class));
-        module.addSerializer(FileValueImpl.class, new org.camunda.spinjar.jackson.FileValueSerializer<>(FileValueImpl.class));
-        module.addDeserializer(FileValue.class, new org.camunda.spinjar.jackson.FileValueDeserializer<>(FileValue.class));
-        module.addDeserializer(FileValueImpl.class, new org.camunda.spinjar.jackson.FileValueDeserializer<>(FileValueImpl.class));
+        module.addSerializer(FileValue.class, new com.artezio.camunda.spinjar.jackson.FileValueSerializer<>(FileValue.class));
+        module.addSerializer(FileValueImpl.class, new com.artezio.camunda.spinjar.jackson.FileValueSerializer<>(FileValueImpl.class));
+        module.addDeserializer(FileValue.class, new com.artezio.camunda.spinjar.jackson.FileValueDeserializer<>(FileValue.class));
+        module.addDeserializer(FileValueImpl.class, new com.artezio.camunda.spinjar.jackson.FileValueDeserializer<>(FileValueImpl.class));
         mapper.registerModule(module);
     }
 
