@@ -1,6 +1,7 @@
 package com.artezio.bpm.services;
 
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
+import com.artezio.bpm.startup.FormDeployer;
 import com.artezio.logging.Log;
 import com.google.common.base.Charsets;
 import org.apache.commons.io.IOUtils;
@@ -33,6 +34,8 @@ public class DeploymentSvc {
     private static final String FORMS_FOLDER = "forms/";
     @Inject
     private RepositoryService repositoryService;
+    @Inject
+    private FormDeployer formDeployer;
 
     @RolesAllowed("BPMSAdmin")
     @POST
@@ -50,6 +53,7 @@ public class DeploymentSvc {
                 .stream()
                 .forEach(entry -> deploymentBuilder.addInputStream(entry.getKey(), entry.getValue()));
         Deployment deployment = deploymentBuilder.deploy();
+        formDeployer.uploadForms();
         return DeploymentRepresentation.fromDeployment(deployment);
     }
 

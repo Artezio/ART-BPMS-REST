@@ -51,7 +51,6 @@
 			<groupId>com.artezio.logging</groupId>
 			<artifactId>logger</artifactId>
 			<version>1.0</version>
-			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>com.jayway.jsonpath</groupId>
@@ -111,7 +110,6 @@
 		<dependency>
 			<groupId>com.fasterxml.uuid</groupId>
 			<artifactId>java-uuid-generator</artifactId>
-			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
