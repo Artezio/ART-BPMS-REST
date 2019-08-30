@@ -294,13 +294,13 @@ The following environment variables can be set:
 * `FILE_STORAGE_URL`: file storage URL for custom file storage implementations. By default, files are stored inside Base64 Data Urls.
 
 ### Formio-related corner-cases
-* `state` - property included in submission and then passed to process variables. It allows to determine submission state for further
+* Each submission `state` property is included in data and then passed to process variables. It allows to determine submission state for further
 control over process execution. Accepts any `String` value. Example: suppose we have `submitted` and `rejected` states, so
-they may be considered as 'continue process' and 'suspend process' actions 
-* `protected` - attribute on a subform. When this is `true`, all subform fields become disabled. Used to display read-only subforms
-* after submitting all files are converted into Camunda `org.camunda.bpm.engine.variable.value.FileValue`, and their `url` fields are
-set to point to file id in the file storage. Default file storage is "The 'data' in URL". See [File Storage](#file-storage) 
-for more information about the storages
+they may be considered as 'continue process' and 'suspend process' actions, and two buttons may reside on the form to set one or another state 
+* `protected` attribute of a subform included in a parent form is treated as follows. When this attribute is set `true`, all subform fields become disabled. This attribute should be used to make entire subforms read-only
+* After submitting all files are converted into Camunda `org.camunda.bpm.engine.variable.value.FileValue`, and their `url` fields are
+set to point to file id in the file storage. Default file storage is base64 url. See [File Storage](#file-storage) 
+for more information about the storage
 
 ## File Storage
 By default all files are encoded in Base64 and stored in Camunda database as base64 data urls ([RFC 2397](https://tools.ietf.org/html/rfc2397)). 
