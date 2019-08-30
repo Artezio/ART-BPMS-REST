@@ -1,8 +1,8 @@
 ##Formio server Dockerfile
 
-This Dockerfile is used to build Docker image with Formio server modified for supporting Dry validation and Cleanup features needed to run ART-BPMS
+This Dockerfile is used for building Docker image with Formio server modified for supporting Dry validation and Cleanup features needed to run ART-BPMS
 
-MongoDB container is started with Formio server. If required, external MongoDB server could be used by setting corresponding [environment variable](#environment-variables)
+When using docker-compose, MongoDB is also started. If required, external MongoDB server could be used by setting corresponding [environment variable](#environment-variables)
 
 ### Prerequisites
 
