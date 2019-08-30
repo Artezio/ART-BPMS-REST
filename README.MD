@@ -21,7 +21,7 @@ Forms are designed using Formio node.js application, stored in Camunda deploymen
 
 ---
 
-#### Features
+## Features
 * Simple integration of User tasks and forms: task form keys are direct references to Formio forms
 * Robust Data validation using both Formio and java validation
 * File uploading from Formio to Camunda, which can be customized or externalized by providing custom FileStorage implementations 
