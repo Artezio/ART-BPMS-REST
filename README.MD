@@ -35,7 +35,7 @@ ART-BPMS-REST uses Formio node.js servers for storing and validating user forms.
 Two Formio servers are required to use this module - Development server and Work server. 
 
 The development server is used by forms designers for constructing forms. 
-These forms are then downloaded using [formio-io-tool](https://github.com/artezio/) and deployed to Camunda along with BPMN diagrams. 
+These forms are then downloaded using [formio-import-export-tool](https://github.com/artezio/) and deployed to Camunda along with BPMN diagrams. 
 When the deployment is made, these forms are automatically versioned and uploaded to the work server. 
 ART-BPMS-REST then uses the work server to load forms and validate submitted data.
 
@@ -74,7 +74,7 @@ ART-BMS-REST could be run either as a standalone application or as part of EAR d
 
 1. Deploy `bpms-rest.war` from `ART-BPMS-REST/target` directory to the server
 
-1. REST API description is available at `http://localhost:8080/bpms-rest`
+1. REST API description is available at http://localhost:8080/bpms-rest
 
 1. Refer to [Working with forms](#working-with-forms) section for details on how to deploy and use forms
 
@@ -154,13 +154,13 @@ Work server is used by ART-BPMS-REST for uploading and storing versioned copies 
 
 Overall, the workflow looks like this:
 1. Construct forms using Development Formio server
-1. Download forms from Development Formio server using formio-io-tool and put forms into Camunda deployment along with other resources, such as BPMN diagrams
+1. Download forms from Development Formio server using formio-import-export-tool and put forms into Camunda deployment along with other resources, such as BPMN diagrams
 1. Set process start form key if necessary
 1. Add BPMN User Tasks with form keys pointing to constructed forms
 1. Deploy process with forms into Camunda
 1. Start the process using the BPMS-REST by either submitting a start form or starting the process without the start form
 1. Request and submit task forms using BPMS-REST
-1. If a form requires updating and the form versioning is enabled, make changes to the form, download the form with form-io-tool and make a deployment with the updated form. Processes started from this point will use the updated version of the form.
+1. If a form requires updating and the form versioning is enabled, make changes to the form, download the form with formio-import-export-tool and make a deployment with the updated form. Processes started from this point will use the updated version of the form.
 
 #### Forms versioning
 
@@ -223,8 +223,8 @@ Process variable `userInfo` will be stored as class `com.artezio.bpm.model.UserI
 
 1. You can also use forms for starting the process. To do this, specify form key with deployment prefix in a Start Event, e.g. `deployment:forms/user/personal-information`
 
-1. Run formio-io-tool. Set connection params, credentials and output directory for forms. If you specify any tags, only forms with those tags will be downloaded.   
-   > formio-io-tool can be executed in GUI mode or as command-line utility. Start it with -h argument to get command-line mode help
+1. Run formio-import-export-tool. Set connection params, credentials and output directory for forms. If you specify any tags, only forms with those tags will be downloaded.   
+   > formio-import-export-tool can be executed in GUI mode or as command-line utility. Start it with -h argument to get command-line mode help
    
    Forms will be downloaded into the specified directory and put into corresponding subdirectories
    
@@ -305,56 +305,21 @@ for more information about the storages
 ## File Storage
 By default all files are encoded in Base64 and stored in Camunda database as base64 data urls ([RFC 2397](https://tools.ietf.org/html/rfc2397)). 
 It's possible to add a custom FileStorage implementation to store files anywhere else, including filesystem, external FTP server, etc. It could be done by implementing 
-`com.artezio.bpm.services.integration.FileStorage` interface and make it a CDI bean visible to BPMS-REST module. Only one such implementation is allowed on the classpath. 
+`com.artezio.bpm.services.integration.FileStorage` interface and making it a CDI bean visible to BPMS-REST module. Only one such implementation is allowed on the classpath. 
 
-When a file gets serialized into Camunda's engine, FileStorage implementation will be called to store the file. 
-When a file gets deserialized from Camunda's engine, FileStorage implementation will be called to retrieve the file.  
+When a file gets deserialized into Camunda's engine, FileStorage implementation will be called to store the file. 
+When a file gets serialized from Camunda's engine, FileStorage implementation will be called to retrieve the file.  
 
 ## Running Formio server
 
-To run the Development server, install Formio NodeJS server using the instructions at [Formio github page](https://github.com/formio/formio#manual-installation-node--mongodb) and run. Navigate to http://localhost:3001 to open Forms designer 
+The simplest way of running Formio server is to run our Formio Docker image from `/formio` subdirectory
 
-To run the Work server, some modifications are required to enable Dry Validation features. The installation sequence is the same as for Development server, but after downloading the repository and before starting the server, you would need to make some changes in Formio sources:
+See [Formio Docker readme](formio/README.MD) to use our Formio Docker image
 
-1. Navigate to Formio installation directory
-2. Open file src/middleware/submissionHandler.js
-3. Find the function `validateSubmission`:
-    ```
-        function validateSubmissionreq, res, done) {
-           ...
-    ```
-4. Find the lines where the validator is invoked:
-    ```
-        // Validate the request.
-        validator.validate(req.body, (err, submission) => {
-          if (err) {
-            return res.status(400).json(err);
-          }
-        
-          res.submission = {data: submission};
-        
-          done(); 
-        });
-    ```
-    
-5. Replace with the following code:
-    ```
-        // Validate the request.
-        validator.validate(req.body, (err, submission) => {
-          if (err && req.query.novalidate !== 'true') {
-            return res.status(400).json(err);
-          }
-          
-          if (req.query.novalidate === 'true') {
-            res.submission = {data: _.omit(submission, 'submit')};
-          } else {
-            res.submission = {data: submission};
-          }
-
-          done();
-        });
-    ``` 
-6. Save the changes and run the server
+To run Formio without Docker, you would have to:
+1. Clone Formio `v1.47.0` sources from [Formio Github repository](https://github.com/formio) and install required dependencies listed on their github page
+2. Replace the file `src/middleware/submissionHandler.js` with the one provided in `ART-BPMS-REST/formio/src/middleware/submissionHandler.js`
+3. Configure MongoDB connection settings, install Formio application with npm and run with nodejs
 
 ## Security
 
@@ -380,7 +345,3 @@ BPMN diagrams are secured as follows:
 [Keycloak]: https://www.keycloak.org/
 [Wildfly 15]: https://wildfly.org/downloads/
 
-[PostgreSQL]:
-[MySQL]:
-[OracleDB]:
-[MariaDB]: 
