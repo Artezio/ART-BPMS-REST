@@ -1,4 +1,4 @@
-##Formio server Dockerfile
+## Formio server Dockerfile
 
 This Dockerfile is used for building Docker image with Formio server modified for supporting Dry validation and Cleanup features needed to run ART-BPMS
 
