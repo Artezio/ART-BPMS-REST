@@ -7,13 +7,18 @@ import com.artezio.logging.Log;
 import com.google.common.base.Charsets;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
+import org.camunda.bpm.application.ProcessApplicationInterface;
+import org.camunda.bpm.engine.ManagementService;
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.repository.*;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.security.PermitAll;
 import javax.annotation.security.RolesAllowed;
-import javax.ejb.Stateless;
+import javax.ejb.DependsOn;
+import javax.ejb.Singleton;
+import javax.ejb.Startup;
 import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -29,7 +34,9 @@ import java.util.stream.Collectors;
 import static com.artezio.logging.Log.Level.CONFIG;
 import static javax.ws.rs.core.HttpHeaders.ACCEPT_LANGUAGE;
 
-@Stateless
+@Startup
+@DependsOn("DefaultEjbProcessApplication")
+@Singleton
 @Path("/deployment")
 public class DeploymentSvc {
 
@@ -39,6 +46,16 @@ public class DeploymentSvc {
     private RepositoryService repositoryService;
     @Inject
     private FormDeployer formDeployer;
+    @Inject
+    private ManagementService managementService;
+    @Inject
+    private ProcessApplicationInterface processApplication;
+
+    @PostConstruct
+    public void registerDeployments() {
+        repositoryService.createDeploymentQuery().list()
+                .forEach(this::registerInProcessApplication);
+    }
 
     @RolesAllowed("BPMSAdmin")
     @POST
@@ -56,6 +73,7 @@ public class DeploymentSvc {
                 .stream()
                 .forEach(entry -> deploymentBuilder.addInputStream(entry.getKey(), entry.getValue()));
         Deployment deployment = deploymentBuilder.deploy();
+        registerInProcessApplication(deployment);
         formDeployer.uploadForms();
         return DeploymentRepresentation.fromDeployment(deployment);
     }
@@ -128,6 +146,10 @@ public class DeploymentSvc {
     @Log(level = CONFIG, beforeExecuteMessage = "Deleting deployment '{0}'", afterExecuteMessage = "Deployment is successfully deleted")
     public void delete(@PathParam("deployment-id") @NotNull String deploymentId) {
         repositoryService.deleteDeployment(deploymentId, true);
+    }
+
+    private void registerInProcessApplication(Deployment deployment) {
+        managementService.registerProcessApplication(deployment.getId(), processApplication.getReference());
     }
 
     private Deployment getLatestDeployment() {

@@ -9,7 +9,6 @@ import org.camunda.bpm.engine.identity.Group;
 import org.camunda.bpm.engine.identity.User;
 import org.camunda.bpm.engine.repository.Deployment;
 import org.camunda.bpm.engine.runtime.Execution;
-import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.task.IdentityLink;
 import org.camunda.bpm.engine.task.IdentityLinkType;
 import org.easymock.*;
@@ -161,7 +160,6 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
         createDeployment("test-deployment",
                 "test-process-with-start-form.bpmn");
         String validatedVariablesJson = "{\"stringFormVariable\":\"non-default-string\",\"booleanFormVariable\":true}";
-        expect(identitySvc.userId()).andReturn(TEST_USER_ID);
         expect(identitySvc.userGroups()).andReturn(asList(TEST_GROUP_ID));
         replay(identitySvc);
         Map<String, Object> startFormData = new HashMap<String, Object>() {{
@@ -228,7 +226,6 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
             processVariablesCapture.getValue().put("testFiles", expectedFileValues);
             return null;
         });
-        expect(identitySvc.userId()).andReturn(TEST_USER_ID);
         expect(formSvc.dryValidationAndCleanupStartForm(anyString(), eq(submittedFormValues)))
                 .andReturn(validatedVariablesJson);
         expect(taskSvc.getNextAssignedTask(anyObject(String.class))).andReturn(null);

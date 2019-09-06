@@ -43,8 +43,6 @@ import static java.util.Collections.emptyMap;
 @Stateless
 public class ProcessDefinitionSvc {
 
-    private static final String STARTED_BY = "startedBy";
-
     @Inject
     private IdentitySvc identityService;
     @Inject
@@ -153,7 +151,6 @@ public class ProcessDefinitionSvc {
     }
 
     private ProcessInstance startProcess(ProcessDefinition processDefinition, Map<String, Object> inputVariables) {
-        inputVariables.put(STARTED_BY, identityService.userId());
         Map<String, String> processExtensions = getProcessExtensions(processDefinition);
         inputVariables = variablesMapper.convertVariablesToEntities(inputVariables, processExtensions);
         variableValidator.validate(inputVariables);
@@ -162,7 +159,6 @@ public class ProcessDefinitionSvc {
 
     private ProcessInstance startProcessByFormSubmission(ProcessDefinition processDefinition, Map<String, Object> variables) throws IOException, FormNotFoundException {
         Map<String, Object> mergedVariables = validateAndMergeToFormVariables(variables, processDefinition.getId());
-        mergedVariables.put(STARTED_BY, identityService.userId());
         Map<String, String> processExtensions = getProcessExtensions(processDefinition);
         mergedVariables = variablesMapper.convertVariablesToEntities(mergedVariables, processExtensions);
         variableValidator.validate(mergedVariables);

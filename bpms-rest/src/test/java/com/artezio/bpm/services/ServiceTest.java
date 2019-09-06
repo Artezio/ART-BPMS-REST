@@ -95,6 +95,10 @@ abstract public class ServiceTest {
         return processEngineRule.getRepositoryService();
     }
 
+    protected ManagementService getManagementService() {
+        return processEngineRule.getManagementService();
+    }
+
     FormService getFormService() {
         return processEngineRule.getFormService();
     }

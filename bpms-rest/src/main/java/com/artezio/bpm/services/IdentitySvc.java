@@ -7,11 +7,13 @@ import javax.annotation.Resource;
 import javax.ejb.SessionContext;
 import javax.ejb.Stateless;
 import javax.inject.Inject;
+import javax.inject.Named;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+@Named
 @Stateless
 public class IdentitySvc {
 
@@ -27,6 +29,10 @@ public class IdentitySvc {
 
     public String userId() {
         return loggedUser.getName();
+    }
+
+    public String userEmail() {
+        return getKeycloakSecurityContext().getToken().getEmail();
     }
 
     private KeycloakSecurityContext getKeycloakSecurityContext() {

@@ -2,6 +2,8 @@ package com.artezio.bpm.services;
 
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
 import com.artezio.bpm.startup.FormDeployer;
+import org.camunda.bpm.application.ProcessApplicationInterface;
+import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.impl.persistence.entity.ResourceEntity;
 import org.camunda.bpm.engine.repository.Deployment;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
@@ -34,6 +36,8 @@ public class DeploymentSvcTest extends ServiceTest {
 
     @Mock
     private FormDeployer formDeployer;
+    @Mock
+    private ProcessApplicationInterface processApplication;
     @InjectMocks
     private DeploymentSvc deploymentSvc = new DeploymentSvc();
 
@@ -41,6 +45,8 @@ public class DeploymentSvcTest extends ServiceTest {
     public void init() throws NoSuchFieldException {
         Field repositoryServiceField = deploymentSvc.getClass().getDeclaredField("repositoryService");
         setField(deploymentSvc, repositoryServiceField, getRepositoryService());
+        Field managementServiceField = deploymentSvc.getClass().getDeclaredField("managementService");
+        setField(deploymentSvc, managementServiceField, getManagementService());
     }
 
     @After
@@ -61,11 +67,13 @@ public class DeploymentSvcTest extends ServiceTest {
         MultipartFormDataInput formData = mock(MultipartFormDataInput.class);
         InputPart inputTextFile = mock(InputPart.class);
         InputPart inputBpmProcessFile = mock(InputPart.class);
+        ProcessApplicationReference processApplicationReference = mock(ProcessApplicationReference.class);
         Map<String, List<InputPart>> paramsMap = new HashMap<String, List<InputPart>>() {{
             put(textFilename, asList(inputTextFile));
             put(bpmProcessFilename, asList(inputBpmProcessFile));
         }};
 
+        when(processApplication.getReference()).thenReturn(processApplicationReference);
         when(formData.getFormDataMap()).thenReturn(paramsMap);
         when(inputTextFile.getBody(InputStream.class, null))
                 .thenReturn(new FileInputStream(textFile));
