@@ -6,11 +6,11 @@
 	<parent>
 		<groupId>com.artezio.bpm</groupId>
 		<artifactId>bpm-bom</artifactId>
-		<version>1.0</version>
+		<version>1.1</version>
 	</parent>
 
 	<artifactId>bpms-rest</artifactId>
-	<version>1.0</version>
+	<version>1.1</version>
 	<packaging>war</packaging>
 
 	<properties>
