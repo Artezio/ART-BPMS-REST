@@ -98,7 +98,7 @@ ART-BMS-REST could be run either as a standalone application or as part of EAR d
             <dependency>
                 <groupId>com.artezio.bpm</groupId>
                 <artifactId>bpm-bom</artifactId>
-                <version>1.0version>
+                <version>1.0</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>

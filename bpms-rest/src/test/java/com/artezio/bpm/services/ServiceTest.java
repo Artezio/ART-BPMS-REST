@@ -2,6 +2,7 @@ package com.artezio.bpm.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.IOUtils;
+import org.apache.tika.Tika;
 import org.camunda.bpm.engine.*;
 import org.camunda.bpm.engine.history.HistoricTaskInstance;
 import org.camunda.bpm.engine.history.HistoricVariableInstance;
@@ -161,7 +162,7 @@ abstract public class ServiceTest {
     }
 
     Map<String, Object> getFileAsAttributesMap(File file) throws IOException {
-        String mimeType = Files.probeContentType(file.toPath());
+        String mimeType = new Tika().detect(file);
         byte[] fileContent = Files.readAllBytes(file.toPath());
         String base64EncodedFileContent = Base64.getMimeEncoder().encodeToString(fileContent);
         Map<String, Object> fileValue = new HashMap<>();
@@ -176,7 +177,7 @@ abstract public class ServiceTest {
     }
 
     FileValue getFileValue(File file) throws IOException {
-        String mimeType = Files.probeContentType(file.toPath());
+        String mimeType = new Tika().detect(file);
         byte[] fileContent = Files.readAllBytes(file.toPath());
         return new FileValueBuilderImpl(file.getName())
                 .encoding(Charset.forName("UTF-8"))

@@ -567,7 +567,7 @@ public class TaskSvcTest extends ServiceTest {
         Map<String, Object> variables = new HashMap<String, Object>() {{
             put(fileVariableName, asList(fileValue));
         }};
-        String mimeType = fileValue.getMimeType();
+        String mimeType = "image/png";
         Response expected = Response.ok(IOUtils.toByteArray(fileValue.getValue()), MediaType.valueOf(mimeType))
                 .header("Content-Disposition", "attachment; filename=" + fileName)
                 .build();
@@ -600,7 +600,7 @@ public class TaskSvcTest extends ServiceTest {
         variables.put(containerVariableName, containerVariable);
 
         Response expected = Response
-                .ok(getFileContentFromUrl((String) fileValue.get("url")), MediaType.valueOf((String) fileValue.get("type")))
+                .ok(getFileContentFromUrl((String) fileValue.get("url")), MediaType.valueOf("image/png"))
                 .header("Content-Disposition", "attachment; filename=" + fileName)
                 .build();
 
