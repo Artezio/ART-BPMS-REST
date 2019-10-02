@@ -47,6 +47,7 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 public class TaskSvc {
 
     private static final String DECISION_VARIABLE_NAME = "decision";
+    private static final String STATE_VARIABLE_NAME = "state";
 
     @Inject
     private TaskService taskService;
@@ -157,7 +158,7 @@ public class TaskSvc {
                 .taskId(taskId)
                 .singleResult();
         ensureAssigned(taskId);
-        String decision = (String) inputVariables.get(DECISION_VARIABLE_NAME);
+        String decision = (String) inputVariables.get(STATE_VARIABLE_NAME);
         inputVariables = !skipValidation(taskId, decision)
                 ? validateAndMergeToTaskVariables(inputVariables, taskId)
                 : new HashMap<>();
