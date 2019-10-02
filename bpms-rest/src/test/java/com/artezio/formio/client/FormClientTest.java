@@ -98,37 +98,37 @@ public class FormClientTest extends ServiceTest {
     }
 
     @Test
-    public void testShouldSkipValidation_StateWithValidationIsPassed() {
+    public void testShouldSkipValidation_DecisionWithValidationIsPassed() {
         String formKey = "formKey";
-        String submissionState = "submitted";
+        String decision = "submitted";
 
         when(formApiProxy.getForm(formKey, true)).thenReturn(formDefinitionNode);
 
-        boolean actual = formio.shouldSkipValidation(formKey, submissionState);
+        boolean actual = formio.shouldSkipValidation(formKey, decision);
 
         assertFalse(actual);
     }
 
     @Test
-    public void testShouldSkipValidation_StateWithNoValidationIsPassed() {
+    public void testShouldSkipValidation_DecisionWithNoValidationIsPassed() {
         String formKey = "formKey";
-        String submissionState = "rejected";
+        String decision = "rejected";
 
         when(formApiProxy.getForm(formKey, true)).thenReturn(formDefinitionNode);
 
-        boolean actual = formio.shouldSkipValidation(formKey, submissionState);
+        boolean actual = formio.shouldSkipValidation(formKey, decision);
 
         assertTrue(actual);
     }
 
     @Test
-    public void testShouldSkipValidation_PassedStateDoesntExist() {
+    public void testShouldSkipValidation_PassedDecisionDoesntExist() {
         String formKey = "formKey";
-        String submissionState = "notExistingState";
+        String decision = "notExistingDecision";
 
         when(formApiProxy.getForm(formKey, true)).thenReturn(formDefinitionNode);
 
-        boolean actual = formio.shouldSkipValidation(formKey, submissionState);
+        boolean actual = formio.shouldSkipValidation(formKey, decision);
 
         assertFalse(actual);
     }

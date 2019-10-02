@@ -45,9 +45,9 @@ public class FormSvc {
         return formClient.dryValidationAndCleanup(formKey, variables);
     }
 
-    public boolean shouldSkipValidation(String taskId, String submissionState) {
+    public boolean shouldSkipValidation(String taskId, String decision) {
         String formKey = getTaskFormKey(taskId);
-        return formClient.shouldSkipValidation(formKey, submissionState);
+        return formClient.shouldSkipValidation(formKey, decision);
     }
 
     String getTaskFormDefinition(String taskId) {

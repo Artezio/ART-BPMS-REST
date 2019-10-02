@@ -46,7 +46,7 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 @Stateless
 public class TaskSvc {
 
-    private static final String SUBMISSION_STATE_VARIABLE_NAME = "state";
+    private static final String DECISION_VARIABLE_NAME = "decision";
 
     @Inject
     private TaskService taskService;
@@ -157,11 +157,11 @@ public class TaskSvc {
                 .taskId(taskId)
                 .singleResult();
         ensureAssigned(taskId);
-        String submissionState = (String) inputVariables.get(SUBMISSION_STATE_VARIABLE_NAME);
-        inputVariables = !skipValidation(taskId, submissionState)
+        String decision = (String) inputVariables.get(DECISION_VARIABLE_NAME);
+        inputVariables = !skipValidation(taskId, decision)
                 ? validateAndMergeToTaskVariables(inputVariables, taskId)
                 : new HashMap<>();
-        inputVariables.put(SUBMISSION_STATE_VARIABLE_NAME, submissionState);
+        inputVariables.put(DECISION_VARIABLE_NAME, decision);
         Map<String, String> processExtensions = (task.getProcessDefinitionId() != null)
                 ? getProcessExtensions(taskId)
                 : Collections.emptyMap();
@@ -263,10 +263,9 @@ public class TaskSvc {
         return variableName.replaceAll("\\W", "");
     }
 
-    private boolean skipValidation(String taskId, String submissionState) {
-        return formService.shouldSkipValidation(taskId, submissionState);
+    private boolean skipValidation(String taskId, String decision) {
+        return formService.shouldSkipValidation(taskId, decision);
     }
-
 
     private Map<String, Object> validateAndMergeToTaskVariables(Map<String, Object> inputVariables, String taskId)
             throws IOException, FormNotFoundException {

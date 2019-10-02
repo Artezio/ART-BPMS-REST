@@ -127,34 +127,34 @@ public class FormSvcTest extends ServiceTest {
 
     @Test
     @Ignore
-    public void testShouldSkipValidation_StateWithValidationIsPassed() throws IOException {
+    public void testShouldSkipValidation_DecisionWithValidationIsPassed() throws IOException {
         createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
         getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
 
         String taskId = getTaskService().createTaskQuery().taskDefinitionKey("Task_1").singleResult().getId();
-        String submissionState = "stateWithValidation";
+        String decision = "decisionWithValidation";
         String formKey = "Form_1";
 
-        when(formClient.shouldSkipValidation(formKey, submissionState)).thenReturn(false);
+        when(formClient.shouldSkipValidation(formKey, decision)).thenReturn(false);
 
-        boolean actual = formSvc.shouldSkipValidation(taskId, submissionState);
+        boolean actual = formSvc.shouldSkipValidation(taskId, decision);
 
         assertFalse(actual);
     }
 
     @Test
     @Ignore
-    public void testShouldSkipValidation_StateWithoutValidationIsPassed() throws IOException {
+    public void testShouldSkipValidation_DecisionWithoutValidationIsPassed() throws IOException {
         createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
         getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
 
         String taskId = getTaskService().createTaskQuery().taskDefinitionKey("Task_1").singleResult().getId();
-        String submissionState = "stateWithoutValidation";
+        String decision = "decisionWithoutValidation";
         String formKey = "Form_1";
 
-        when(formClient.shouldSkipValidation(formKey, submissionState)).thenReturn(true);
+        when(formClient.shouldSkipValidation(formKey, decision)).thenReturn(true);
 
-        boolean actual = formSvc.shouldSkipValidation(taskId, submissionState);
+        boolean actual = formSvc.shouldSkipValidation(taskId, decision);
 
         assertTrue(actual);
     }

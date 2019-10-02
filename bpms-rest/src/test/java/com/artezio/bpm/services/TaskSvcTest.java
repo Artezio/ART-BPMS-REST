@@ -395,20 +395,20 @@ public class TaskSvcTest extends ServiceTest {
 
     @Ignore
     @Test
-    public void testComplete_SubmissionStateIsSubmitted() throws IOException, NoSuchFieldException {
+    public void testComplete_DecisionHasSubmittedValue() throws IOException, NoSuchFieldException {
         String callerId = "callerId";
         String taskId = "testTask";
         String formPath = "formPath";
         String cleanDataJson = "{\"var1\": \"value1\"}";
-        String submissionState = "submitted";
+        String decision = "submitted";
         Map<String, Object> inputVariables = new HashMap<String, Object>() {{
             put("var1", "value1");
             put("var2", "value2");
-            put("state", submissionState);
+            put("decision", decision);
         }};
         Map<String, Object> expectedVariables = new HashMap<String, Object>() {{
             put("var1", "value1");
-            put("state", submissionState);
+            put("decision", decision);
         }};
         ArgumentCaptor<Map<String, Object>> taskVariablesCaptor = ArgumentCaptor.forClass(Map.class);
         Map<String, Object> taskVariables = new HashMap<String, Object>() {{put("var1", "");}};
@@ -417,7 +417,7 @@ public class TaskSvcTest extends ServiceTest {
         setVariablesToTask(taskId, taskVariables);
 
         when(identityService.userId()).thenReturn(callerId);
-        when(formSvc.shouldSkipValidation(taskId, submissionState)).thenReturn(false);
+        when(formSvc.shouldSkipValidation(taskId, decision)).thenReturn(false);
         when(formSvc.dryValidationAndCleanupTaskForm(taskId, inputVariables)).thenReturn(cleanDataJson);
         when(formService
                 .getTaskFormData(taskId)
@@ -451,14 +451,14 @@ public class TaskSvcTest extends ServiceTest {
 
     @Ignore
     @Test
-    public void testComplete_SubmissionStateIsRejected() throws IOException, NoSuchFieldException {
+    public void testComplete_DecisionHasRejectedValue() throws IOException, NoSuchFieldException {
         String callerId = "callerId";
         String taskId = "testTask";
-        String submissionState = "rejected";
+        String decision = "rejected";
         Map<String, Object> inputVariables = new HashMap<String, Object>() {{
             put("var1", "value1");
             put("var2", "value2");
-            put("state", submissionState);
+            put("decision", decision);
         }};
         Map<String, Object> taskVariables = new HashMap<>();
 
@@ -466,7 +466,7 @@ public class TaskSvcTest extends ServiceTest {
         setVariablesToTask(taskId, taskVariables);
 
         when(identityService.userId()).thenReturn(callerId);
-        when(formSvc.shouldSkipValidation(taskId, submissionState)).thenReturn(true);
+        when(formSvc.shouldSkipValidation(taskId, decision)).thenReturn(true);
         RuntimeService mockRuntimeService = mock(RuntimeService.class);
         ProcessInstanceQuery mockProcessInstanceQuery = mock(ProcessInstanceQuery.class);
         PrivateAccessor.setField(taskSvc, "runtimeService", mockRuntimeService);
@@ -493,17 +493,17 @@ public class TaskSvcTest extends ServiceTest {
         String callerId = "callerId";
         String taskId = "testTask";
         String formKey = null;
-        String submissionState = "submitted";
+        String decision = "submitted";
         String processDefinitionKey = "processDefinitionKey";
         Map<String, Object> inputVariables = new HashMap<String, Object>() {{
             put("var1", "value1");
             put("var2", "value2");
-            put("state", submissionState);
+            put("decision", decision);
         }};
         Map<String, Object> expectedVariables = new HashMap<String, Object>() {{
             put("var1", "value1");
             put("var2", "value2");
-            put("state", submissionState);
+            put("decision", decision);
         }};
         BpmnModelInstance bpmnModelInstance = mock(BpmnModelInstance.class);
         Process processElement = mock(Process.class);
@@ -522,7 +522,7 @@ public class TaskSvcTest extends ServiceTest {
         when(mockInstance.getId()).thenReturn("id1");
         when(identityService.userId()).thenReturn(callerId);
         when(formService.getTaskFormData(taskId).getFormKey()).thenReturn(formKey);
-        when(formSvc.shouldSkipValidation(taskId, submissionState)).thenReturn(false);
+        when(formSvc.shouldSkipValidation(taskId, decision)).thenReturn(false);
         when(repositoryService.createProcessDefinitionQuery()
                 .processDefinitionId(nullable(String.class))
                 .singleResult()

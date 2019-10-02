@@ -42,7 +42,6 @@ public class FormClient {
     private final static String FORMIO_SERVER_PATH = System.getProperty("FORMIO_URL", "http://localhost:3001");
     private final static Map<String, JsonNode> FORMS_CACHE = new ConcurrentHashMap<>();
     private final static Map<Integer, JSONArray> SUBMIT_BUTTONS_CACHE = new ConcurrentHashMap<>();
-
     private final static Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private static ResteasyClient client;
 
@@ -124,10 +123,10 @@ public class FormClient {
         return "";
     }
 
-    @Log(level = CONFIG, beforeExecuteMessage = "Checking if validation of form '{0}' should be skipped (submission state: '{1}')")
-    public boolean shouldSkipValidation(String formKey, String submissionState) {
+    @Log(level = CONFIG, beforeExecuteMessage = "Checking if validation of form '{0}' should be skipped (decision: '{1}')")
+    public boolean shouldSkipValidation(String formKey, String decision) {
         String formDefinitionJson = getFormDefinition(formKey).toString();
-        JSONArray submitButtons = getSubmitButtons(submissionState, formDefinitionJson);
+        JSONArray submitButtons = getSubmitButtons(decision, formDefinitionJson);
         if (!submitButtons.isEmpty()) {
             Map<String, Object> actualSubmitButton = (Map<String, Object>) submitButtons.get(0);
             Map<String, Object> properties = (Map<String, Object>) actualSubmitButton.get("properties");
@@ -137,9 +136,9 @@ public class FormClient {
         }
     }
 
-    private JSONArray getSubmitButtons(String submissionState, String formDefinitionJson) {
-        return SUBMIT_BUTTONS_CACHE.computeIfAbsent(Objects.hash(submissionState, formDefinitionJson),
-                inputState -> JsonPath.read(formDefinitionJson, String.format("$..components[?(@.state == '%s')]", submissionState)));
+    private JSONArray getSubmitButtons(String decision, String formDefinitionJson) {
+        return SUBMIT_BUTTONS_CACHE.computeIfAbsent(Objects.hash(decision, formDefinitionJson),
+                inputDecision -> JsonPath.read(formDefinitionJson, String.format("$..components[?(@.decision == '%s')]", decision)));
     }
 
     private JsonNode cleanUnusedData(String formPath, Map<String, Object> variables) {
