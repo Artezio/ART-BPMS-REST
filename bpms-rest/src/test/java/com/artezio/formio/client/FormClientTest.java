@@ -31,6 +31,7 @@ import static org.mockito.internal.util.reflection.FieldSetter.setField;
 @RunWith(MockitoJUnitRunner.class)
 public class FormClientTest extends ServiceTest {
 
+    private final String SHOULD_SKIP_VALIDATION_PROPERTY_NAME = "skipValidation";
     private static ResteasyClient resteasyClient = mock(ResteasyClient.class);
 
     @Mock
@@ -61,7 +62,7 @@ public class FormClientTest extends ServiceTest {
     public void tearDown() throws NoSuchFieldException, IllegalAccessException {
         reset(resteasyClient);
         Field formsCacheField = FormClient.class.getDeclaredField("FORMS_CACHE");
-        Field submitButtonsCacheField = FormClient.class.getDeclaredField("SUBMIT_BUTTONS_CACHE");
+        Field submitButtonsCacheField = FormClient.class.getDeclaredField("STATE_COMPONENT_CACHE");
         formsCacheField.setAccessible(true);
         submitButtonsCacheField.setAccessible(true);
         ((Map<String, JsonNode>) formsCacheField.get(FormClient.class)).clear();
@@ -98,37 +99,37 @@ public class FormClientTest extends ServiceTest {
     }
 
     @Test
-    public void testShouldSkipValidation_DecisionWithValidationIsPassed() {
+    public void testShouldSkipValidation_StateWithValidationIsPassed() {
         String formKey = "formKey";
-        String decision = "submitted";
+        String state = "submitted";
 
         when(formApiProxy.getForm(formKey, true)).thenReturn(formDefinitionNode);
 
-        boolean actual = formio.shouldSkipValidation(formKey, decision);
+        boolean actual = Boolean.parseBoolean(formio.interpretPropertyForState(formKey, SHOULD_SKIP_VALIDATION_PROPERTY_NAME, state));
 
         assertFalse(actual);
     }
 
     @Test
-    public void testShouldSkipValidation_DecisionWithNoValidationIsPassed() {
+    public void testShouldSkipValidation_StateWithNoValidationIsPassed() {
         String formKey = "formKey";
-        String decision = "rejected";
+        String state = "rejected";
 
         when(formApiProxy.getForm(formKey, true)).thenReturn(formDefinitionNode);
 
-        boolean actual = formio.shouldSkipValidation(formKey, decision);
+        boolean actual = Boolean.parseBoolean(formio.interpretPropertyForState(formKey, SHOULD_SKIP_VALIDATION_PROPERTY_NAME, state));
 
         assertTrue(actual);
     }
 
     @Test
-    public void testShouldSkipValidation_PassedDecisionDoesntExist() {
+    public void testShouldSkipValidation_PassedStateDoesntExist() {
         String formKey = "formKey";
-        String decision = "notExistingDecision";
+        String state = "notExistingState";
 
         when(formApiProxy.getForm(formKey, true)).thenReturn(formDefinitionNode);
 
-        boolean actual = formio.shouldSkipValidation(formKey, decision);
+        boolean actual = Boolean.parseBoolean(formio.interpretPropertyForState(formKey, SHOULD_SKIP_VALIDATION_PROPERTY_NAME, state));
 
         assertFalse(actual);
     }
