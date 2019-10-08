@@ -3,11 +3,7 @@ package com.artezio.bpm.services;
 import com.artezio.formio.client.FormClient;
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.TaskService;
-import org.camunda.bpm.engine.impl.persistence.entity.DeploymentEntity;
-import org.camunda.bpm.engine.query.Query;
 import org.camunda.bpm.engine.repository.Deployment;
-import org.camunda.bpm.engine.repository.DeploymentQuery;
-import org.camunda.bpm.engine.repository.ProcessDefinitionQuery;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.task.Task;
 import org.junit.After;
@@ -18,7 +14,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Answers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import java.io.IOException;
@@ -28,7 +23,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static java.util.Arrays.asList;
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -37,6 +31,8 @@ import static org.mockito.internal.util.reflection.FieldSetter.setField;
 
 @RunWith(MockitoJUnitRunner.class)
 public class FormSvcTest extends ServiceTest {
+
+    private final String SHOULD_SKIP_VALIDATION_PROPERTY_NAME = "skipValidation";
 
     @InjectMocks
     private FormSvc formSvc = new FormSvc();
@@ -135,9 +131,9 @@ public class FormSvcTest extends ServiceTest {
         String decision = "decisionWithValidation";
         String formKey = "Form_1";
 
-        when(formClient.shouldSkipValidation(formKey, decision)).thenReturn(false);
+        when(formClient.interpretPropertyForState(formKey, SHOULD_SKIP_VALIDATION_PROPERTY_NAME, decision)).thenReturn(false);
 
-        boolean actual = formSvc.shouldSkipValidation(taskId, decision);
+        boolean actual = formSvc.interpretPropertyForState(taskId, "shouldSkipValidation", decision);
 
         assertFalse(actual);
     }
@@ -152,9 +148,9 @@ public class FormSvcTest extends ServiceTest {
         String decision = "decisionWithoutValidation";
         String formKey = "Form_1";
 
-        when(formClient.shouldSkipValidation(formKey, decision)).thenReturn(true);
+        when(formClient.interpretPropertyForState(formKey, SHOULD_SKIP_VALIDATION_PROPERTY_NAME, decision)).thenReturn(true);
 
-        boolean actual = formSvc.shouldSkipValidation(taskId, decision);
+        boolean actual = formSvc.interpretPropertyForState(taskId, "shouldSkipValidation", decision);
 
         assertTrue(actual);
     }

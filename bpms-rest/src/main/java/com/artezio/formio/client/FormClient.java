@@ -41,7 +41,7 @@ public class FormClient {
 
     private final static String FORMIO_SERVER_PATH = System.getProperty("FORMIO_URL", "http://localhost:3001");
     private final static Map<String, JsonNode> FORMS_CACHE = new ConcurrentHashMap<>();
-    private final static Map<Integer, JSONArray> SUBMIT_BUTTONS_CACHE = new ConcurrentHashMap<>();
+    private final static Map<Integer, JSONArray> STATE_COMPONENT_CACHE = new ConcurrentHashMap<>();
     private final static Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private static ResteasyClient client;
 
@@ -104,6 +104,20 @@ public class FormClient {
         formApi.createForm(formDefinitionJson);
     }
 
+    @Log(level = CONFIG, beforeExecuteMessage = "Getting definition of form '{0}'")
+    public JsonNode getFormDefinition(String formPath) {
+        return FORMS_CACHE.computeIfAbsent(formPath, path -> getFormService().getForm(path, true));
+    }
+
+    public <T> T interpretPropertyForState(String formKey, String propertyName, String state) {
+        String formDefinitionJson = getFormDefinition(formKey).toString();
+        Optional<Map<String, Object>> stateComponent = Optional.ofNullable(getStateComponent(state, formDefinitionJson));
+        Map<String, T> properties = stateComponent.isPresent()
+                ? (Map<String, T>) stateComponent.get().get("properties")
+                : Collections.emptyMap();
+        return properties.get(propertyName);
+    }
+
     protected String getExceptionDetails(Response response) {
         if (!response.hasEntity()) {
             return "";
@@ -123,22 +137,12 @@ public class FormClient {
         return "";
     }
 
-    @Log(level = CONFIG, beforeExecuteMessage = "Checking if validation of form '{0}' should be skipped (decision: '{1}')")
-    public boolean shouldSkipValidation(String formKey, String decision) {
-        String formDefinitionJson = getFormDefinition(formKey).toString();
-        JSONArray submitButtons = getSubmitButtons(decision, formDefinitionJson);
-        if (!submitButtons.isEmpty()) {
-            Map<String, Object> actualSubmitButton = (Map<String, Object>) submitButtons.get(0);
-            Map<String, Object> properties = (Map<String, Object>) actualSubmitButton.get("properties");
-            return Boolean.parseBoolean(String.valueOf(properties.get("skipValidation")));
-        } else {
-            return false;
-        }
-    }
-
-    private JSONArray getSubmitButtons(String decision, String formDefinitionJson) {
-        return SUBMIT_BUTTONS_CACHE.computeIfAbsent(Objects.hash(decision, formDefinitionJson),
-                inputDecision -> JsonPath.read(formDefinitionJson, String.format("$..components[?(@.decision == '%s')]", decision)));
+    private Map<String, Object> getStateComponent(String state, String formDefinitionJson) {
+        JSONArray stateComponents = STATE_COMPONENT_CACHE.computeIfAbsent(Objects.hash(state, formDefinitionJson),
+                inputState -> JsonPath.read(formDefinitionJson, String.format("$..components[?(@.state == '%s')]", state)));
+        return !stateComponents.isEmpty()
+                ? (Map<String, Object>) stateComponents.get(0)
+                : null;
     }
 
     private JsonNode cleanUnusedData(String formPath, Map<String, Object> variables) {
@@ -152,11 +156,6 @@ public class FormClient {
         } catch (BadRequestException bre) {
             throw new FormNotFoundException(formPath);
         }
-    }
-
-    @Log(level = CONFIG, beforeExecuteMessage = "Getting definition of form '{0}'")
-    public JsonNode getFormDefinition(String formPath) {
-        return FORMS_CACHE.computeIfAbsent(formPath, path -> getFormService().getForm(path, true));
     }
 
     protected JsonNode getForm(String formPath) throws FormNotFoundException {

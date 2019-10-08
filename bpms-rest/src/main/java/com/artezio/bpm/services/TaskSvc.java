@@ -265,7 +265,7 @@ public class TaskSvc {
     }
 
     private boolean skipValidation(String taskId, String decision) {
-        return formService.shouldSkipValidation(taskId, decision);
+        return Boolean.parseBoolean(formService.interpretPropertyForState(taskId, "skipValidation", decision));
     }
 
     private Map<String, Object> validateAndMergeToTaskVariables(Map<String, Object> inputVariables, String taskId)

@@ -55,8 +55,10 @@
 				"when": null,
 				"eq": ""
 			},
-			"properties": {},
-			"decision": "submitted"
+			"properties": {
+				"skipValidation": "false"
+			},
+			"state": "submitted"
 		},
 		{
 			"autofocus": false,
@@ -81,7 +83,7 @@
 			"properties": {
 				"skipValidation": "true"
 			},
-			"decision": "rejected"
+			"state": "rejected"
 		}
 	],
 	"display": "form",
