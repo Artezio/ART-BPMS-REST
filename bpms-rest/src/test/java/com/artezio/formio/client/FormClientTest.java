@@ -136,51 +136,33 @@ public class FormClientTest extends ServiceTest {
 
     @Test
     public void testUploadForm() {
-        String formDefinition = "{\"formKey\":\"keeey\"}";
-
-        when(formApiProxy.createForm(formDefinition)).thenReturn(formDefinitionNode);
-
-        formio.uploadForm(formDefinition);
-    }
-
-    @Test(expected = BadRequestException.class)
-    public void testUploadForm_formAlreadyExists() {
-        String formDefinition = "{\"formKey\":\"keeey\"}";
-
-        when(formApiProxy.createForm(formDefinition)).thenThrow(BadRequestException.class);
-
-        formio.uploadForm(formDefinition);
-    }
-
-    @Test
-    public void testUploadFormIfNotExists() {
         String formDefinition = "{\"formKey\":\"keeey\", \"path\":\"formPath\"}";
 
         when(formApiProxy.createForm(formDefinition)).thenReturn(formDefinitionNode);
 
-        formio.uploadFormIfNotExists(formDefinition);
+        formio.uploadForm(formDefinition);
     }
 
     @Test
-    public void testUploadFormIfNotExists_formAlreadyExists() {
+    public void testUploadForm_formAlreadyExists() {
         String formPath = "/form1";
         String formDefinition = "{\"formKey\":\"keeey\", \"path\":\"" + formPath + "\"}";
 
         when(formApiProxy.createForm(formDefinition)).thenThrow(BadRequestException.class);
         when(formApiProxy.getForm(formPath, true)).thenReturn(formDefinitionNode);
 
-        formio.uploadFormIfNotExists(formDefinition);
+        formio.uploadForm(formDefinition);
     }
 
     @Test(expected = BadRequestException.class)
-    public void testUploadFormIfNotExists_formDefinitionIsInvalid() {
+    public void testUploadForm_formDefinitionIsInvalid() {
         String formPath = "/form1";
         String formDefinition = "{\"formKey\":\"keeey\", \"path\":\"" + formPath +"\"}";
 
         when(formApiProxy.createForm(formDefinition)).thenThrow(BadRequestException.class);
         when(formApiProxy.getForm("/form1", true)).thenThrow(BadRequestException.class);
 
-        formio.uploadFormIfNotExists(formDefinition);
+        formio.uploadForm(formDefinition);
     }
 
     @Test

@@ -63,7 +63,7 @@ public class FormClient {
     public FormClient() {
     }
 
-    @Log(level = CONFIG, beforeExecuteMessage = "Getting definition with data for form '{0}'")
+    @Log(level = CONFIG, beforeExecuteMessage = "Getting definition with data for a form '{0}'")
     public String getFormWithData(String formPath, Map<String, Object> variables) {
         JsonNode form = getForm(formPath);
         JsonNode data = cleanUnusedData(formPath, variables);
@@ -71,12 +71,13 @@ public class FormClient {
         return form.toString();
     }
 
-    @Log(level = CONFIG, beforeExecuteMessage = "Uploading form")
-    public void uploadFormIfNotExists(String formDefinition) {
+    @Log(level = CONFIG, beforeExecuteMessage = "Uploading a form")
+    public void uploadForm(String formDefinition) {
         String path = null;
         try {
             path = MAPPER.readTree(formDefinition).get("path").asText();
-            uploadForm(formDefinition);
+            FormApi formApi = getFormService();
+            formApi.createForm(formDefinition);
         } catch (BadRequestException bre) {
             // BadRequest is thrown for both cases: 1) form already exists; 2) form definition is invalid
             // Try to load the form. If the form not exists, an exception will be thrown again to show that form definition is invalid
@@ -86,7 +87,7 @@ public class FormClient {
         }
     }
 
-    @Log(level = CONFIG, beforeExecuteMessage = "Performing dry validation and cleanup of form '{0}'")
+    @Log(level = CONFIG, beforeExecuteMessage = "Performing dry validation and cleanup of a form '{0}'")
     public String dryValidationAndCleanup(String formPath, Map<String, Object> variables) {
         try {
             variables = convertVariablesToFileRepresentations(variables, getFormDefinition(formPath).toString());
@@ -99,12 +100,7 @@ public class FormClient {
         }
     }
 
-    public void uploadForm(String formDefinitionJson) {
-        FormApi formApi = getFormService();
-        formApi.createForm(formDefinitionJson);
-    }
-
-    @Log(level = CONFIG, beforeExecuteMessage = "Getting definition of form '{0}'")
+    @Log(level = CONFIG, beforeExecuteMessage = "Getting definition of a form '{0}'")
     public JsonNode getFormDefinition(String formPath) {
         return FORMS_CACHE.computeIfAbsent(formPath, path -> getFormService().getForm(path, true));
     }

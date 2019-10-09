@@ -36,7 +36,7 @@ public class FormDeployer {
         formIds.stream()
                 .map(formId -> formId.endsWith(".json") ? formId.substring(0, formId.length() - 5) : formId)
                 .forEach(formId ->
-                        formClient.uploadFormIfNotExists(uploadNestedForms(getFormDefinition(deploymentSvc.getForm(formId)))));
+                        formClient.uploadForm(uploadNestedForms(getFormDefinition(deploymentSvc.getForm(formId)))));
     }
 
     protected String uploadNestedForms(String formDefinition) {
@@ -84,7 +84,7 @@ public class FormDeployer {
         String formPath = referenceDefinition.get("path").asText().substring(1);
         JsonNode formDefinition = OBJECT_MAPPER.readTree(getFormDefinition(referenceDefinition.toString()));
         JsonNode fullFormDefinition = OBJECT_MAPPER.readTree(getFormDefinition(deploymentSvc.getForm(formPath)));
-        formClient.uploadFormIfNotExists(uploadNestedForms(fullFormDefinition.toString()));
+        formClient.uploadForm(uploadNestedForms(fullFormDefinition.toString()));
         return setNestedFormFields(formDefinition);
     }
 
