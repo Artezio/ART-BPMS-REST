@@ -158,20 +158,12 @@ public class TaskSvc {
                 .taskId(taskId)
                 .singleResult();
         ensureAssigned(taskId);
-        String decision = (String) inputVariables.get(STATE_VARIABLE_NAME);
-        inputVariables = !skipValidation(taskId, decision)
-                ? validateAndMergeToTaskVariables(inputVariables, taskId)
-                : new HashMap<>();
-        inputVariables.put(DECISION_VARIABLE_NAME, decision);
-        Map<String, String> processExtensions = (task.getProcessDefinitionId() != null)
-                ? getProcessExtensions(taskId)
-                : Collections.emptyMap();
+        inputVariables = validateAndMergeToTaskVariables(taskId, inputVariables);
+        Map<String, String> processExtensions = getProcessExtensions(taskId, task);
         inputVariables = variablesMapper.convertVariablesToEntities(inputVariables, processExtensions);
         variableValidator.validate(inputVariables);
         taskService.complete(taskId, inputVariables);
-        Task nextAssignedTask = task.getProcessDefinitionId() != null
-                ? getNextAssignedTask(task.getProcessInstanceId())
-                : getNextAssignedTask(getCaseExecution(task));
+        Task nextAssignedTask = getNextAssignedTask(task);
         return TaskRepresentation.fromEntity(nextAssignedTask);
     }
 
@@ -209,6 +201,28 @@ public class TaskSvc {
         return caseService.createCaseExecutionQuery()
                 .caseInstanceId(task.getCaseInstanceId())
                 .singleResult();
+    }
+
+    private Map<String, Object> validateAndMergeToTaskVariables(String taskId, Map<String, Object> inputVariables) throws IOException {
+        String state = (String) inputVariables.get(STATE_VARIABLE_NAME);
+        inputVariables = !skipValidation(taskId, state)
+                ? validateAndMergeToTaskVariables(inputVariables, taskId)
+                : new HashMap<>();
+        inputVariables.remove(STATE_VARIABLE_NAME);
+        inputVariables.put(DECISION_VARIABLE_NAME, state);
+        return inputVariables;
+    }
+
+    private Map<String, String> getProcessExtensions(String taskId, Task task) {
+        return task.getProcessDefinitionId() != null
+                ? getProcessExtensions(taskId)
+                : Collections.emptyMap();
+    }
+
+    private Task getNextAssignedTask(Task task) {
+        return task.getProcessDefinitionId() != null
+                ? getNextAssignedTask(task.getProcessInstanceId())
+                : getNextAssignedTask(getCaseExecution(task));
     }
 
     private Map<String, Object> getRequestedFileVariableValue(String taskId, String filePath) {

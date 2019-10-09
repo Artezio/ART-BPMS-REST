@@ -31,7 +31,7 @@ import static org.mockito.internal.util.reflection.FieldSetter.setField;
 @RunWith(MockitoJUnitRunner.class)
 public class FormClientTest extends ServiceTest {
 
-    private final String SHOULD_SKIP_VALIDATION_PROPERTY_NAME = "skipValidation";
+    private final String SKIP_VALIDATION_PROPERTY_NAME = "skipValidation";
     private static ResteasyClient resteasyClient = mock(ResteasyClient.class);
 
     @Mock
@@ -105,7 +105,7 @@ public class FormClientTest extends ServiceTest {
 
         when(formApiProxy.getForm(formKey, true)).thenReturn(formDefinitionNode);
 
-        boolean actual = Boolean.parseBoolean(formio.interpretPropertyForState(formKey, SHOULD_SKIP_VALIDATION_PROPERTY_NAME, state));
+        boolean actual = Boolean.parseBoolean(formio.interpretPropertyForState(formKey, SKIP_VALIDATION_PROPERTY_NAME, state));
 
         assertFalse(actual);
     }
@@ -117,7 +117,7 @@ public class FormClientTest extends ServiceTest {
 
         when(formApiProxy.getForm(formKey, true)).thenReturn(formDefinitionNode);
 
-        boolean actual = Boolean.parseBoolean(formio.interpretPropertyForState(formKey, SHOULD_SKIP_VALIDATION_PROPERTY_NAME, state));
+        boolean actual = Boolean.parseBoolean(formio.interpretPropertyForState(formKey, SKIP_VALIDATION_PROPERTY_NAME, state));
 
         assertTrue(actual);
     }
@@ -129,7 +129,7 @@ public class FormClientTest extends ServiceTest {
 
         when(formApiProxy.getForm(formKey, true)).thenReturn(formDefinitionNode);
 
-        boolean actual = Boolean.parseBoolean(formio.interpretPropertyForState(formKey, SHOULD_SKIP_VALIDATION_PROPERTY_NAME, state));
+        boolean actual = Boolean.parseBoolean(formio.interpretPropertyForState(formKey, SKIP_VALIDATION_PROPERTY_NAME, state));
 
         assertFalse(actual);
     }

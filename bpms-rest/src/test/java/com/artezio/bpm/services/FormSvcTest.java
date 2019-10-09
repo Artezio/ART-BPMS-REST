@@ -32,7 +32,7 @@ import static org.mockito.internal.util.reflection.FieldSetter.setField;
 @RunWith(MockitoJUnitRunner.class)
 public class FormSvcTest extends ServiceTest {
 
-    private final String SHOULD_SKIP_VALIDATION_PROPERTY_NAME = "skipValidation";
+    private final String SKIP_VALIDATION_PROPERTY_NAME = "skipValidation";
 
     @InjectMocks
     private FormSvc formSvc = new FormSvc();
@@ -131,7 +131,7 @@ public class FormSvcTest extends ServiceTest {
         String state = "stateWithValidation";
         String formKey = "Form_1";
 
-        when(formClient.interpretPropertyForState(formKey, SHOULD_SKIP_VALIDATION_PROPERTY_NAME, state)).thenReturn(false);
+        when(formClient.interpretPropertyForState(formKey, SKIP_VALIDATION_PROPERTY_NAME, state)).thenReturn(false);
 
         boolean actual = formSvc.interpretPropertyForState(taskId, "shouldSkipValidation", state);
 
@@ -148,7 +148,7 @@ public class FormSvcTest extends ServiceTest {
         String state = "stateWithoutValidation";
         String formKey = "Form_1";
 
-        when(formClient.interpretPropertyForState(formKey, SHOULD_SKIP_VALIDATION_PROPERTY_NAME, state)).thenReturn(true);
+        when(formClient.interpretPropertyForState(formKey, SKIP_VALIDATION_PROPERTY_NAME, state)).thenReturn(true);
 
         boolean actual = formSvc.interpretPropertyForState(taskId, "shouldSkipValidation", state);
 

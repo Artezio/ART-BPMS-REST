@@ -50,7 +50,7 @@ import static org.mockito.internal.util.reflection.FieldSetter.setField;
 @RunWith(MockitoJUnitRunner.class)
 public class TaskSvcTest extends ServiceTest {
 
-    private final String SHOULD_SKIP_VALIDATION_PROPERTY_NAME = "skipValidation";
+    private final String SKIP_VALIDATION_PROPERTY_NAME = "skipValidation";
 
     @InjectMocks
     private TaskSvc taskSvc = new TaskSvc();
@@ -419,7 +419,7 @@ public class TaskSvcTest extends ServiceTest {
         setVariablesToTask(taskId, taskVariables);
 
         when(identityService.userId()).thenReturn(callerId);
-        when(formSvc.interpretPropertyForState(taskId, SHOULD_SKIP_VALIDATION_PROPERTY_NAME, decision)).thenReturn(false);
+        when(formSvc.interpretPropertyForState(taskId, SKIP_VALIDATION_PROPERTY_NAME, decision)).thenReturn(false);
         when(formSvc.dryValidationAndCleanupTaskForm(taskId, inputVariables)).thenReturn(cleanDataJson);
         when(formService
                 .getTaskFormData(taskId)
@@ -468,7 +468,7 @@ public class TaskSvcTest extends ServiceTest {
         setVariablesToTask(taskId, taskVariables);
 
         when(identityService.userId()).thenReturn(callerId);
-        when(formSvc.interpretPropertyForState(taskId, SHOULD_SKIP_VALIDATION_PROPERTY_NAME, decision)).thenReturn(true);
+        when(formSvc.interpretPropertyForState(taskId, SKIP_VALIDATION_PROPERTY_NAME, decision)).thenReturn(true);
         RuntimeService mockRuntimeService = mock(RuntimeService.class);
         ProcessInstanceQuery mockProcessInstanceQuery = mock(ProcessInstanceQuery.class);
         PrivateAccessor.setField(taskSvc, "runtimeService", mockRuntimeService);
@@ -524,7 +524,7 @@ public class TaskSvcTest extends ServiceTest {
         when(mockInstance.getId()).thenReturn("id1");
         when(identityService.userId()).thenReturn(callerId);
         when(formService.getTaskFormData(taskId).getFormKey()).thenReturn(formKey);
-        when(formSvc.interpretPropertyForState(taskId, SHOULD_SKIP_VALIDATION_PROPERTY_NAME, decision)).thenReturn(false);
+        when(formSvc.interpretPropertyForState(taskId, SKIP_VALIDATION_PROPERTY_NAME, decision)).thenReturn(false);
         when(repositoryService.createProcessDefinitionQuery()
                 .processDefinitionId(nullable(String.class))
                 .singleResult()
