@@ -16,7 +16,13 @@ public interface FormApi {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     JsonNode submission(@PathParam("formPath") @NotNull @Valid String formPath,
-                        @QueryParam("novalidate") boolean noValidate,
+                        Map<String, Object> variables);
+
+    @POST
+    @Path("/{formPath}/cleanUp")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    JsonNode cleanUp(@PathParam("formPath") @NotNull @Valid String formPath,
                         Map<String, Object> variables);
 
     @GET

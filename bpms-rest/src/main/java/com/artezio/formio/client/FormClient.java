@@ -92,7 +92,7 @@ public class FormClient {
         try {
             variables = convertVariablesToFileRepresentations(variables, getFormDefinition(formPath).toString());
             JsonNode data = getFormService()
-                    .submission(formPath, false, toFormIoSubmissionData(variables))
+                    .submission(formPath, toFormIoSubmissionData(variables))
                     .get("data");
             return unwrapSubformData(data, formPath).toString();
         } catch (BadRequestException bre) {
@@ -147,7 +147,7 @@ public class FormClient {
         Map<String, Object> wrappedObjects = getWrappedVariables(convertedVariables, childComponentDefinitions);
         try {
             return getFormService()
-                    .submission(formPath, true, toFormIoSubmissionData(wrappedObjects))
+                    .cleanUp(formPath, toFormIoSubmissionData(wrappedObjects))
                     .get("data");
         } catch (BadRequestException bre) {
             throw new FormNotFoundException(formPath);
