@@ -5,6 +5,12 @@ import com.artezio.bpm.rest.dto.message.CorrelationMessageRepresentation;
 import com.artezio.bpm.rest.dto.message.MessageCorrelationResultRepresentation;
 import com.artezio.bpm.rest.exception.InvalidRequestException;
 import com.artezio.bpm.rest.exception.RestException;
+import io.swagger.v3.oas.annotations.ExternalDocumentation;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.camunda.bpm.engine.MismatchingMessageCorrelationException;
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.ProcessEngines;
@@ -12,6 +18,7 @@ import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.runtime.MessageCorrelationBuilder;
 import org.camunda.bpm.engine.runtime.MessageCorrelationResult;
 
+import javax.annotation.security.PermitAll;
 import javax.annotation.security.RolesAllowed;
 import javax.ejb.Stateless;
 import javax.inject.Inject;
@@ -25,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 
 @Stateless
@@ -37,9 +45,29 @@ public class MessageSvc {
     private RuntimeService runtimeService;
 
     @POST
-    @RolesAllowed("BPMSAdmin")
+    @PermitAll
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+            description = "A signal is an event of global scope (broadcast semantics) and is delivered to all active handlers.",
+            externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/message-service-api-docs.md"),
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Request successful. The property resultEnabled in the request body was true.",
+                            content = @Content(mediaType = APPLICATION_JSON)
+                    ),
+                    @ApiResponse(
+                            responseCode = "204",
+                            description = "Request successful. The property resultEnabled in the request body was false (Default)"
+                    ),
+                    @ApiResponse(
+                            responseCode = "400",
+                            description = "If no messageName was supplied. If both tenantId and withoutTenantId are supplied. If the message has not been correlated to exactly one entity (execution or process definition), or the variable value or type is invalid, for example if the value could not be parsed to an Integer value or the passed variable type is not supported.",
+                            content = @Content(mediaType = APPLICATION_JSON)
+                    )
+            }
+    )
     public Response deliverMessage(CorrelationMessageRepresentation correlationMessageRepresentation) {
         if (correlationMessageRepresentation.getMessageName() == null) {
             throw new InvalidRequestException(BAD_REQUEST, "No message name supplied");

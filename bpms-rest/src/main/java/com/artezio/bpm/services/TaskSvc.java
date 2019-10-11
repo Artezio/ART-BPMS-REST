@@ -9,7 +9,14 @@ import com.artezio.bpm.validation.VariableValidator;
 import com.artezio.formio.client.exceptions.FormNotFoundException;
 import com.artezio.logging.Log;
 import com.jayway.jsonpath.JsonPath;
+import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import net.minidev.json.JSONArray;
 import org.apache.commons.lang3.StringUtils;
 import org.camunda.bpm.engine.*;
@@ -75,8 +82,23 @@ public class TaskSvc {
     @Path("available")
     @Produces(APPLICATION_JSON)
     @PermitAll
+    @Operation(
+            description = "List of tasks available to the user who is completing this request.",
+            externalDocs = @ExternalDocumentation(
+                    url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/task-service-api-docs.md"
+            ),
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            content = @Content(
+                                    mediaType = APPLICATION_JSON,
+                                    array = @ArraySchema(schema = @Schema(implementation = TaskRepresentation.class))
+                            )
+                    )
+            }
+    )
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of available tasks")
-    public List<TaskRepresentation> listAvailable() {
+    public @ApiResponse List<TaskRepresentation> listAvailable() {
         return taskService.createTaskQuery()
                 .or()
                 .taskCandidateGroupIn(identityService.userGroups())
@@ -92,6 +114,21 @@ public class TaskSvc {
     @Path("assigned")
     @Produces(APPLICATION_JSON)
     @PermitAll
+    @Operation(
+            description = "List of tasks assigned to the user who is completing this request.",
+            externalDocs = @ExternalDocumentation(
+                    url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/task-service-api-docs.md"
+            ),
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            content = @Content(
+                                    mediaType = APPLICATION_JSON,
+                                    array = @ArraySchema(schema = @Schema(implementation = TaskRepresentation.class))
+                            )
+                    )
+            }
+    )
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of assigned task")
     public List<TaskRepresentation> listAssigned() {
         return taskService.createTaskQuery()
@@ -105,8 +142,24 @@ public class TaskSvc {
     @POST
     @Path("{task-id}/claim")
     @PermitAll
+    @Operation(
+            description = "Assign a task to the user who is completing this request.",
+            externalDocs = @ExternalDocumentation(
+                    url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/task-service-api-docs.md"
+            ),
+            responses = {
+                    @ApiResponse(
+                            responseCode = "204"
+                    ),
+                    @ApiResponse(
+                            responseCode = "403",
+                            description = "A user doesn't have an access to assign the task with specified id."
+                    )
+            }
+    )
     @Log(level = CONFIG, beforeExecuteMessage = "Claiming task '{0}'")
-    public void claim(@PathParam("task-id") @Valid @NotNull String taskId) {
+    public void claim(
+            @Parameter(description = "The id of the task which is going to be assigned", required = true) @PathParam("task-id") @Valid @NotNull String taskId) {
         ensureUserHasAccess(taskId);
         taskService.claim(taskId, identityService.userId());
     }
@@ -115,8 +168,26 @@ public class TaskSvc {
     @Path("{task-id}/form")
     @Produces(APPLICATION_JSON)
     @PermitAll
+    @Operation(
+            description = "Load a form for a task.",
+            externalDocs = @ExternalDocumentation(
+                    url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/task-service-api-docs.md"
+            ),
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Form definition for the task with specified id.",
+                            content = @Content(mediaType = APPLICATION_JSON)
+                    ),
+                    @ApiResponse(
+                            responseCode = "403",
+                            description = "A user doesn't have an access to load a form for the task with specified id."
+                    )
+            }
+    )
     @Log(beforeExecuteMessage = "Loading form for user task '{0}'", afterExecuteMessage = "Form successfully loaded")
-    public String loadForm(@PathParam("task-id") @Valid @NotNull String taskId) throws FormNotFoundException {
+    public String loadForm(
+            @Parameter(description = "The id of the task which form is requested for.", required = true) @PathParam("task-id") @Valid @NotNull String taskId) throws FormNotFoundException {
         ensureUserHasAccess(taskId);
         VariableMap taskVariables = taskService.getVariablesTyped(taskId);
         return formService.getTaskFormWithData(taskId, taskVariables);
@@ -125,9 +196,30 @@ public class TaskSvc {
     @GET
     @Path("{task-id}/file/")
     @PermitAll
+    @Operation(
+            description = "Download a file which is a variable in the scope of a task.",
+            externalDocs = @ExternalDocumentation(
+                    url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/task-service-api-docs.md"
+            ),
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Requested file is found."
+                    ),
+                    @ApiResponse(
+                            responseCode = "403",
+                            description = "A user doesn't have an access to download the file."
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "Requested file is not found."
+                    )
+            }
+    )
     @Log(level = CONFIG, beforeExecuteMessage = "Downloading file '{1}'", afterExecuteMessage = "File '{1}' successfully downloaded")
-    public Response downloadFile(@PathParam("task-id") @Valid @NotNull String taskId,
-                                 @QueryParam(value = "filePath") @Valid @NotNull String filePath) {
+    public Response downloadFile(
+            @Parameter(description = "An id of the task which has in its scope requested file as variable.", required = true) @PathParam("task-id") @Valid @NotNull String taskId,
+            @Parameter(description = "Path to requested file.", required = true) @QueryParam(value = "filePath") @Valid @NotNull String filePath) {
         ensureUserHasAccess(taskId);
         try {
             Map<String, Object> file = getRequestedFileVariableValue(taskId, filePath);
@@ -147,13 +239,34 @@ public class TaskSvc {
     @Consumes(APPLICATION_JSON)
     @Produces(APPLICATION_JSON)
     @PermitAll
-    @Operation(description = "Complete a task using input variables. If an execution doesn't have some of input variables, they are ignored. " +
-            "Note: if two or more files with identical names are uploaded in one variable, the only one of these " +
-            "files will be used and it is not determined which one will be chosen. " +
-            "Returns next assigned task if available")
+    @Operation(
+            description = "Complete a task using input variables.",
+            externalDocs = @ExternalDocumentation(
+                    url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/task-service-api-docs.md"
+            ),
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "There is a task assigned to a user.",
+                            content = @Content(
+                                    mediaType = APPLICATION_JSON,
+                                    schema = @Schema(ref = "#/components/schemas/TaskRepresentation")
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "204",
+                            description = "There is no tasks assigned to a user."
+                    ),
+                    @ApiResponse(
+                            responseCode = "403",
+                            description = "The user is not allowed to complete task with passed id."
+                    )
+            }
+    )
     @Log(level = CONFIG, beforeExecuteMessage = "Completing task '{0}'", afterExecuteMessage = "Task '{0}' successfully completed")
-    public TaskRepresentation complete(@PathParam("task-id") @Valid @NotNull String taskId,
-                                       Map<String, Object> inputVariables) throws IOException, FormNotFoundException {
+    public TaskRepresentation complete(
+            @Parameter(description = "The id of the task to be completed.", required = true) @PathParam("task-id") @Valid @NotNull String taskId,
+            @RequestBody(description = "The variables which will be passed to a process after completing the task.") Map<String, Object> inputVariables) throws IOException, FormNotFoundException {
         Task task = taskService.createTaskQuery()
                 .taskId(taskId)
                 .singleResult();
@@ -169,7 +282,7 @@ public class TaskSvc {
 
     @PermitAll
     @Log(level = CONFIG, beforeExecuteMessage = "Getting next assigned task for process instance")
-    public Task getNextAssignedTask(String processInstanceId) {
+    protected Task getNextAssignedTask(String processInstanceId) {
         List<Task> assignedTasks = taskService.createTaskQuery()
                 .processInstanceId(processInstanceId)
                 .taskAssignee(identityService.userId())
@@ -181,7 +294,7 @@ public class TaskSvc {
 
     @PermitAll
     @Log(level = CONFIG, beforeExecuteMessage = "Getting next assigned task for case execution")
-    public Task getNextAssignedTask(CaseExecution caseExecution) {
+    protected Task getNextAssignedTask(CaseExecution caseExecution) {
         List<Task> assignedTasks = taskService.createTaskQuery()
                 .caseInstanceId(caseExecution.getCaseInstanceId())
                 .taskAssignee(identityService.userId())

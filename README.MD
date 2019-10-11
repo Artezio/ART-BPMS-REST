@@ -18,6 +18,7 @@ Forms are designed using Formio node.js application, stored in Camunda deploymen
 * [Configuration](#configuration)
 * [Corner cases](#formio-related-corner-cases)
 * [File storage](#file-storage)
+* [Api docs](#api-docs)
 
 ---
 
@@ -336,6 +337,8 @@ BPMN diagrams are secured as follows:
 * If a Task or a Process has Candidate Starter Groups, then only users which has these roles will be able to start/complete the task or process
 * If a Task or a Process has Candidate Started Users, then only users with corresponding usernames will be able to start/complete the task or process
 
+## Api Docs
+[Rest Api Docs.MD](/doc/rest-api-docs.md)
 
 [Camunda]: https://camunda.com/
 [Formio]: https://www.form.io/
