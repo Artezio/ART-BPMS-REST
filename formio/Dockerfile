@@ -1,7 +1,8 @@
 # hub.docker.com/r/_/node/
 FROM node:lts-alpine
 
-ARG FORMIO_VERSION=v1.47.0
+ARG FORMIO_VERSION=v1.59.0
+ARG ART_FORMIO_EXT_VERSION=1.0
 
 # "bcrypt" requires python/make/g++, all must be installed in alpine
 # (note: using pinned versions to ensure immutable build environment)
@@ -17,12 +18,15 @@ RUN apk update && \
 #   DEBUG=formio:*
 #ENV DEBUG=""
 
-RUN git clone https://github.com/formio/formio.git
+RUN git clone -b ${FORMIO_VERSION} --depth 1 https://github.com/formio/formio.git
+RUN git clone -b ${ART_FORMIO_EXT_VERSION} --depth 1 https://github.com/Artezio/ART-FORMIO-EXT.git
 
 WORKDIR /formio
 
-RUN git checkout tags/${FORMIO_VERSION}
 COPY src/middleware/submissionHandler.js .
+RUN cp server.js server-origin.js
+RUN cp /ART-FORMIO-EXT/cleanUp/server.js .
+RUN cp -r /ART-FORMIO-EXT/cleanUp/src .
 RUN npm install
 
 ENTRYPOINT [ "npm", "start" ]
