@@ -57,7 +57,7 @@ abstract public class ServiceTest {
         for (String fileName : fileNames) {
             File file = getFile(fileName);
             try (FileInputStream in = new FileInputStream(file)) {
-                deploymentBuilder.addInputStream(file.getName(), in);
+                deploymentBuilder.addInputStream(fileName, in);
             } catch (IOException e) {
                 throw e;
             }

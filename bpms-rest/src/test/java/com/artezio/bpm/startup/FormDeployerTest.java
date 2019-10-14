@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 
 import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -46,9 +45,9 @@ public class FormDeployerTest {
         when(formClient.getFormDefinition("/forms/nested-1-" + latestDeploymentIdSuffix)).thenReturn(nestedForm1DefinitionNode);
         when(formClient.getFormDefinition("/forms/nested-2-" + latestDeploymentIdSuffix)).thenReturn(nestedForm2DefinitionNode);
         when(formClient.getFormDefinition("/forms/nested-array-1-" + latestDeploymentIdSuffix)).thenReturn(nestedArrayFormDefinitionNode);
-        when(deploymentSvc.getForm("forms/nested-1")).thenReturn(nestedForm1Definition);
-        when(deploymentSvc.getForm("forms/nested-2")).thenReturn(nestedForm2Definition);
-        when(deploymentSvc.getForm("forms/nested-array-1")).thenReturn(nestedArrayFormDefinition);
+        when(deploymentSvc.getLatestDeploymentForm("forms/nested-1")).thenReturn(nestedForm1Definition);
+        when(deploymentSvc.getLatestDeploymentForm("forms/nested-2")).thenReturn(nestedForm2Definition);
+        when(deploymentSvc.getLatestDeploymentForm("forms/nested-array-1")).thenReturn(nestedArrayFormDefinition);
         when(deploymentSvc.getLatestDeploymentId()).thenReturn(latestDeploymentIdSuffix);
 
         JsonNode actual = formDeployer.uploadNestedForms(objectMapper.readTree(formDefinition));

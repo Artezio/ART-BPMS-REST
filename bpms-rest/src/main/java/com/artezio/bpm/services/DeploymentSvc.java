@@ -102,7 +102,7 @@ public class DeploymentSvc {
 
     @PermitAll
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of form ids from deployment resources")
-    public List<String> listFormIds() {
+    public List<String> listLatestDeploymentFormIds() {
         Deployment latestDeployment = getLatestDeployment();
         return repositoryService.getDeploymentResources(latestDeployment.getId()).stream()
                 .filter(resource -> resource.getName().startsWith(FORMS_FOLDER))
@@ -112,7 +112,7 @@ public class DeploymentSvc {
 
     @PermitAll
     @Log(level = CONFIG, beforeExecuteMessage = "Getting form '{0}' from deployment resources")
-    public String getForm(String formId) {
+    public String getLatestDeploymentForm(String formId) {
         Deployment latestDeployment = getLatestDeployment();
         formId = !formId.endsWith(".json") ? formId.concat(".json") : formId;
         try (InputStream in = repositoryService.getResourceAsStream(latestDeployment.getId(), formId)) {
@@ -120,6 +120,13 @@ public class DeploymentSvc {
         } catch (IOException e) {
             throw new RuntimeException("Error on load form " + formId, e);
         }
+    }
+
+    @PermitAll
+    public boolean deploymentsExist() {
+        return !repositoryService.createDeploymentQuery()
+                .list()
+                .isEmpty();
     }
 
     @PermitAll
@@ -208,11 +215,15 @@ public class DeploymentSvc {
     }
 
     private Deployment getLatestDeployment() {
-        return repositoryService.createDeploymentQuery()
+        List<Deployment> deploymentList = repositoryService.createDeploymentQuery()
                 .orderByDeploymentTime()
                 .desc()
-                .list()
-                .get(0);
+                .list();
+        if (!deploymentList.isEmpty()) {
+            return deploymentList.get(0);
+        } else {
+            throw new ThereAreNoDeploymentsException();
+        }
     }
 
     private Map<String, InputStream> getFormParts(MultipartFormDataInput input) {
