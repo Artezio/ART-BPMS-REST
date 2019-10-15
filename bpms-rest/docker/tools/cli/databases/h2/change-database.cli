@@ -1,4 +1,4 @@
-/subsystem=datasources/data-source=bpms-rest-datasource: add(jndi-name=java:/datasources/CamundaDS, enabled=true, jta=true, use-ccm=true, connection-url="jdbc:h2:/opt/bpms-rest.h2.db", driver-name=h2)
+/subsystem=datasources/data-source=bpms-rest-datasource: add(jndi-name=java:/datasources/CamundaDS, enabled=true, jta=true, use-ccm=true, connection-url="jdbc:h2:/opt/bpms-rest-h2-db/bpms", driver-name=h2)
 /subsystem=datasources/data-source=bpms-rest-datasource: write-attribute(name=user-name, value=sa)
 /subsystem=datasources/data-source=bpms-rest-datasource: write-attribute(name=password, value=sa)
 /subsystem=datasources/data-source=bpms-rest-datasource: write-attribute(name=check-valid-connection-sql, value="SELECT 1")

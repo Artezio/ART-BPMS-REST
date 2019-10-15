@@ -5,7 +5,9 @@ FROM maven:3.5.2-jdk-8-alpine as maven_builder
 RUN apk add --no-cache git
 RUN cd / &&\
 	git clone https://github.com/Artezio/ART-BPMS-REST.git &&\
-	cd /ART-BPMS-REST/bpms-rest &&\
+	cd /ART-BPMS-REST &&\
+	git checkout dev &&\
+	cd /ART-BPMS-REST &&\
 	mvn clean install -Dmaven.test.skip=true
 
 
@@ -55,7 +57,7 @@ RUN /opt/jboss/tools/bpms-rest/configure-wildfly.sh
 
 # Setup demo database
 USER root
-RUN touch /opt/bpms-rest.h2.db && chown jboss:0 /opt/bpms-rest.h2.db
+RUN mkdir -p /opt/bpms-rest-h2-db && chown jboss:0 /opt/bpms-rest-h2-db
 
 USER jboss
 
