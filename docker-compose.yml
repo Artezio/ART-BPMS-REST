@@ -1,0 +1,35 @@
+version: '3.7'
+
+services:
+  bpms-rest:
+    depends_on:
+      - formio
+    build:
+      context: ./bpms-rest/docker    
+
+  formio:
+    build:
+      context: ./formio
+      args:
+        ROOT_EMAIL: ${FORMIO_ROOT_EMAIL}
+        ROOT_PASSWORD: ${FORMIO_ROOT_PASSWORD}
+    restart: always
+    links:
+      - mongo
+    ports:
+      - "3001:3001"
+    external_links:
+      - mongo
+    environment:
+      NODE_CONFIG: "{\"mongo\": \"${MONGODB_URL}\"}"
+      ROOT_EMAIL: ${FORMIO_ROOT_EMAIL}
+      ROOT_PASSWORD: ${FORMIO_ROOT_PASSWORD}
+
+  mongo:
+    image: mongo:4.1
+    restart: always
+    volumes:
+      - mongodb-data:/data/db
+
+volumes:
+  mongodb-data:

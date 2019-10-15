@@ -1,0 +1,11 @@
+embed-server --server-config=standalone.xml --std-out=echo
+try
+	/subsystem=datasources/data-source=bpms-rest-datasource: remove()
+catch
+end-try
+try
+	/subsystem=datasources/jdbc-driver=mssql: remove()
+catch
+end-try
+run-batch --file=/opt/jboss/tools/bpms-rest/cli/databases/mssql/change-database.cli
+stop-embedded-server
