@@ -48,7 +48,7 @@ ART-BPMS-REST then uses the work server to load forms and validate submitted dat
 * [Java] 1.8 or greater
 * [Maven] 3.6.1 or greater
 * [Git] version 2.19.0 or greater
-* [Wildfly 15]. You could use another JavaEE8-approved server, but there are no guarantees on its workability
+* [Wildfly 17]. You could use another JavaEE8-approved server, but there are no guarantees on its workability
 * A relational database for Camunda. Supported databases are listed on [Camunda documentation](https://docs.camunda.org/manual/7.10/introduction/supported-environments/#supported-database-products) page 
 * Configured JAAS Security provider, such as [Keycloak]. Refer to [Security](#security) section for more details
 
@@ -368,5 +368,5 @@ BPMN diagrams are secured as follows:
 [Keycloak]: https://www.keycloak.org/
 [RFC 4647]: https://tools.ietf.org/html/rfc4647
 [RFC 5646]: https://tools.ietf.org/html/rfc5646
-[Wildfly 15]: https://wildfly.org/downloads/
+[Wildfly 17]: https://wildfly.org/downloads/
 
