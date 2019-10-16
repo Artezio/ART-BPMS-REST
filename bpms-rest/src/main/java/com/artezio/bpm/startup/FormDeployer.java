@@ -32,11 +32,13 @@ public class FormDeployer {
 
     @PostConstruct
     public void uploadForms() {
-        List<String> formIds = deploymentSvc.listFormIds();
-        formIds.stream()
-                .map(formId -> formId.endsWith(".json") ? formId.substring(0, formId.length() - 5) : formId)
-                .forEach(formId ->
-                        formClient.uploadForm(uploadNestedForms(getFormDefinition(deploymentSvc.getForm(formId)))));
+        if (deploymentSvc.deploymentsExist()) {
+            List<String> formIds = deploymentSvc.listLatestDeploymentFormIds();
+            formIds.stream()
+                    .map(formId -> formId.endsWith(".json") ? formId.substring(0, formId.length() - 5) : formId)
+                    .forEach(formId ->
+                            formClient.uploadForm(uploadNestedForms(getFormDefinition(deploymentSvc.getLatestDeploymentForm(formId)))));
+        }
     }
 
     protected String uploadNestedForms(String formDefinition) {
@@ -83,7 +85,7 @@ public class FormDeployer {
     protected JsonNode uploadNestedForm(JsonNode referenceDefinition) throws IOException {
         String formPath = referenceDefinition.get("path").asText().substring(1);
         JsonNode formDefinition = OBJECT_MAPPER.readTree(getFormDefinition(referenceDefinition.toString()));
-        JsonNode fullFormDefinition = OBJECT_MAPPER.readTree(getFormDefinition(deploymentSvc.getForm(formPath)));
+        JsonNode fullFormDefinition = OBJECT_MAPPER.readTree(getFormDefinition(deploymentSvc.getLatestDeploymentForm(formPath)));
         formClient.uploadForm(uploadNestedForms(fullFormDefinition.toString()));
         return setNestedFormFields(formDefinition);
     }
