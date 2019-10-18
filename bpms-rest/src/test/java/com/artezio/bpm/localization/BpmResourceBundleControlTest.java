@@ -29,12 +29,12 @@ public class BpmResourceBundleControlTest {
     @Test
     public void testNewBundle_PassedLangRangeWith_LangCode_Script_Region_Variant_ThereIsExactlyMatchingResource() throws IOException {
         String baseName = "test-resource";
-        String resourceName = baseName + "_tl_Tscr_TC_testv.properties";
+        String resourceName = "i18n/" + baseName + "_tl_Tscr_TC_testv.properties";
         Locale locale = buildTestLocale();
-        InputStream testL10nResourceAsStream = getClass().getResourceAsStream("/i18n/" + resourceName);
+        InputStream resourceBundleStream = getClass().getClassLoader().getResourceAsStream(resourceName);
 
         when(repositoryService.getDeploymentResourceNames(deploymentId)).thenReturn(asList(resourceName));
-        when(repositoryService.getResourceAsStream(deploymentId, resourceName)).thenReturn(testL10nResourceAsStream);
+        when(repositoryService.getResourceAsStream(deploymentId, resourceName)).thenReturn(resourceBundleStream);
 
         ResourceBundle resourceBundle = resourceBundleControl.newBundle(baseName, locale, "format", null, false);
 
@@ -45,9 +45,9 @@ public class BpmResourceBundleControlTest {
     @Test
     public void testNewBundle_PassedLangRangeWith_LangCode_Script_Region_Variant_ThereIsCloseAppropriateBundle() throws IOException {
         String baseResourceName = "test-resource";
-        String resourceName = baseResourceName + "_tl.properties";
+        String resourceName = "i18n/" + baseResourceName + "_tl.properties";
         Locale locale = buildTestLocale();
-        InputStream testL10nResourceAsStream = getClass().getResourceAsStream("/i18n/" + resourceName);
+        InputStream testL10nResourceAsStream = getClass().getClassLoader().getResourceAsStream(resourceName);
 
         when(repositoryService.getDeploymentResourceNames(deploymentId)).thenReturn(asList(resourceName));
         when(repositoryService.getResourceAsStream(deploymentId, resourceName)).thenReturn(testL10nResourceAsStream);

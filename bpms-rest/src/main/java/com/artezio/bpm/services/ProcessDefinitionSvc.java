@@ -4,7 +4,6 @@ import com.artezio.bpm.rest.dto.repository.ProcessDefinitionRepresentation;
 import com.artezio.bpm.rest.dto.task.TaskRepresentation;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.validation.VariableValidator;
-import com.artezio.formio.client.exceptions.FormNotFoundException;
 import com.artezio.logging.Log;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,7 +33,6 @@ import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -195,7 +193,7 @@ public class ProcessDefinitionSvc {
     }
 
     protected Map<String, Object> validateAndMergeToFormVariables(Map<String, Object> inputVariables,
-                                                                  String processDefinitionId) throws IOException, FormNotFoundException {
+                                                                  String processDefinitionId) throws IOException {
         StartFormData formData = camundaFormService.getStartFormData(processDefinitionId);
         String formKey = formData.getFormKey();
         if (formKey == null) {
@@ -251,7 +249,7 @@ public class ProcessDefinitionSvc {
         return runtimeService.startProcessInstanceByKey(processDefinition.getKey(), inputVariables);
     }
 
-    private ProcessInstance startProcessByFormSubmission(ProcessDefinition processDefinition, Map<String, Object> variables) throws IOException, FormNotFoundException {
+    private ProcessInstance startProcessByFormSubmission(ProcessDefinition processDefinition, Map<String, Object> variables) throws IOException {
         Map<String, Object> mergedVariables = validateAndMergeToFormVariables(variables, processDefinition.getId());
         Map<String, String> processExtensions = getProcessExtensions(processDefinition);
         mergedVariables = variablesMapper.convertVariablesToEntities(mergedVariables, processExtensions);

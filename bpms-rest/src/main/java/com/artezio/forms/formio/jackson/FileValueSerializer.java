@@ -1,4 +1,4 @@
-package com.artezio.formio.client.jackson;
+package com.artezio.forms.formio.jackson;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;

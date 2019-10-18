@@ -1,7 +1,7 @@
 package com.artezio.bpm.services;
 
-import com.artezio.formio.client.FormClient;
-import com.artezio.formio.client.exceptions.FormNotFoundException;
+import com.artezio.forms.FormClient;
+import com.artezio.forms.formio.exceptions.FormNotFoundException;
 import org.camunda.bpm.engine.FormService;
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.TaskService;
@@ -17,7 +17,7 @@ public class FormSvc {
     private final static boolean IS_FORM_VERSIONING_ENABLED = Boolean.parseBoolean(System.getProperty("FORM_VERSIONING", "true"));
 
     @Inject
-    private FormClient formClient;
+    private FormClient formioClient;
     @Inject
     private TaskService taskService;
     @Inject
@@ -27,37 +27,27 @@ public class FormSvc {
 
     public String getTaskFormWithData(String taskId, Map<String, Object> variables) throws FormNotFoundException {
         String formKey = getTaskFormKey(taskId);
-        return formClient.getFormWithData(formKey, variables);
+        return formioClient.getFormWithData(formKey, variables);
     }
 
     public String getStartFormWithData(String processDefinitionId, Map<String, Object> variables) throws FormNotFoundException {
         String formKey = getStartFormKey(processDefinitionId);
-        return formClient.getFormWithData(formKey, variables);
+        return formioClient.getFormWithData(formKey, variables);
     }
 
     public String dryValidationAndCleanupTaskForm(String taskId, Map<String, Object> variables) throws FormNotFoundException {
         String formKey = getTaskFormKey(taskId);
-        return formClient.dryValidationAndCleanup(formKey, variables);
+        return formioClient.dryValidationAndCleanup(formKey, variables);
     }
 
     public String dryValidationAndCleanupStartForm(String processDefinitionId, Map<String, Object> variables) throws FormNotFoundException {
         String formKey = getStartFormKey(processDefinitionId);
-        return formClient.dryValidationAndCleanup(formKey, variables);
+        return formioClient.dryValidationAndCleanup(formKey, variables);
     }
 
-    public <T> T interpretPropertyForState(String taskId, String propertyName, String state) {
+    public boolean shouldProcessSubmittedData(String taskId, String decision) {
         String formKey = getTaskFormKey(taskId);
-        return formClient.interpretPropertyForState(formKey, propertyName, state);
-    }
-
-    String getTaskFormDefinition(String taskId) {
-        String formKey = getTaskFormKey(taskId);
-        return formClient.getFormDefinition(formKey).toString();
-    }
-
-    String getStartFormDefinition(String processDefinitionId) {
-        String formKey = getStartFormKey(processDefinitionId);
-        return formClient.getFormDefinition(formKey).toString();
+        return formioClient.shouldProcessSubmittedData(formKey, decision);
     }
 
     private String getTaskFormKey(String taskId) {

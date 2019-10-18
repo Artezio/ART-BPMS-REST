@@ -6,7 +6,6 @@ import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.bpm.services.integration.FileStorage;
 import com.artezio.bpm.services.integration.cdi.ConcreteImplementation;
 import com.artezio.bpm.validation.VariableValidator;
-import com.artezio.formio.client.exceptions.FormNotFoundException;
 import com.artezio.logging.Log;
 import com.jayway.jsonpath.JsonPath;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
@@ -187,7 +186,7 @@ public class TaskSvc {
     )
     @Log(beforeExecuteMessage = "Loading form for user task '{0}'", afterExecuteMessage = "Form successfully loaded")
     public String loadForm(
-            @Parameter(description = "The id of the task which form is requested for.", required = true) @PathParam("task-id") @Valid @NotNull String taskId) throws FormNotFoundException {
+            @Parameter(description = "The id of the task which form is requested for.", required = true) @PathParam("task-id") @Valid @NotNull String taskId) {
         ensureUserHasAccess(taskId);
         VariableMap taskVariables = taskService.getVariablesTyped(taskId);
         return formService.getTaskFormWithData(taskId, taskVariables);
@@ -266,7 +265,7 @@ public class TaskSvc {
     @Log(level = CONFIG, beforeExecuteMessage = "Completing task '{0}'", afterExecuteMessage = "Task '{0}' successfully completed")
     public TaskRepresentation complete(
             @Parameter(description = "The id of the task to be completed.", required = true) @PathParam("task-id") @Valid @NotNull String taskId,
-            @RequestBody(description = "The variables which will be passed to a process after completing the task.") Map<String, Object> inputVariables) throws IOException, FormNotFoundException {
+            @RequestBody(description = "The variables which will be passed to a process after completing the task.") Map<String, Object> inputVariables) throws IOException {
         Task task = taskService.createTaskQuery()
                 .taskId(taskId)
                 .singleResult();
@@ -317,12 +316,16 @@ public class TaskSvc {
     }
 
     private Map<String, Object> validateAndMergeToTaskVariables(String taskId, Map<String, Object> inputVariables) throws IOException {
-        String state = (String) inputVariables.get(STATE_VARIABLE_NAME);
-        inputVariables = !skipValidation(taskId, state)
+        String decision = (String) inputVariables.remove(STATE_VARIABLE_NAME);
+        inputVariables = getVariablesRegardingDecision(taskId, inputVariables, decision);
+        return inputVariables;
+    }
+
+    private Map<String, Object> getVariablesRegardingDecision(String taskId, Map<String, Object> inputVariables, String decision) throws IOException {
+        inputVariables = !formService.shouldProcessSubmittedData(taskId, decision)
                 ? validateAndMergeToTaskVariables(inputVariables, taskId)
                 : new HashMap<>();
-        inputVariables.remove(STATE_VARIABLE_NAME);
-        inputVariables.put(DECISION_VARIABLE_NAME, state);
+        inputVariables.put(DECISION_VARIABLE_NAME, decision);
         return inputVariables;
     }
 
@@ -391,12 +394,8 @@ public class TaskSvc {
         return variableName.replaceAll("\\W", "");
     }
 
-    private boolean skipValidation(String taskId, String decision) {
-        return Boolean.parseBoolean(formService.interpretPropertyForState(taskId, "skipValidation", decision));
-    }
-
     private Map<String, Object> validateAndMergeToTaskVariables(Map<String, Object> inputVariables, String taskId)
-            throws IOException, FormNotFoundException {
+            throws IOException {
         String formKey = camundaFormService.getTaskFormData(taskId).getFormKey();
         if (formKey != null) {
             String cleanDataJson = formService.dryValidationAndCleanupTaskForm(taskId, inputVariables);

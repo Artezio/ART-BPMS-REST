@@ -1,4 +1,4 @@
-package com.artezio.formio.client.jackson;
+package com.artezio.forms.formio.jackson;
 
 import com.artezio.bpm.utils.Base64Utils;
 import com.fasterxml.jackson.core.JsonParser;

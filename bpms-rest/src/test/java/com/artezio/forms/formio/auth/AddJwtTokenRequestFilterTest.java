@@ -1,4 +1,4 @@
-package com.artezio.formio.client.auth;
+package com.artezio.forms.formio.auth;
 
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;

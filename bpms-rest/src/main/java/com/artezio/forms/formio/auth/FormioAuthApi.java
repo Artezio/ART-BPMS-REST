@@ -1,4 +1,4 @@
-package com.artezio.formio.client.auth;
+package com.artezio.forms.formio.auth;
 
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;

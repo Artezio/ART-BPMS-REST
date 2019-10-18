@@ -1,4 +1,4 @@
-package com.artezio.formio.client;
+package com.artezio.forms.formio;
 
 import com.artezio.bpm.services.ServiceTest;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -29,44 +29,43 @@ import static org.mockito.Mockito.*;
 import static org.mockito.internal.util.reflection.FieldSetter.setField;
 
 @RunWith(MockitoJUnitRunner.class)
-public class FormClientTest extends ServiceTest {
+public class FormioClientTest extends ServiceTest {
 
-    private final String SKIP_VALIDATION_PROPERTY_NAME = "skipValidation";
     private static ResteasyClient resteasyClient = mock(ResteasyClient.class);
 
     @Mock
-    private FormApi formApiProxy;
+    private FormioService formioService;
     @Mock
     private ResteasyWebTarget restEasyWebTarget;
     @InjectMocks
-    private FormClient formio = new FormClient();
+    private FormioClient formioClient = new FormioClient();
 
     private JsonNode formDefinitionNode = new ObjectMapper().readTree(new String(Files.readAllBytes(Paths.get("./src/test/resources/testForm.json"))));
 
-    public FormClientTest() throws IOException {
+    public FormioClientTest() throws IOException {
     }
 
     @BeforeClass
     public static void initClass() throws NoSuchFieldException {
-        Field restEasyClientField = FormClient.class.getDeclaredField("client");
-        setField(FormClient.class, restEasyClientField, resteasyClient);
+        Field restEasyClientField = FormioClient.class.getDeclaredField("client");
+        setField(FormioClient.class, restEasyClientField, resteasyClient);
     }
 
     @Before
     public void init() {
         when(resteasyClient.target(any(UriBuilder.class))).thenReturn(restEasyWebTarget);
-        when(restEasyWebTarget.proxy(FormApi.class)).thenReturn(formApiProxy);
+        when(restEasyWebTarget.proxy(FormioService.class)).thenReturn(formioService);
     }
 
     @After
     public void tearDown() throws NoSuchFieldException, IllegalAccessException {
         reset(resteasyClient);
-        Field formsCacheField = FormClient.class.getDeclaredField("FORMS_CACHE");
-        Field submitButtonsCacheField = FormClient.class.getDeclaredField("STATE_COMPONENT_CACHE");
+        Field formsCacheField = FormioClient.class.getDeclaredField("FORMS_CACHE");
+        Field submitButtonsCacheField = FormioClient.class.getDeclaredField("SUBMITTED_DATA_PROCESSING_PROPERTY_CACHE");
         formsCacheField.setAccessible(true);
         submitButtonsCacheField.setAccessible(true);
-        ((Map<String, JsonNode>) formsCacheField.get(FormClient.class)).clear();
-        ((Map<String, JsonNode>) submitButtonsCacheField.get(FormClient.class)).clear();
+        ((Map<String, JsonNode>) formsCacheField.get(FormioClient.class)).clear();
+        ((Map<String, JsonNode>) submitButtonsCacheField.get(FormioClient.class)).clear();
     }
 
     @Test
@@ -74,73 +73,37 @@ public class FormClientTest extends ServiceTest {
         JsonNode formDefinition = new ObjectNode(JsonNodeFactory.instance);
         String formPath = "formKey";
 
-        when(formApiProxy.getForm(formPath, true)).thenReturn(formDefinition);
+        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
 
-        JsonNode actual = formio.getFormDefinition(formPath);
+        JsonNode actual = formioClient.getFormDefinition(formPath);
 
         assertNotNull(actual);
 
-        verify(formApiProxy, times(1)).getForm(formPath, true);
+        verify(formioService, times(1)).getForm(formPath, true);
     }
 
     @Test
     public void testGetFormDefinition_ThereIsFormsCacheHit() throws NoSuchFieldException, IllegalAccessException {
         JsonNode formDefinition = new ObjectNode(JsonNodeFactory.instance);
         String formKey = "formKey";
-        Field formsCacheField = FormClient.class.getDeclaredField("FORMS_CACHE");
+        Field formsCacheField = FormioClient.class.getDeclaredField("FORMS_CACHE");
         formsCacheField.setAccessible(true);
-        ((Map<String, JsonNode>) formsCacheField.get(FormClient.class)).put(formKey, formDefinition);
+        ((Map<String, JsonNode>) formsCacheField.get(FormioClient.class)).put(formKey, formDefinition);
 
-        JsonNode actual = formio.getFormDefinition(formKey);
+        JsonNode actual = formioClient.getFormDefinition(formKey);
 
         assertNotNull(actual);
 
-        verify(formApiProxy, never()).getForm(eq(formKey), eq(true));
-    }
-
-    @Test
-    public void testShouldSkipValidation_StateWithValidationIsPassed() {
-        String formKey = "formKey";
-        String state = "submitted";
-
-        when(formApiProxy.getForm(formKey, true)).thenReturn(formDefinitionNode);
-
-        boolean actual = Boolean.parseBoolean(formio.interpretPropertyForState(formKey, SKIP_VALIDATION_PROPERTY_NAME, state));
-
-        assertFalse(actual);
-    }
-
-    @Test
-    public void testShouldSkipValidation_StateWithNoValidationIsPassed() {
-        String formKey = "formKey";
-        String state = "rejected";
-
-        when(formApiProxy.getForm(formKey, true)).thenReturn(formDefinitionNode);
-
-        boolean actual = Boolean.parseBoolean(formio.interpretPropertyForState(formKey, SKIP_VALIDATION_PROPERTY_NAME, state));
-
-        assertTrue(actual);
-    }
-
-    @Test
-    public void testShouldSkipValidation_PassedStateDoesntExist() {
-        String formKey = "formKey";
-        String state = "notExistingState";
-
-        when(formApiProxy.getForm(formKey, true)).thenReturn(formDefinitionNode);
-
-        boolean actual = Boolean.parseBoolean(formio.interpretPropertyForState(formKey, SKIP_VALIDATION_PROPERTY_NAME, state));
-
-        assertFalse(actual);
+        verify(formioService, never()).getForm(eq(formKey), eq(true));
     }
 
     @Test
     public void testUploadForm() {
         String formDefinition = "{\"formKey\":\"keeey\", \"path\":\"formPath\"}";
 
-        when(formApiProxy.createForm(formDefinition)).thenReturn(formDefinitionNode);
+        when(formioService.createForm(formDefinition)).thenReturn(formDefinitionNode);
 
-        formio.uploadForm(formDefinition);
+        formioClient.uploadForm(formDefinition);
     }
 
     @Test
@@ -148,10 +111,10 @@ public class FormClientTest extends ServiceTest {
         String formPath = "/form1";
         String formDefinition = "{\"formKey\":\"keeey\", \"path\":\"" + formPath + "\"}";
 
-        when(formApiProxy.createForm(formDefinition)).thenThrow(BadRequestException.class);
-        when(formApiProxy.getForm(formPath, true)).thenReturn(formDefinitionNode);
+        when(formioService.createForm(formDefinition)).thenThrow(BadRequestException.class);
+        when(formioService.getForm(formPath, true)).thenReturn(formDefinitionNode);
 
-        formio.uploadForm(formDefinition);
+        formioClient.uploadForm(formDefinition);
     }
 
     @Test(expected = BadRequestException.class)
@@ -159,10 +122,10 @@ public class FormClientTest extends ServiceTest {
         String formPath = "/form1";
         String formDefinition = "{\"formKey\":\"keeey\", \"path\":\"" + formPath +"\"}";
 
-        when(formApiProxy.createForm(formDefinition)).thenThrow(BadRequestException.class);
-        when(formApiProxy.getForm("/form1", true)).thenThrow(BadRequestException.class);
+        when(formioService.createForm(formDefinition)).thenThrow(BadRequestException.class);
+        when(formioService.getForm("/form1", true)).thenThrow(BadRequestException.class);
 
-        formio.uploadForm(formDefinition);
+        formioClient.uploadForm(formDefinition);
     }
 
     @Test
@@ -200,7 +163,7 @@ public class FormClientTest extends ServiceTest {
                         "   }," +
                         "   \"multipleForms\": [{}]" +
                         "}");
-        JsonNode actual = formio.unwrapSubformData(submittedData, definition);
+        JsonNode actual = formioClient.unwrapSubformData(submittedData, definition);
         assertEquals(expectedData, actual);
     }
 
@@ -222,11 +185,50 @@ public class FormClientTest extends ServiceTest {
                         "       }" +
                         "   ]" +
                         "}");
-        JsonNode actual = formio.wrapSubformData(sourceData, definition);
+        JsonNode actual = formioClient.wrapSubformData(sourceData, definition);
         assertFalse(actual.at("/data").isMissingNode());
         assertFalse(actual.at("/data/nested-1/data").isMissingNode());
         assertFalse(actual.at("/data/nested-1/data/nested-2/data").isMissingNode());
         assertEquals("text2", actual.at("/data/nested-1/data/nested-2/data/nested-2-text").asText());
+    }
+
+    @Test
+    public void shouldProcessSubmittedData_SubmissionStateIsSubmitted() throws IOException {
+        JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithState.json"));
+        String formPath = "forms/form-with-state";
+        String submissionState = "submitted";
+
+        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
+
+        boolean actual = formioClient.shouldProcessSubmittedData(formPath, submissionState);
+
+        assertTrue(actual);
+    }
+
+    @Test
+    public void shouldProcessSubmittedData_SubmissionStateIsCanceled() throws IOException {
+        JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithState.json"));
+        String formPath = "forms/form-with-state";
+        String submissionState = "canceled";
+
+        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
+
+        boolean actual = formioClient.shouldProcessSubmittedData(formPath, submissionState);
+
+        assertFalse(actual);
+    }
+
+    @Test
+    public void shouldProcessSubmittedData_SkipDataProcessingPropertyNotSet() throws IOException {
+        JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithState.json"));
+        String formPath = "forms/form-with-state";
+        String submissionState = "submittedWithoutProperty";
+
+        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
+
+        boolean actual = formioClient.shouldProcessSubmittedData(formPath, submissionState);
+
+        assertTrue(actual);
     }
 
 }

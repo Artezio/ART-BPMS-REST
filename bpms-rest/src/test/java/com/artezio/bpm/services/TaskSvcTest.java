@@ -4,7 +4,7 @@ import com.artezio.bpm.rest.dto.task.TaskRepresentation;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.bpm.validation.VariableValidator;
-import com.artezio.formio.client.FormClient;
+import com.artezio.forms.formio.FormioClient;
 import junitx.framework.ListAssert;
 import junitx.util.PrivateAccessor;
 import org.apache.commons.io.IOUtils;
@@ -50,8 +50,6 @@ import static org.mockito.internal.util.reflection.FieldSetter.setField;
 @RunWith(MockitoJUnitRunner.class)
 public class TaskSvcTest extends ServiceTest {
 
-    private final String SKIP_VALIDATION_PROPERTY_NAME = "skipValidation";
-
     @InjectMocks
     private TaskSvc taskSvc = new TaskSvc();
     @Mock
@@ -63,7 +61,7 @@ public class TaskSvcTest extends ServiceTest {
     @Mock
     private FormSvc formSvc;
     @Mock
-    private FormClient formio;
+    private FormioClient formio;
     @Mock
     private VariablesMapper variablesMapper;
     @Mock
@@ -419,7 +417,7 @@ public class TaskSvcTest extends ServiceTest {
         setVariablesToTask(taskId, taskVariables);
 
         when(identityService.userId()).thenReturn(callerId);
-        when(formSvc.interpretPropertyForState(taskId, SKIP_VALIDATION_PROPERTY_NAME, decision)).thenReturn(false);
+        when(formSvc.shouldProcessSubmittedData(taskId, decision)).thenReturn(false);
         when(formSvc.dryValidationAndCleanupTaskForm(taskId, inputVariables)).thenReturn(cleanDataJson);
         when(formService
                 .getTaskFormData(taskId)
@@ -468,7 +466,7 @@ public class TaskSvcTest extends ServiceTest {
         setVariablesToTask(taskId, taskVariables);
 
         when(identityService.userId()).thenReturn(callerId);
-        when(formSvc.interpretPropertyForState(taskId, SKIP_VALIDATION_PROPERTY_NAME, decision)).thenReturn(true);
+        when(formSvc.shouldProcessSubmittedData(taskId, decision)).thenReturn(true);
         RuntimeService mockRuntimeService = mock(RuntimeService.class);
         ProcessInstanceQuery mockProcessInstanceQuery = mock(ProcessInstanceQuery.class);
         PrivateAccessor.setField(taskSvc, "runtimeService", mockRuntimeService);
@@ -524,7 +522,7 @@ public class TaskSvcTest extends ServiceTest {
         when(mockInstance.getId()).thenReturn("id1");
         when(identityService.userId()).thenReturn(callerId);
         when(formService.getTaskFormData(taskId).getFormKey()).thenReturn(formKey);
-        when(formSvc.interpretPropertyForState(taskId, SKIP_VALIDATION_PROPERTY_NAME, decision)).thenReturn(false);
+        when(formSvc.shouldProcessSubmittedData(taskId, decision)).thenReturn(false);
         when(repositoryService.createProcessDefinitionQuery()
                 .processDefinitionId(nullable(String.class))
                 .singleResult()
