@@ -1,6 +1,7 @@
 package com.artezio.bpm.services;
 
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
+import com.artezio.bpm.services.exceptions.NoDeploymentException;
 import com.artezio.bpm.startup.FormDeployer;
 import org.apache.commons.lang3.StringUtils;
 import org.camunda.bpm.application.ProcessApplicationInterface;
@@ -305,7 +306,7 @@ public class DeploymentSvcTest extends ServiceTest {
         assertFalse(StringUtils.isEmpty(latestDeploymentForm));
     }
 
-    @Test(expected = ThereAreNoDeploymentsException.class)
+    @Test(expected = NoDeploymentException.class)
     public void testGetLatestDeploymentForm_DeploymentNotExists() {
         String formId = "testForm";
 
@@ -325,7 +326,7 @@ public class DeploymentSvcTest extends ServiceTest {
         assertFalse(formIds.isEmpty());
     }
 
-    @Test(expected = ThereAreNoDeploymentsException.class)
+    @Test(expected = NoDeploymentException.class)
     public void testListLatestDeploymentFormIds_DeploymentNotExists() {
         List<String> formIds = deploymentSvc.listLatestDeploymentFormIds();
     }
@@ -343,7 +344,7 @@ public class DeploymentSvcTest extends ServiceTest {
         assertFalse(StringUtils.isEmpty(latestDeploymentId));
     }
 
-    @Test(expected = ThereAreNoDeploymentsException.class)
+    @Test(expected = NoDeploymentException.class)
     public void testGetLatestDeploymentId_DeploymentNotExists() {
         deploymentSvc.getLatestDeploymentId();
     }

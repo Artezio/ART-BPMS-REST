@@ -2,6 +2,7 @@ package com.artezio.bpm.services;
 
 import com.artezio.bpm.localization.BpmResourceBundleControl;
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
+import com.artezio.bpm.services.exceptions.NoDeploymentException;
 import com.artezio.bpm.startup.FormDeployer;
 import com.artezio.logging.Log;
 import com.google.common.base.Charsets;
@@ -215,15 +216,13 @@ public class DeploymentSvc {
     }
 
     private Deployment getLatestDeployment() {
-        List<Deployment> deploymentList = repositoryService.createDeploymentQuery()
+        return repositoryService.createDeploymentQuery()
                 .orderByDeploymentTime()
                 .desc()
-                .list();
-        if (!deploymentList.isEmpty()) {
-            return deploymentList.get(0);
-        } else {
-            throw new ThereAreNoDeploymentsException();
-        }
+                .list()
+                .stream()
+                .findFirst()
+                .orElseThrow(NoDeploymentException::new);
     }
 
     private Map<String, InputStream> getFormParts(MultipartFormDataInput input) {
