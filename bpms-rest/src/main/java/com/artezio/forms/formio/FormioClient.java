@@ -49,7 +49,8 @@ public class FormioClient implements FormClient {
     private static ResteasyClient client;
 
     private final static spinjar.com.fasterxml.jackson.databind.ObjectMapper MAPPER = new spinjar.com.fasterxml.jackson.databind.ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .setDefaultMergeable(false);
 
     static {
         JacksonDataFormatConfigurator.registerSpinjarFileValueSerializers(MAPPER);
