@@ -20,8 +20,8 @@ import net.minidev.json.JSONArray;
 import org.apache.commons.lang3.StringUtils;
 import org.camunda.bpm.engine.*;
 import org.camunda.bpm.engine.runtime.CaseExecution;
-import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.task.Task;
+import org.camunda.bpm.engine.task.TaskQuery;
 import org.camunda.bpm.engine.variable.VariableMap;
 import org.camunda.bpm.engine.variable.impl.value.ObjectValueImpl;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
@@ -36,9 +36,10 @@ import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import javax.ws.rs.core.*;
 import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -68,14 +69,13 @@ public class TaskSvc {
     @Inject
     private CaseService caseService;
     @Inject
-    private RuntimeService runtimeService;
-    @Inject
     @ConcreteImplementation
     private FileStorage fileStorage;
     @Inject
     private RepositoryService repositoryService;
     @Inject
     private VariableValidator variableValidator;
+    private SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSZ");
 
     @GET
     @Path("available")
@@ -97,12 +97,17 @@ public class TaskSvc {
             }
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of available tasks")
-    public @ApiResponse List<TaskRepresentation> listAvailable() {
-        return taskService.createTaskQuery()
+    public @ApiResponse List<TaskRepresentation> listAvailable(@Context UriInfo uriInfo) throws ParseException {
+        MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
+        TaskQuery taskQuery = taskService.createTaskQuery()
                 .or()
                 .taskCandidateGroupIn(identityService.userGroups())
                 .taskCandidateUser(identityService.userId())
-                .endOr()
+                .endOr();
+        applyDueDateFilters(taskQuery, queryParameters);
+        applyFollowUpDateFilters(taskQuery, queryParameters);
+
+        return taskQuery
                 .list()
                 .stream()
                 .map(TaskRepresentation::fromEntity)
@@ -129,9 +134,13 @@ public class TaskSvc {
             }
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of assigned task")
-    public List<TaskRepresentation> listAssigned() {
-        return taskService.createTaskQuery()
-                .taskAssignee(identityService.userId())
+    public List<TaskRepresentation> listAssigned(@Context UriInfo uriInfo) throws ParseException {
+        MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
+        TaskQuery taskQuery = taskService.createTaskQuery()
+                .taskAssignee(identityService.userId());
+        applyDueDateFilters(taskQuery, queryParameters);
+
+        return taskQuery
                 .list()
                 .stream()
                 .map(TaskRepresentation::fromEntity)
@@ -281,7 +290,7 @@ public class TaskSvc {
 
     @PermitAll
     @Log(level = CONFIG, beforeExecuteMessage = "Getting next assigned task for process instance")
-    protected Task getNextAssignedTask(String processInstanceId) {
+    public Task getNextAssignedTask(String processInstanceId) {
         List<Task> assignedTasks = taskService.createTaskQuery()
                 .processInstanceId(processInstanceId)
                 .taskAssignee(identityService.userId())
@@ -293,7 +302,7 @@ public class TaskSvc {
 
     @PermitAll
     @Log(level = CONFIG, beforeExecuteMessage = "Getting next assigned task for case execution")
-    protected Task getNextAssignedTask(CaseExecution caseExecution) {
+    public Task getNextAssignedTask(CaseExecution caseExecution) {
         List<Task> assignedTasks = taskService.createTaskQuery()
                 .caseInstanceId(caseExecution.getCaseInstanceId())
                 .taskAssignee(identityService.userId())
@@ -303,16 +312,36 @@ public class TaskSvc {
                 : null;
     }
 
-    protected ProcessInstance getProcessInstance(Task task) {
-        return runtimeService.createProcessInstanceQuery()
-                .processInstanceId(task.getProcessInstanceId())
-                .singleResult();
-    }
-
     protected CaseExecution getCaseExecution(Task task) {
         return caseService.createCaseExecutionQuery()
                 .caseInstanceId(task.getCaseInstanceId())
                 .singleResult();
+    }
+
+    private void applyDueDateFilters(TaskQuery query, MultivaluedMap<String, String> queryParameters) throws ParseException {
+        Optional.ofNullable(toDate((queryParameters.getFirst("dueDate")))).ifPresent(query::dueDate);
+        Optional.ofNullable(queryParameters.getFirst("dueDateExpression")).ifPresent(query::dueDateExpression);
+        Optional.ofNullable(toDate(queryParameters.getFirst("dueAfter"))).ifPresent(query::dueAfter);
+        Optional.ofNullable(queryParameters.getFirst("dueAfterExpression")).ifPresent(query::dueAfterExpression);
+        Optional.ofNullable(toDate(queryParameters.getFirst("dueBefore"))).ifPresent(query::dueBefore);
+        Optional.ofNullable(queryParameters.getFirst("dueBeforeExpression")).ifPresent(query::dueBeforeExpression);
+    }
+
+    private void applyFollowUpDateFilters(TaskQuery query, MultivaluedMap<String, String> queryParameters) throws ParseException {
+        Optional.ofNullable(toDate(queryParameters.getFirst("followUpDate"))).ifPresent(query::followUpDate);
+        Optional.ofNullable(queryParameters.getFirst("followUpDateExpression")).ifPresent(query::followUpDateExpression);
+        Optional.ofNullable(toDate(queryParameters.getFirst("followUpAfter"))).ifPresent(query::followUpAfter);
+        Optional.ofNullable(queryParameters.getFirst("followUpAfterExpression")).ifPresent(query::followUpAfterExpression);
+        Optional.ofNullable(toDate(queryParameters.getFirst("followUpBefore"))).ifPresent(query::followUpBefore);
+        Optional.ofNullable(queryParameters.getFirst("followUpBeforeExpression")).ifPresent(query::followUpBeforeExpression);
+        Optional.ofNullable(toDate(queryParameters.getFirst("followUpBeforeOrNotExistent"))).ifPresent(query::followUpBeforeOrNotExistent);
+        Optional.ofNullable(queryParameters.getFirst("followUpBeforeOrNotExistentExpression")).ifPresent(query::followUpBeforeOrNotExistentExpression);
+    }
+
+    private Date toDate(String stringRepresentation) throws ParseException {
+        return stringRepresentation != null
+                ? dateFormatter.parse(stringRepresentation.replace('T', ' '))
+                : null;
     }
 
     private Map<String, Object> validateAndMergeToTaskVariables(String taskId, Map<String, Object> inputVariables) throws IOException {
@@ -322,7 +351,7 @@ public class TaskSvc {
     }
 
     private Map<String, Object> getVariablesRegardingDecision(String taskId, Map<String, Object> inputVariables, String decision) throws IOException {
-        inputVariables = !formService.shouldProcessSubmittedData(taskId, decision)
+        inputVariables = formService.shouldProcessSubmittedData(taskId, decision)
                 ? validateAndMergeToTaskVariables(inputVariables, taskId)
                 : new HashMap<>();
         inputVariables.put(DECISION_VARIABLE_NAME, decision);
