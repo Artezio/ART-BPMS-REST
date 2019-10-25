@@ -1,6 +1,7 @@
 package com.artezio.bpm.services;
 
 import com.artezio.bpm.rest.dto.task.TaskRepresentation;
+import com.artezio.bpm.rest.query.task.TaskQueryParams;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.bpm.services.integration.FileStorage;
@@ -18,7 +19,10 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import net.minidev.json.JSONArray;
 import org.apache.commons.lang3.StringUtils;
-import org.camunda.bpm.engine.*;
+import org.camunda.bpm.engine.CaseService;
+import org.camunda.bpm.engine.FormService;
+import org.camunda.bpm.engine.RepositoryService;
+import org.camunda.bpm.engine.TaskService;
 import org.camunda.bpm.engine.runtime.CaseExecution;
 import org.camunda.bpm.engine.task.Task;
 import org.camunda.bpm.engine.task.TaskQuery;
@@ -36,15 +40,16 @@ import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
-import javax.ws.rs.core.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static com.artezio.bpm.services.VariablesMapper.EXTENSION_NAME_PREFIX;
 import static com.artezio.logging.Log.Level.CONFIG;
+import static io.swagger.v3.oas.annotations.enums.ParameterIn.QUERY;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.emptyMap;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
@@ -75,7 +80,6 @@ public class TaskSvc {
     private RepositoryService repositoryService;
     @Inject
     private VariableValidator variableValidator;
-    private SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSZ");
 
     @GET
     @Path("available")
@@ -86,6 +90,106 @@ public class TaskSvc {
             externalDocs = @ExternalDocumentation(
                     url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/task-service-api-docs.md"
             ),
+            parameters = {
+                    @Parameter(
+                            name = "dueDate",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due on the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "dueDateExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due on the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    ),
+                    @Parameter(
+                            name = "dueAfter",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due after the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "dueAfterExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due after the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    ),
+                    @Parameter(
+                            name = "dueBefore",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due before the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "dueBeforeExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due before the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    ),
+                    @Parameter(
+                            name = "followUpDate",
+                            in = QUERY,
+                            description = "Restrict to tasks that have a followUp date on the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "followUpDateExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that have a followUp date on the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    ),
+                    @Parameter(
+                            name = "followUpAfter",
+                            in = QUERY,
+                            description = "Restrict to tasks that have a followUp date after the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "followUpAfterExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that have a followUp date after the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    ),
+                    @Parameter(
+                            name = "followUpBefore",
+                            in = QUERY,
+                            description = "Restrict to tasks that have a followUp date before the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "followUpBeforeExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that have a followUp date before the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    ),
+                    @Parameter(
+                            name = "followUpBeforeOrNotExistent",
+                            in = QUERY,
+                            description = "Restrict to tasks that have no followUp date or a followUp date before the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "followUpBeforeOrNotExistentExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that have no followUp date or a followUp date before the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    )
+            },
             responses = {
                     @ApiResponse(
                             responseCode = "200",
@@ -97,15 +201,12 @@ public class TaskSvc {
             }
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of available tasks")
-    public @ApiResponse List<TaskRepresentation> listAvailable(@Context UriInfo uriInfo) throws ParseException {
-        MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
-        TaskQuery taskQuery = taskService.createTaskQuery()
+    public @ApiResponse List<TaskRepresentation> listAvailable(@BeanParam TaskQueryParams queryParams) {
+        TaskQuery taskQuery = createTaskQuery(queryParams)
                 .or()
                 .taskCandidateGroupIn(identityService.userGroups())
                 .taskCandidateUser(identityService.userId())
                 .endOr();
-        applyDueDateFilters(taskQuery, queryParameters);
-        applyFollowUpDateFilters(taskQuery, queryParameters);
 
         return taskQuery
                 .list()
@@ -123,6 +224,50 @@ public class TaskSvc {
             externalDocs = @ExternalDocumentation(
                     url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/task-service-api-docs.md"
             ),
+            parameters = {
+                    @Parameter(
+                            name = "dueDate",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due on the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "dueDateExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due on the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    ),
+                    @Parameter(
+                            name = "dueAfter",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due after the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "dueAfterExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due after the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    ),
+                    @Parameter(
+                            name = "dueBefore",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due before the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "dueBeforeExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due before the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    )
+            },
             responses = {
                     @ApiResponse(
                             responseCode = "200",
@@ -134,11 +279,9 @@ public class TaskSvc {
             }
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of assigned task")
-    public List<TaskRepresentation> listAssigned(@Context UriInfo uriInfo) throws ParseException {
-        MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
-        TaskQuery taskQuery = taskService.createTaskQuery()
+    public List<TaskRepresentation> listAssigned(@BeanParam TaskQueryParams queryParams) {
+        TaskQuery taskQuery = createTaskQuery(queryParams)
                 .taskAssignee(identityService.userId());
-        applyDueDateFilters(taskQuery, queryParameters);
 
         return taskQuery
                 .list()
@@ -318,30 +461,36 @@ public class TaskSvc {
                 .singleResult();
     }
 
-    private void applyDueDateFilters(TaskQuery query, MultivaluedMap<String, String> queryParameters) throws ParseException {
-        Optional.ofNullable(toDate((queryParameters.getFirst("dueDate")))).ifPresent(query::dueDate);
-        Optional.ofNullable(queryParameters.getFirst("dueDateExpression")).ifPresent(query::dueDateExpression);
-        Optional.ofNullable(toDate(queryParameters.getFirst("dueAfter"))).ifPresent(query::dueAfter);
-        Optional.ofNullable(queryParameters.getFirst("dueAfterExpression")).ifPresent(query::dueAfterExpression);
-        Optional.ofNullable(toDate(queryParameters.getFirst("dueBefore"))).ifPresent(query::dueBefore);
-        Optional.ofNullable(queryParameters.getFirst("dueBeforeExpression")).ifPresent(query::dueBeforeExpression);
+    private TaskQuery createTaskQuery(TaskQueryParams params) {
+        TaskQuery query = taskService.createTaskQuery();
+        applyDueDateFilters(query, params);
+        applyFollowUpDateFilters(query, params);
+
+        return query;
     }
 
-    private void applyFollowUpDateFilters(TaskQuery query, MultivaluedMap<String, String> queryParameters) throws ParseException {
-        Optional.ofNullable(toDate(queryParameters.getFirst("followUpDate"))).ifPresent(query::followUpDate);
-        Optional.ofNullable(queryParameters.getFirst("followUpDateExpression")).ifPresent(query::followUpDateExpression);
-        Optional.ofNullable(toDate(queryParameters.getFirst("followUpAfter"))).ifPresent(query::followUpAfter);
-        Optional.ofNullable(queryParameters.getFirst("followUpAfterExpression")).ifPresent(query::followUpAfterExpression);
-        Optional.ofNullable(toDate(queryParameters.getFirst("followUpBefore"))).ifPresent(query::followUpBefore);
-        Optional.ofNullable(queryParameters.getFirst("followUpBeforeExpression")).ifPresent(query::followUpBeforeExpression);
-        Optional.ofNullable(toDate(queryParameters.getFirst("followUpBeforeOrNotExistent"))).ifPresent(query::followUpBeforeOrNotExistent);
-        Optional.ofNullable(queryParameters.getFirst("followUpBeforeOrNotExistentExpression")).ifPresent(query::followUpBeforeOrNotExistentExpression);
+    private void applyDueDateFilters(TaskQuery query, TaskQueryParams params) {
+        addCriteriaIfExists(params.getDueDate(), query::dueDate);
+        addCriteriaIfExists(params.getDueDateExpression(), query::dueDateExpression);
+        addCriteriaIfExists(params.getDueAfter(), query::dueAfter);
+        addCriteriaIfExists(params.getDueAfterExpression(), query::dueAfterExpression);
+        addCriteriaIfExists(params.getDueBefore(), query::dueBefore);
+        addCriteriaIfExists(params.getDueBeforeExpression(), query::dueBeforeExpression);
     }
 
-    private Date toDate(String stringRepresentation) throws ParseException {
-        return stringRepresentation != null
-                ? dateFormatter.parse(stringRepresentation.replace('T', ' '))
-                : null;
+    private void applyFollowUpDateFilters(TaskQuery query, TaskQueryParams params) {
+        addCriteriaIfExists(params.getFollowUpDate(), query::followUpDate);
+        addCriteriaIfExists(params.getFollowUpDateExpression(), query::followUpDateExpression);
+        addCriteriaIfExists(params.getFollowUpAfter(), query::followUpAfter);
+        addCriteriaIfExists(params.getFollowUpAfterExpression(), query::followUpAfterExpression);
+        addCriteriaIfExists(params.getFollowUpBefore(), query::followUpBefore);
+        addCriteriaIfExists(params.getFollowUpBeforeExpression(), query::followUpBeforeExpression);
+        addCriteriaIfExists(params.getFollowUpBeforeOrNotExistent(), query::followUpBeforeOrNotExistent);
+        addCriteriaIfExists(params.getFollowUpBeforeOrNotExistentExpression(), query::followUpBeforeOrNotExistentExpression);
+    }
+
+    private <T> void addCriteriaIfExists(T criteriaValue, Consumer<T> queryCriteria) {
+        Optional.ofNullable(criteriaValue).ifPresent(queryCriteria);
     }
 
     private Map<String, Object> validateAndMergeToTaskVariables(String taskId, Map<String, Object> inputVariables) throws IOException {

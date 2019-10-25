@@ -400,4 +400,3 @@ BPMN diagrams are secured as follows:
 [Git]: https://git-scm.com/
 [Keycloak]: https://www.keycloak.org/
 [Wildfly 15]: https://wildfly.org/downloads/
-
