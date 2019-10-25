@@ -281,7 +281,7 @@ public class TaskSvc {
 
     @PermitAll
     @Log(level = CONFIG, beforeExecuteMessage = "Getting next assigned task for process instance")
-    protected Task getNextAssignedTask(String processInstanceId) {
+    public Task getNextAssignedTask(String processInstanceId) {
         List<Task> assignedTasks = taskService.createTaskQuery()
                 .processInstanceId(processInstanceId)
                 .taskAssignee(identityService.userId())
@@ -293,7 +293,7 @@ public class TaskSvc {
 
     @PermitAll
     @Log(level = CONFIG, beforeExecuteMessage = "Getting next assigned task for case execution")
-    protected Task getNextAssignedTask(CaseExecution caseExecution) {
+    public Task getNextAssignedTask(CaseExecution caseExecution) {
         List<Task> assignedTasks = taskService.createTaskQuery()
                 .caseInstanceId(caseExecution.getCaseInstanceId())
                 .taskAssignee(identityService.userId())
@@ -303,13 +303,7 @@ public class TaskSvc {
                 : null;
     }
 
-    protected ProcessInstance getProcessInstance(Task task) {
-        return runtimeService.createProcessInstanceQuery()
-                .processInstanceId(task.getProcessInstanceId())
-                .singleResult();
-    }
-
-    protected CaseExecution getCaseExecution(Task task) {
+    private CaseExecution getCaseExecution(Task task) {
         return caseService.createCaseExecutionQuery()
                 .caseInstanceId(task.getCaseInstanceId())
                 .singleResult();

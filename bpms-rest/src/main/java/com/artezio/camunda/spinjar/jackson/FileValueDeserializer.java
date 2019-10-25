@@ -26,7 +26,7 @@ public class FileValueDeserializer <T extends FileValue> extends StdDeserializer
     public T deserialize(JsonParser parser, DeserializationContext context) throws IOException, JsonProcessingException {
         JsonNode node = parser.getCodec().readTree(parser);
         String url = node.get("url").asText();
-        return (T)new FileValueBuilderImpl(node.get("name").asText())
+        return (T)new FileValueBuilderImpl(node.get("originalName").asText())
                 .encoding("UTF-8")
                 .mimeType(wrapMimeType(node))
                 .file(getFileContent(url))
