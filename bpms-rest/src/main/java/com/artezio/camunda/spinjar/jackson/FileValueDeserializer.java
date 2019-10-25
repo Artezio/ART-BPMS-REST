@@ -37,11 +37,9 @@ public class FileValueDeserializer <T extends FileValue> extends StdDeserializer
         String mimeType = node.get("type").asText();
         String url = node.get("url").asText();
         if (Base64Utils.isBase64DataUrl(url)) {
-            return mimeType.startsWith(MediaType.BPM_FILE_VALUE)
-                    ? mimeType
-                    : MediaType.BPM_FILE_VALUE + "/" + mimeType;
-        } else {
             return mimeType;
+        } else {
+            return MediaType.BPM_FILE_VALUE + "/" + mimeType;
         }
     }
 
