@@ -28,9 +28,7 @@ public class FileValueSerializer<T extends FileValue> extends StdSerializer<T> {
         jgen.writeStringField("name", file.getFilename());
         jgen.writeStringField("originalName", file.getFilename());
         jgen.writeStringField("url", getUrl(file));
-        if (!isExternalFile(file)) {
-            jgen.writeNumberField("size", file.getValue().available());
-        }
+        jgen.writeNumberField("size", file.getValue().available());
         jgen.writeStringField("storage", isExternalFile(file) ? "url" : "base64");
         jgen.writeEndObject();
     }

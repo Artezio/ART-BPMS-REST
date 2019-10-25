@@ -26,7 +26,7 @@ public class FileValueDeserializer <T extends FileValue> extends StdDeserializer
     public T deserialize(JsonParser parser, DeserializationContext context) throws IOException, JsonProcessingException {
         JsonNode node = parser.getCodec().readTree(parser);
         String url = node.get("url").asText();
-        return (T)new FileValueBuilderImpl(node.get("name").asText())
+        return (T)new FileValueBuilderImpl(node.get("originalName").asText())
                 .encoding("UTF-8")
                 .mimeType(wrapMimeType(node))
                 .file(getFileContent(url))
@@ -37,11 +37,9 @@ public class FileValueDeserializer <T extends FileValue> extends StdDeserializer
         String mimeType = node.get("type").asText();
         String url = node.get("url").asText();
         if (Base64Utils.isBase64DataUrl(url)) {
-            return mimeType.startsWith(MediaType.BPM_FILE_VALUE)
-                    ? mimeType
-                    : MediaType.BPM_FILE_VALUE + "/" + mimeType;
-        } else {
             return mimeType;
+        } else {
+            return MediaType.BPM_FILE_VALUE + "/" + mimeType;
         }
     }
 
