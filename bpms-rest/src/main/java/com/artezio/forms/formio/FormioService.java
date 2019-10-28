@@ -1,4 +1,4 @@
-package com.artezio.formio.client;
+package com.artezio.forms.formio;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -9,7 +9,7 @@ import javax.ws.rs.core.MediaType;
 import java.util.Map;
 
 @Path("/")
-public interface FormApi {
+public interface FormioService {
 
     @POST
     @Path("/{formPath}/submission")
@@ -23,15 +23,13 @@ public interface FormApi {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     JsonNode cleanUp(@PathParam("formPath") @NotNull @Valid String formPath,
-                        Map<String, Object> variables);
+                     Map<String, Object> variables);
 
     @GET
     @Path("/{formPath}")
     @Produces(MediaType.APPLICATION_JSON)
-    JsonNode getForm(
-            @PathParam("formPath") @NotNull @Valid String formPath,
-            @QueryParam("full") @NotNull Boolean full
-    );
+    JsonNode getForm(@PathParam("formPath") @NotNull @Valid String formPath,
+                     @QueryParam("full") @NotNull Boolean full);
 
     @POST
     @Path("/form")

@@ -1,12 +1,12 @@
 package com.artezio.bpm.services;
 
 import com.artezio.bpm.rest.dto.task.TaskRepresentation;
+import com.artezio.bpm.rest.query.task.TaskQueryParams;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.bpm.services.integration.FileStorage;
 import com.artezio.bpm.services.integration.cdi.ConcreteImplementation;
 import com.artezio.bpm.validation.VariableValidator;
-import com.artezio.formio.client.exceptions.FormNotFoundException;
 import com.artezio.logging.Log;
 import com.jayway.jsonpath.JsonPath;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
@@ -19,10 +19,13 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import net.minidev.json.JSONArray;
 import org.apache.commons.lang3.StringUtils;
-import org.camunda.bpm.engine.*;
+import org.camunda.bpm.engine.CaseService;
+import org.camunda.bpm.engine.FormService;
+import org.camunda.bpm.engine.RepositoryService;
+import org.camunda.bpm.engine.TaskService;
 import org.camunda.bpm.engine.runtime.CaseExecution;
-import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.task.Task;
+import org.camunda.bpm.engine.task.TaskQuery;
 import org.camunda.bpm.engine.variable.VariableMap;
 import org.camunda.bpm.engine.variable.impl.value.ObjectValueImpl;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
@@ -41,10 +44,12 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static com.artezio.bpm.services.VariablesMapper.EXTENSION_NAME_PREFIX;
 import static com.artezio.logging.Log.Level.CONFIG;
+import static io.swagger.v3.oas.annotations.enums.ParameterIn.QUERY;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.emptyMap;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
@@ -69,8 +74,6 @@ public class TaskSvc {
     @Inject
     private CaseService caseService;
     @Inject
-    private RuntimeService runtimeService;
-    @Inject
     @ConcreteImplementation
     private FileStorage fileStorage;
     @Inject
@@ -87,6 +90,106 @@ public class TaskSvc {
             externalDocs = @ExternalDocumentation(
                     url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/task-service-api-docs.md"
             ),
+            parameters = {
+                    @Parameter(
+                            name = "dueDate",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due on the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "dueDateExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due on the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    ),
+                    @Parameter(
+                            name = "dueAfter",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due after the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "dueAfterExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due after the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    ),
+                    @Parameter(
+                            name = "dueBefore",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due before the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "dueBeforeExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due before the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    ),
+                    @Parameter(
+                            name = "followUpDate",
+                            in = QUERY,
+                            description = "Restrict to tasks that have a followUp date on the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "followUpDateExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that have a followUp date on the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    ),
+                    @Parameter(
+                            name = "followUpAfter",
+                            in = QUERY,
+                            description = "Restrict to tasks that have a followUp date after the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "followUpAfterExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that have a followUp date after the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    ),
+                    @Parameter(
+                            name = "followUpBefore",
+                            in = QUERY,
+                            description = "Restrict to tasks that have a followUp date before the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "followUpBeforeExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that have a followUp date before the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    ),
+                    @Parameter(
+                            name = "followUpBeforeOrNotExistent",
+                            in = QUERY,
+                            description = "Restrict to tasks that have no followUp date or a followUp date before the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "followUpBeforeOrNotExistentExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that have no followUp date or a followUp date before the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    )
+            },
             responses = {
                     @ApiResponse(
                             responseCode = "200",
@@ -98,12 +201,14 @@ public class TaskSvc {
             }
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of available tasks")
-    public @ApiResponse List<TaskRepresentation> listAvailable() {
-        return taskService.createTaskQuery()
+    public @ApiResponse List<TaskRepresentation> listAvailable(@BeanParam TaskQueryParams queryParams) {
+        TaskQuery taskQuery = createTaskQuery(queryParams)
                 .or()
                 .taskCandidateGroupIn(identityService.userGroups())
                 .taskCandidateUser(identityService.userId())
-                .endOr()
+                .endOr();
+
+        return taskQuery
                 .list()
                 .stream()
                 .map(TaskRepresentation::fromEntity)
@@ -119,6 +224,50 @@ public class TaskSvc {
             externalDocs = @ExternalDocumentation(
                     url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/task-service-api-docs.md"
             ),
+            parameters = {
+                    @Parameter(
+                            name = "dueDate",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due on the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "dueDateExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due on the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    ),
+                    @Parameter(
+                            name = "dueAfter",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due after the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "dueAfterExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due after the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    ),
+                    @Parameter(
+                            name = "dueBefore",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due before the given date.",
+                            schema = @Schema(format = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+                            example = "2013-01-23T14:42:45.546+0200"
+                    ),
+                    @Parameter(
+                            name = "dueBeforeExpression",
+                            in = QUERY,
+                            description = "Restrict to tasks that are due before the date described by the given expression." +
+                                    " The expression must evaluate to a java.util.Date or org.joda.time.DateTime object.",
+                            example = "${now()}"
+                    )
+            },
             responses = {
                     @ApiResponse(
                             responseCode = "200",
@@ -130,9 +279,11 @@ public class TaskSvc {
             }
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of assigned task")
-    public List<TaskRepresentation> listAssigned() {
-        return taskService.createTaskQuery()
-                .taskAssignee(identityService.userId())
+    public List<TaskRepresentation> listAssigned(@BeanParam TaskQueryParams queryParams) {
+        TaskQuery taskQuery = createTaskQuery(queryParams)
+                .taskAssignee(identityService.userId());
+
+        return taskQuery
                 .list()
                 .stream()
                 .map(TaskRepresentation::fromEntity)
@@ -187,7 +338,7 @@ public class TaskSvc {
     )
     @Log(beforeExecuteMessage = "Loading form for user task '{0}'", afterExecuteMessage = "Form successfully loaded")
     public String loadForm(
-            @Parameter(description = "The id of the task which form is requested for.", required = true) @PathParam("task-id") @Valid @NotNull String taskId) throws FormNotFoundException {
+            @Parameter(description = "The id of the task which form is requested for.", required = true) @PathParam("task-id") @Valid @NotNull String taskId) {
         ensureUserHasAccess(taskId);
         VariableMap taskVariables = taskService.getVariablesTyped(taskId);
         return formService.getTaskFormWithData(taskId, taskVariables);
@@ -266,7 +417,7 @@ public class TaskSvc {
     @Log(level = CONFIG, beforeExecuteMessage = "Completing task '{0}'", afterExecuteMessage = "Task '{0}' successfully completed")
     public TaskRepresentation complete(
             @Parameter(description = "The id of the task to be completed.", required = true) @PathParam("task-id") @Valid @NotNull String taskId,
-            @RequestBody(description = "The variables which will be passed to a process after completing the task.") Map<String, Object> inputVariables) throws IOException, FormNotFoundException {
+            @RequestBody(description = "The variables which will be passed to a process after completing the task.") Map<String, Object> inputVariables) throws IOException {
         Task task = taskService.createTaskQuery()
                 .taskId(taskId)
                 .singleResult();
@@ -282,7 +433,7 @@ public class TaskSvc {
 
     @PermitAll
     @Log(level = CONFIG, beforeExecuteMessage = "Getting next assigned task for process instance")
-    protected Task getNextAssignedTask(String processInstanceId) {
+    public Task getNextAssignedTask(String processInstanceId) {
         List<Task> assignedTasks = taskService.createTaskQuery()
                 .processInstanceId(processInstanceId)
                 .taskAssignee(identityService.userId())
@@ -294,7 +445,7 @@ public class TaskSvc {
 
     @PermitAll
     @Log(level = CONFIG, beforeExecuteMessage = "Getting next assigned task for case execution")
-    protected Task getNextAssignedTask(CaseExecution caseExecution) {
+    public Task getNextAssignedTask(CaseExecution caseExecution) {
         List<Task> assignedTasks = taskService.createTaskQuery()
                 .caseInstanceId(caseExecution.getCaseInstanceId())
                 .taskAssignee(identityService.userId())
@@ -304,25 +455,55 @@ public class TaskSvc {
                 : null;
     }
 
-    protected ProcessInstance getProcessInstance(Task task) {
-        return runtimeService.createProcessInstanceQuery()
-                .processInstanceId(task.getProcessInstanceId())
-                .singleResult();
-    }
-
     protected CaseExecution getCaseExecution(Task task) {
         return caseService.createCaseExecutionQuery()
                 .caseInstanceId(task.getCaseInstanceId())
                 .singleResult();
     }
 
+    private TaskQuery createTaskQuery(TaskQueryParams params) {
+        TaskQuery query = taskService.createTaskQuery();
+        applyDueDateFilters(query, params);
+        applyFollowUpDateFilters(query, params);
+
+        return query;
+    }
+
+    private void applyDueDateFilters(TaskQuery query, TaskQueryParams params) {
+        addCriteriaIfExists(params.getDueDate(), query::dueDate);
+        addCriteriaIfExists(params.getDueDateExpression(), query::dueDateExpression);
+        addCriteriaIfExists(params.getDueAfter(), query::dueAfter);
+        addCriteriaIfExists(params.getDueAfterExpression(), query::dueAfterExpression);
+        addCriteriaIfExists(params.getDueBefore(), query::dueBefore);
+        addCriteriaIfExists(params.getDueBeforeExpression(), query::dueBeforeExpression);
+    }
+
+    private void applyFollowUpDateFilters(TaskQuery query, TaskQueryParams params) {
+        addCriteriaIfExists(params.getFollowUpDate(), query::followUpDate);
+        addCriteriaIfExists(params.getFollowUpDateExpression(), query::followUpDateExpression);
+        addCriteriaIfExists(params.getFollowUpAfter(), query::followUpAfter);
+        addCriteriaIfExists(params.getFollowUpAfterExpression(), query::followUpAfterExpression);
+        addCriteriaIfExists(params.getFollowUpBefore(), query::followUpBefore);
+        addCriteriaIfExists(params.getFollowUpBeforeExpression(), query::followUpBeforeExpression);
+        addCriteriaIfExists(params.getFollowUpBeforeOrNotExistent(), query::followUpBeforeOrNotExistent);
+        addCriteriaIfExists(params.getFollowUpBeforeOrNotExistentExpression(), query::followUpBeforeOrNotExistentExpression);
+    }
+
+    private <T> void addCriteriaIfExists(T criteriaValue, Consumer<T> queryCriteria) {
+        Optional.ofNullable(criteriaValue).ifPresent(queryCriteria);
+    }
+
     private Map<String, Object> validateAndMergeToTaskVariables(String taskId, Map<String, Object> inputVariables) throws IOException {
-        String state = (String) inputVariables.get(STATE_VARIABLE_NAME);
-        inputVariables = !skipValidation(taskId, state)
+        String decision = (String) inputVariables.remove(STATE_VARIABLE_NAME);
+        inputVariables = getVariablesRegardingDecision(taskId, inputVariables, decision);
+        return inputVariables;
+    }
+
+    private Map<String, Object> getVariablesRegardingDecision(String taskId, Map<String, Object> inputVariables, String decision) throws IOException {
+        inputVariables = formService.shouldProcessSubmittedData(taskId, decision)
                 ? validateAndMergeToTaskVariables(inputVariables, taskId)
                 : new HashMap<>();
-        inputVariables.remove(STATE_VARIABLE_NAME);
-        inputVariables.put(DECISION_VARIABLE_NAME, state);
+        inputVariables.put(DECISION_VARIABLE_NAME, decision);
         return inputVariables;
     }
 
@@ -391,12 +572,8 @@ public class TaskSvc {
         return variableName.replaceAll("\\W", "");
     }
 
-    private boolean skipValidation(String taskId, String decision) {
-        return Boolean.parseBoolean(formService.interpretPropertyForState(taskId, "skipValidation", decision));
-    }
-
     private Map<String, Object> validateAndMergeToTaskVariables(Map<String, Object> inputVariables, String taskId)
-            throws IOException, FormNotFoundException {
+            throws IOException {
         String formKey = camundaFormService.getTaskFormData(taskId).getFormKey();
         if (formKey != null) {
             String cleanDataJson = formService.dryValidationAndCleanupTaskForm(taskId, inputVariables);

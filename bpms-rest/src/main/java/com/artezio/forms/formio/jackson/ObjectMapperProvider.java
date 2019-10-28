@@ -1,4 +1,4 @@
-package com.artezio.formio.client.jackson;
+package com.artezio.forms.formio.jackson;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;

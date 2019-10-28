@@ -1,4 +1,4 @@
-package com.artezio.formio.client.jackson;
+package com.artezio.forms.formio.jackson;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -17,15 +17,13 @@ public class FileValueSerializer<T extends FileValue> extends StdSerializer<T> {
     }
 
     @Override
-    public void serialize(T file, JsonGenerator jgen, SerializerProvider provider) throws IOException, JsonProcessingException {
+    public void serialize(T file, JsonGenerator jgen, SerializerProvider provider) throws IOException {
         jgen.writeStartObject();
         jgen.writeStringField("type", getMimeType(file));
         jgen.writeStringField("name", file.getFilename());
         jgen.writeStringField("originalName", file.getFilename());
         jgen.writeStringField("url", getUrl(file));
-        if (!isExternalFile(file)) {
-            jgen.writeNumberField("size", file.getValue().available());
-        }
+        jgen.writeNumberField("size", file.getValue().available());
         jgen.writeStringField("storage", isExternalFile(file) ? "url" : "base64");
         jgen.writeEndObject();
     }

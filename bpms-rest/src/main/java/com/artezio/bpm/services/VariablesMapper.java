@@ -20,7 +20,8 @@ public class VariablesMapper {
     public final static String EXTENSION_NAME_PREFIX = "entity.";
 
     private final static ObjectMapper MAPPER = new ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .setDefaultMergeable(false);
 
     static {
         JacksonDataFormatConfigurator.registerSpinjarFileValueSerializers(MAPPER);

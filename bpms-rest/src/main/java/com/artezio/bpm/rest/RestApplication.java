@@ -3,7 +3,7 @@ package com.artezio.bpm.rest;
 import com.artezio.bpm.services.*;
 import com.artezio.ws.rs.ExceptionMapper;
 import io.swagger.v3.jaxrs2.integration.resources.OpenApiResource;
-import com.artezio.formio.client.jackson.ObjectMapperProvider;
+import com.artezio.forms.formio.jackson.ObjectMapperProvider;
 
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;

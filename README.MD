@@ -310,7 +310,7 @@ a resource, `java.util.ResourceBundle` with info from this resource will be retu
             }
         }
         ```
-        
+
 ## Configuration
 ART-BPMS-REST is configured by passing the following properties to the server on startup (as -Dxxx flags, i.e. `-DFORM_VERSIONING=true`):
 * `FORM_VERSIONING`: Switches on and off [form versioning](#forms-versioning). `true` by default
@@ -324,9 +324,32 @@ The following environment variables can be set:
 * `FILE_STORAGE_URL`: file storage URL for custom file storage implementations. By default, files are stored inside Base64 Data Urls.
 
 ### Formio-related corner-cases
-* Each submission `state` property is included in data and then passed to process variables. It allows to determine submission state for further
-control over process execution. Accepts any `String` value. Example: suppose we have `submitted` and `rejected` states, so
-they may be considered as 'continue process' and 'suspend process' actions, and two buttons may reside on the form to set one or another state 
+* With BPMS-REST it is possible to control evaluation of a bpm process, particularly to continue or cancel it. This decision is applied
+basing on `state` and `isSubmittedDataProcessed` properties. 
+    * `state` property is **required** and passed with other form data:
+      ```json
+        {
+          "data": {
+            "formField": "someValue" 
+          },
+          "state": "someState"
+        }
+      ```
+      `Button` components with `action` type equal to `Submit` or `Save in state` pass `state` by default. If you use `Button`
+       components with another type of `action`, make sure that you pass `state`
+    * `isSubmittedDataProcessed` property is a custom property of Formio [Button Component]. It accepts `true` and `false` values:
+        > If different to boolean value is passed, it is interpreted as `false`.
+        Formio `Button` component definition example:
+      ```json
+        {
+          (omitted properties)
+      
+          "properties": {
+            "isSubmittedDataProcessed": false
+          }    
+        }
+         
+        ```
 * `protected` attribute of a subform included in a parent form is treated as follows. When this attribute is set `true`, all subform fields become disabled. This attribute should be used to make entire subforms read-only
 * After submitting all files are converted into Camunda `org.camunda.bpm.engine.variable.value.FileValue`, and their `url` fields are
 set to point to file id in the file storage. Default file storage is base64 url. See [File Storage](#file-storage) 
@@ -371,9 +394,9 @@ BPMN diagrams are secured as follows:
 
 [Camunda]: https://camunda.com/
 [Formio]: https://www.form.io/
+[Button Component]: https://help.form.io/userguide/form-components/#button-1
 [Java]: https://java.com
 [Maven]: https://maven.apache.org/
 [Git]: https://git-scm.com/
 [Keycloak]: https://www.keycloak.org/
 [Wildfly 15]: https://wildfly.org/downloads/
-

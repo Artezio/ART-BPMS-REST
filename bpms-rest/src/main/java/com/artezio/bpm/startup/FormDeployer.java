@@ -1,7 +1,8 @@
 package com.artezio.bpm.startup;
 
 import com.artezio.bpm.services.DeploymentSvc;
-import com.artezio.formio.client.FormClient;
+import com.artezio.forms.FormClient;
+import com.artezio.forms.formio.FormioClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -28,7 +29,7 @@ public class FormDeployer {
     @Inject
     private DeploymentSvc deploymentSvc;
     @Inject
-    private FormClient formClient;
+    private FormClient formioClient;
 
     @PostConstruct
     public void uploadForms() {
@@ -37,7 +38,7 @@ public class FormDeployer {
             formIds.stream()
                     .map(formId -> formId.endsWith(".json") ? formId.substring(0, formId.length() - 5) : formId)
                     .forEach(formId ->
-                            formClient.uploadForm(uploadNestedForms(getFormDefinition(deploymentSvc.getLatestDeploymentForm(formId)))));
+                            formioClient.uploadForm(uploadNestedForms(getFormDefinition(deploymentSvc.getLatestDeploymentForm(formId)))));
         }
     }
 
@@ -86,13 +87,13 @@ public class FormDeployer {
         String formPath = referenceDefinition.get("path").asText().substring(1);
         JsonNode formDefinition = OBJECT_MAPPER.readTree(getFormDefinition(referenceDefinition.toString()));
         JsonNode fullFormDefinition = OBJECT_MAPPER.readTree(getFormDefinition(deploymentSvc.getLatestDeploymentForm(formPath)));
-        formClient.uploadForm(uploadNestedForms(fullFormDefinition.toString()));
+        formioClient.uploadForm(uploadNestedForms(fullFormDefinition.toString()));
         return setNestedFormFields(formDefinition);
     }
 
     protected JsonNode setNestedFormFields(JsonNode referenceDefinition) throws IOException {
         ObjectNode modifiedNode = referenceDefinition.deepCopy();
-        String id = formClient.getFormDefinition(referenceDefinition.get("path").asText()).get("_id").asText();
+        String id = formioClient.getFormDefinition(referenceDefinition.get("path").asText()).get("_id").asText();
         modifiedNode.put("form", id);
         modifiedNode.put("reference", false);
         modifiedNode.put("path", "");

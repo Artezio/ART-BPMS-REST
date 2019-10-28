@@ -1,7 +1,7 @@
 package com.artezio.bpm.startup;
 
 import com.artezio.bpm.services.DeploymentSvc;
-import com.artezio.formio.client.FormClient;
+import com.artezio.forms.formio.FormioClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -23,7 +23,7 @@ public class FormDeployerTest {
     @InjectMocks
     private FormDeployer formDeployer;
     @Mock
-    private FormClient formClient;
+    private FormioClient formioClient;
     @Mock
     private DeploymentSvc deploymentSvc;
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -42,9 +42,9 @@ public class FormDeployerTest {
         ObjectNode nestedArrayFormDefinitionNode = (ObjectNode) formDefinitionNode.get("components").get(2).get("components").get(0);
         nestedArrayFormDefinitionNode.remove("form");
         String nestedArrayFormDefinition = nestedArrayFormDefinitionNode.toString();
-        when(formClient.getFormDefinition("/forms/nested-1-" + latestDeploymentIdSuffix)).thenReturn(nestedForm1DefinitionNode);
-        when(formClient.getFormDefinition("/forms/nested-2-" + latestDeploymentIdSuffix)).thenReturn(nestedForm2DefinitionNode);
-        when(formClient.getFormDefinition("/forms/nested-array-1-" + latestDeploymentIdSuffix)).thenReturn(nestedArrayFormDefinitionNode);
+        when(formioClient.getFormDefinition("/forms/nested-1-" + latestDeploymentIdSuffix)).thenReturn(nestedForm1DefinitionNode);
+        when(formioClient.getFormDefinition("/forms/nested-2-" + latestDeploymentIdSuffix)).thenReturn(nestedForm2DefinitionNode);
+        when(formioClient.getFormDefinition("/forms/nested-array-1-" + latestDeploymentIdSuffix)).thenReturn(nestedArrayFormDefinitionNode);
         when(deploymentSvc.getLatestDeploymentForm("forms/nested-1")).thenReturn(nestedForm1Definition);
         when(deploymentSvc.getLatestDeploymentForm("forms/nested-2")).thenReturn(nestedForm2Definition);
         when(deploymentSvc.getLatestDeploymentForm("forms/nested-array-1")).thenReturn(nestedArrayFormDefinition);

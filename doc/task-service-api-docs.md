@@ -161,6 +161,16 @@ Get the tasks assigned to the user who has done this request.
 
 ### `GET /api/task/assigned`
 
+### Parameters:
+| Name | Type | Description | Required |
+| ---- | ---------- | ----------- | -------- |
+| dueDate | query | Restrict to tasks that are due after the given date. By default*, the date must have the format yyyy-MM-dd'T'HH:mm:ss.SSSZ, e.g., 2013-01-23T14:42:45.435+0200. | false |
+| dueDateExpression | query | Restrict to tasks that are due on the date described by the given expression. See the [user guide] for more information on available functions. The expression must evaluate to a java.util.Date or org.joda.time.DateTime object. | false |
+| dueAfter | query | Restrict to tasks that are due after the given date. By default*, the date must have the format yyyy-MM-dd'T'HH:mm:ss.SSSZ, e.g., 2013-01-23T14:42:45.435+0200. | false |
+| dueAfterExpression | query | Restrict to tasks that are due after the date described by the given expression. See the [user guide] for more information on available functions. The expression must evaluate to a java.util.Date or org.joda.time.DateTime object. | false |
+| dueBefore | query | Restrict to tasks that are due before the given date. By default*, the date must have the format yyyy-MM-dd'T'HH:mm:ss.SSSZ, e.g., 2013-01-23T14:42:45.243+0200. | false |
+| dueBeforeExpression | query | Restrict to tasks that are due before the date described by the given expression. See the [user guide] for more information on available functions. The expression must evaluate to a java.util.Date or org.joda.time.DateTime object. | false |
+
 ### Result:
 A JSON array of task objects. For information about task object see [Task Object description].
 
@@ -207,6 +217,24 @@ A JSON array of task objects. For information about task object see [Task Object
 Get tasks available to the user who has done this request.
 
 ### `GET /api/task/available`
+
+### Parameters:
+| Name | Type | Description | Required |
+| ---- | ---------- | ----------- | -------- |
+| dueDate | query | Restrict to tasks that are due after the given date. By default*, the date must have the format yyyy-MM-dd'T'HH:mm:ss.SSSZ, e.g., 2013-01-23T14:42:45.435+0200. | false |
+| dueDateExpression | query | Restrict to tasks that are due on the date described by the given expression. See the [user guide] for more information on available functions. The expression must evaluate to a java.util.Date or org.joda.time.DateTime object. | false |
+| dueAfter | query | Restrict to tasks that are due after the given date. By default*, the date must have the format yyyy-MM-dd'T'HH:mm:ss.SSSZ, e.g., 2013-01-23T14:42:45.435+0200. | false |
+| dueAfterExpression | query | Restrict to tasks that are due after the date described by the given expression. See the [user guide] for more information on available functions. The expression must evaluate to a java.util.Date or org.joda.time.DateTime object. | false |
+| dueBefore | query | Restrict to tasks that are due before the given date. By default*, the date must have the format yyyy-MM-dd'T'HH:mm:ss.SSSZ, e.g., 2013-01-23T14:42:45.243+0200. | false |
+| dueBeforeExpression | query | Restrict to tasks that are due before the date described by the given expression. See the [user guide] for more information on available functions. The expression must evaluate to a java.util.Date or org.joda.time.DateTime object. | false |
+| followUpDate | query | Restrict to tasks that have a followUp date on the given date. By default*, the date must have the format yyyy-MM-dd'T'HH:mm:ss.SSSZ, e.g., 2013-01-23T14:42:45.342+0200. | false |
+| followUpDateExpression | query | Restrict to tasks that have a followUp date on the date described by the given expression. See the [user guide] for more information on available functions. The expression must evaluate to a java.util.Date or org.joda.time.DateTime object. | false |
+| followUpAfter | query | Restrict to tasks that have a followUp date after the given date. By default*, the date must have the format yyyy-MM-dd'T'HH:mm:ss.SSSZ, e.g., 2013-01-23T14:42:45.542+0200. | false |
+| followUpAfterExpression | query | Restrict to tasks that have a followUp date after the date described by the given expression. See the [user guide] for more information on available functions. The expression must evaluate to a java.util.Date or org.joda.time.DateTime object. | false |
+| followUpBefore | query | Restrict to tasks that have a followUp date before the given date. By default*, the date must have the format yyyy-MM-dd'T'HH:mm:ss.SSSZ, e.g., 2013-01-23T14:42:45.234+0200. | false |
+| followUpBeforeExpression | query | Restrict to tasks that have a followUp date before the date described by the given expression. See the [user guide] for more information on available functions. The expression must evaluate to a java.util.Date or org.joda.time.DateTime object. | false |
+| followUpBeforeOrNotExistent | query | Restrict to tasks that have no followUp date or a followUp date before the given date. By default*, the date must have the format yyyy-MM-dd'T'HH:mm:ss.SSSZ, e.g., 2013-01-23T14:42:45.432+0200. The typical use case is to query all "active" tasks for a user for a given date. | false |
+| followUpBeforeOrNotExistentExpression | query | Restrict to tasks that have no followUp date or a followUp date before the date described by the given expression. See the [user guide] for more information on available functions. The expression must evaluate to a java.util.Date or org.joda.time.DateTime object. | false |
 
 ### Result:
 A JSON array of task objects. For information about task object see [Task Object description].
@@ -290,3 +318,4 @@ Content-Length: ...
 ```
 
 [Task Object description]: https://docs.camunda.org/manual/7.10/reference/rest/task/get-query/#result
+[user guide]: https://docs.camunda.org/manual/7.10/user-guide/process-engine/expression-language/#internal-context-functions
