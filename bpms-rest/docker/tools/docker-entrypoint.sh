@@ -68,6 +68,8 @@ echo "========================================================================="
 
 # Start Wildfly and return result
 echo "Starting BPMS-REST"
-export JAVA_OPTS="-server -Xms256m -Xmx${MAX_HEAP_SIZE_MB}m -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=${MAX_METASPACE_SIZE_MB}m -Djava.net.preferIPv4Stack=true -Djboss.modules.system.pkgs=org.jboss.byteman -Djava.awt.headless=true -Djboss.as.management.blocking.timeout=1200"
-exec /opt/jboss/wildfly/bin/standalone.sh "-c" "standalone.xml" "-b" "0.0.0.0" "-bmanagement" "0.0.0.0" ${JBOSS_ARGUMENTS}
+export JAVA_OPTS="-server -Xms256m -Xmx${MAX_HEAP_SIZE_MB}m -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=${MAX_METASPACE_SIZE_MB}m
+-Djava.net.preferIPv4Stack=true -Djboss.modules.system.pkgs=org.jboss.byteman -Djava.awt.headless=true -Djboss.as.management.blocking.timeout=1200
+-DFORMIO_URL=${FORMIO_URL} -DFORMIO_LOGIN=${FORMIO_LOGIN} -DFORMIO_PASSWORD=${FORMIO_PASSWORD} -DFORM_VERSIONING=${FORM_VERSIONING}"
+exec /opt/jboss/wildfly/bin/standalone.sh "-c" "standalone.xml" "-b" "0.0.0.0" "-bmanagement" "0.0.0.0"
 exit $?

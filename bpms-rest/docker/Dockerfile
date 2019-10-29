@@ -13,9 +13,9 @@ RUN cd / &&\
 
 # ----------------------------------------------------------------------------------
 # Add built application to Wildfly
-FROM jboss/wildfly:17.0.0.Final as wildfly
+FROM jboss/wildfly:17.0.1.Final as wildfly
 
-ARG JBOSS_CLI_ADMIN_USERNAME=admin
+ARG JBOSS_CLI_ADMIN_LOGIN=admin
 ARG JBOSS_CLI_ADMIN_PASSWORD=admin
 ARG KEYCLOAK_ADAPTER_VERSION=7.0.0
 ARG KEYCLOAK_ADAPTER_DOWNLOAD_URL=https://downloads.jboss.org/keycloak/${KEYCLOAK_ADAPTER_VERSION}/adapters/keycloak-oidc/keycloak-wildfly-adapter-dist-${KEYCLOAK_ADAPTER_VERSION}.tar.gz
@@ -24,11 +24,17 @@ ARG JBOSS_CLI=/opt/jboss/wildfly/bin/jboss-cli.sh
 # Possible values are: h2 (embedded db), postgres, mysql, mariadb
 ENV BPMS_REST_DB_VENDOR h2
 # The following DB settings are only applied when DB vendor is not h2
+ENV BPMS_REST_CLI_ADMIN_LOGIN admin
+ENV BPMS_REST_CLI_ADMIN_PASSWORD admin
 ENV BPMS_REST_DB_HOST localhost
 ENV BPMS_REST_DB_PORT 5432
 ENV BPMS_REST_DB_NAME bpms
 ENV BPMS_REST_DB_LOGIN sa
 ENV BPMS_REST_DB_PASSWORD sa
+ENV FORMIO_URL http://localhost:3001
+ENV FORMIO_LOGIN root@root.root
+ENV FORMIO_PASSWORD root
+ENV FORM_VERSIONING ""
 ENV KEYCLOAK_SERVER_URL http://localhost:8180/auth
 ENV KEYCLOAK_CLIENT_ID bpms-rest
 ENV KEYCLOAK_REALM master
@@ -48,8 +54,8 @@ ENV JDBC_ORACLE_VERSION ojdbc6
 COPY --chown=jboss:0 --from=maven_builder /ART-BPMS-REST/bpms-rest/target/bpms-rest.war /opt/jboss/wildfly/standalone/deployments/bpms-rest.war
 
 # Install database drivers
-COPY --chown=jboss:0 --from=maven_builder /ART-BPMS-REST/bpms-rest/docker/tools /opt/jboss/tools/bpms-rest/
-RUN chmod +x /opt/jboss/tools/bpms-rest/*.sh && \ 
+COPY --chown=jboss:0 tools/ /opt/jboss/tools/bpms-rest/
+RUN chmod +x /opt/jboss/tools/bpms-rest/*.sh && \
     /opt/jboss/tools/bpms-rest/install-databases.sh
 
 # Configure Wildfly	
