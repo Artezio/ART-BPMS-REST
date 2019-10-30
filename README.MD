@@ -1,88 +1,164 @@
 # ART-BPMS-REST
 
-ART-BPMS-REST is a module which adds [Formio] forms support to [Camunda] BPM engine, as well as some other useful features. 
-It provides a set of REST endpoints for working with Deployments, Processes and Tasks. 
-Forms are designed using Formio node.js application, stored in Camunda deployments and then could be displayed using any of Formio form players.
+ART-BPMS-REST is a module which adds [Form.io] forms support to [Camunda BPM] engine, as well as some other useful features. 
+It provides a set of [REST endpoints](/doc/rest-api-docs.md) for working with Deployments, Processes and Tasks. 
+Forms are designed using Form.io node.js application, stored in Camunda deployments and then could be displayed using any of Form.io form players.
 
----
-
-* [Features](#features)
-* [Usage](#usage)
-    * [Running as Standalone application](#standalone)
-    * [Running within EAR subdeployment](#running-as-ear-subdeployment)
-    * [Working with forms](#working-with-forms)
-    * [Form versioning](#forms-versioning)
-    * [Validation](#validation)
-    * [Mapping submitted data to Java Classes](#mapping-submitted-data-to-java-classes)
-    * [Internationalization and Localization](#internationalization-and-localization)
-* [Steps to create and use forms in BPMN](#steps-to-create-and-use-forms-in-bpmn)
-* [Configuration](#configuration)
-* [Corner cases](#formio-related-corner-cases)
-* [File storage](#file-storage)
-* [Api docs](#api-docs)
-
----
-
-## Features
-* Simple integration of User tasks and forms: task form keys are direct references to Formio forms
-* Robust Data validation using both Formio and java validation
-* File uploading from Formio to Camunda, which can be customized or externalized by providing custom FileStorage implementations 
+Features:
+* Simple integration of User tasks and forms: task form keys are direct references to Form.io forms
+* Robust Data validation using both Form.io and java validation
+* File uploading from Form.io to Camunda, which can be customized or externalized by providing custom FileStorage implementations 
 * Forms versioning
 * Logging 
 * Form cache
 * Default implementation of Message Correlation and Signal services
 
-ART-BPMS-REST uses Formio node.js servers for storing and validating user forms. 
+ART-BPMS-REST uses Form.io node.js servers for storing and validating user forms. Two Form.io servers are required to use this module — Development server and Work server. The development server is used by forms designers for constructing forms. These forms are then downloaded using [formio-import-export-tool](https://github.com/artezio/) and deployed to Camunda along with BPMN diagrams. When the deployment is made, these forms are automatically versioned and uploaded to the work server. ART-BPMS-REST then uses the work server to load forms and validate submitted data.
 
-Two Formio servers are required to use this module - Development server and Work server. 
+---
+* [Architecture Overview](#architecture-overview)
+* [Security](#security)
+* [Installation](#installation)
+    * [Full Distribution ART-BPMS-REST + Keycloak + Form.io with Docker Compose](#full-distribution-art-bpms-rest--keycloak--formio-with-docker-compose)
+    * [Standalone Web application](#standalone-web-application)
+    * [EAR module](#ear-module)
+    * [Configuration](#configuration)
+* [Usage](#usage)
+    * [Working with forms](#working-with-forms)
+    * [Form versioning](#forms-versioning)
+    * [Validation](#validation)
+    * [Mapping submitted data to Java Classes](#mapping-submitted-data-to-java-classes)
+    * [Internationalization and Localization](#internationalization-and-localization)
+   * [Steps to create and use forms in BPMN](#steps-to-create-and-use-forms-in-bpmn)
+   * [Corner cases](#formio-related-corner-cases)
+* [File storage](#file-storage)
+---
 
-The development server is used by forms designers for constructing forms. 
-These forms are then downloaded using [formio-import-export-tool](https://github.com/artezio/) and deployed to Camunda along with BPMN diagrams. 
-When the deployment is made, these forms are automatically versioned and uploaded to the work server. 
-ART-BPMS-REST then uses the work server to load forms and validate submitted data.
+## Architecture Overview
+
+![](doc/architecture-overview.png)
+
+## Security
+
+Application REST API is based on JAX-RS with EJB technology. The application specifies that users having the given roles are allowed access to REST API in declarative way. Authentication must be implemented in an application server in a vendor specific way according to an identity management solution. REST endpoints are secured as follows:
+* A user accessing REST endpoints must be authenticated
+* A user accessing Deployment REST endpoints must have role `BPMSAdmin`
+* A user accessing other REST endpoints can have any roles
+* A user without roles won't be able to start any process or complete any task
+
+The application also provides access to BMN tasks according to user roles (groups) as follows:
+* If a Task or a Process has no Candidate Starter Groups and no Candidate Started Users, then it cannot be started or completed by a user and can only be started programmatically
+* If a Task or a Process has Candidate Starter Groups, then only users which has these roles will be able to start/complete the task or process
+* If a Task or a Process has Candidate Started Users, then only users with corresponding usernames will be able to start/complete the task or process.
+
+The Identity Service provides user info including user roles. **NOTE! Current version of the application implements Identity Service for Keycloak identity management solution. Therefore Keycloak is used for REST security.**
+
+## Installation
+
+### Full Distribution ART-BPMS-REST + Keycloak + Form.io with Docker Compose
+
+TBD
+
+### Standalone Web application
+
+Installation and configuration guide of ART-BPMS-REST standalone web application using a WildFly application server and Keycloak as example.
+
+![](doc/deployment-diagram.png)
+
+#### Environment
+
+1.	Relational Database Server. Since ART-BPMS-REST is based on Camunda Procces Engine supported database is required. See [Camunda documentation](https://docs.camunda.org/manual/7.10/introduction/supported-environments/#supported-database-products) page. For instance, [PostgreSQL database system](https://www.postgresql.org). The DB Server has to contain empty database for Camunda.
+
+1.	Keycloak Server. Keycloak is used for authentication. Download Keycloak Server from the [download page](https://www.keycloak.org/downloads.html) and install according to the [Getting Started Guide](https://www.keycloak.org/docs/latest/getting_started/index.html). Keycloak has to contain realm and client for ART-BPMS-REST application, role `BPMSAdmin` and at lest one user with current role. Also you can use our Docker image with predefined settings (TBD).
+
+1.	Form.io Server. The simplest way of running Form.io server is to run our Form.io Docker image from `/formio` subdirectory. See [Form.io Docker readme](formio/README.MD) to use our Form.io Docker image. To run Form.io without Docker, you would have to:
+      - Clone Form.io `v1.47.0` sources from [Form.io Github repository](https://github.com/formio) and install required dependencies listed on their github page
+      - Replace the file `src/middleware/submissionHandler.js` with the one provided in `ART-BPMS-REST/formio/src/middleware/submissionHandler.js`
+      - Configure MongoDB connection settings, install Form.io application with npm and run with nodejs
+
+1.	Java 8 or greater 
+
+#### Installion
+
+1.	Wildfly Application server. [Download](https://wildfly.org/downloads/) and unpack Wildfly 17 Java EE Full & Web Distribution archive. **NOTE! You could use another JavaEE8-approved server, but there are no guarantees on its workability.**
+
+1.	Keycloak adapter. [Download](https://www.keycloak.org/downloads.html) Keycloak Client Adapter for Wildfly. Unpack the keycloak adapter archive to the WildFly home directory. To configure the adapter execute: 
+      ```
+      $ ./bin/jboss-cli.sh --file=bin/adapter-install-offline.cli
+      ```
+      **NOTE! Don’t use WildFly Elytron Security because it has some issues with Keycloak adapter and EJB security.**
+
+1.	Keycloak profile. Add secure-deployment description for ART-BPMS-REST application in Keycloak profile in Wildfly configuration file standalone.xml:
+      ```
+      <subsystem xmlns="urn:jboss:domain:keycloak:1.1">
+          <secure-deployment name="bpms-rest.war">
+              <realm>art-bpms</realm>
+              <resource>bpms-rest</resource>
+              <auth-server-url>http://localhost:32773/auth</auth-server-url>
+              <ssl-required>EXTERNAL</ssl-required>
+              <principal-attribute>preferred_username</principal-attribute>
+          </secure-deployment>
+      </subsystem>
+      ```
+      Description of configuration options: 
+
+      `name` attribute of `secure-deployment` — identifies the WAR of the ART-BPMS-REST application. Its value is the module-name defined in web.xml with .war appended. Default value is bpms-rest.war;
+
+      `realm` — name of the realm defined on the Keycloak server for the ART-BPMS-REST application;
+
+      `resource` — the client-id in the realm of ART-BPMS-REST application that is used to identify the application;
+
+      `auth-server-url` — the base URL of the Keycloak server. It’s usually of the form https://host:port/auth;
+
+      `ssl-required` — ensures that all communication to and from the Keycloak server is over HTTPS. The external meaning that HTTPS is required by default for external requests;
+
+      `principal-attribute` — OpenID Connect ID Token attribute to populate the UserPrincipal name with. For instance, `preferred_username` token attribute.
+
+      See [Keycloak documentation](https://www.keycloak.org/docs/latest/securing_apps/index.html#_java_adapter_config) for more details.
+
+1.	JDBC driver deployment. Deploy JDBC driver according to database on WildFly. For instance, [driver for PostgreSQL](https://jdbc.postgresql.org/).
+
+1.	Datasource profile. Add datasource with jndi name `java:/datasources/CamundaDS` which will be used by Camunda engine. Set datasource options according to database and JDBC driver. For instance:
+      ```
+      <datasource jndi-name="java:/datasources/CamundaDS" pool-name="bpms-rest-datasource" enabled="true" use-ccm="true">
+         <connection-url>jdbc:postgresql://localhost:5432/art-bpms</connection-url>
+         <driver>postgresql</driver>
+         <new-connection-sql>SELECT 1</new-connection-sql>
+         <transaction-isolation>TRANSACTION_READ_COMMITTED</transaction-isolation>
+         <pool>
+            <initial-pool-size>10</initial-pool-size>
+            <max-pool-size>50</max-pool-size>
+         </pool>
+         <security>
+            <user-name>user</user-name>
+            <password>password</password>
+         </security>
+         <validation>
+            <valid-connection-checker class-name="org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker"/>
+            <check-valid-connection-sql>SELECT 1</check-valid-connection-sql>
+            <validate-on-match>true</validate-on-match>
+            <background-validation>true</background-validation>
+            <exception-sorter class-name="org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLExceptionSorter"/>
+          </validation>
+          <timeout>
+            <idle-timeout-minutes>5</idle-timeout-minutes>
+            <allocation-retry>100</allocation-retry>
+            <allocation-retry-wait-millis>20000</allocation-retry-wait-millis>
+          </timeout>
+      </datasource>
+      ```
+
+1.	Download ART-BPMS-REST project from git repository and build with maven: 
+      ```
+      mvn clean package
+      ```
+
+1.	ART-BPMS-REST deployment. Deploy bpms-rest\target\bpms-rest.war on WildFly.
+
+1.	Pass configuration options to the server as described in [Configuration](#configuration) section. Restart WildFly and follow the link <host>/bpms-rest/swagger-ui.html for REST API description.
 
 
-## Usage
-
-### Prerequisites
-
-* [Java] 1.8 or greater
-* [Maven] 3.6.1 or greater
-* [Git] version 2.19.0 or greater
-* [Wildfly 15]. You could use another JavaEE8-approved server, but there are no guarantees on its workability
-* A relational database for Camunda. Supported databases are listed on [Camunda documentation](https://docs.camunda.org/manual/7.10/introduction/supported-environments/#supported-database-products) page 
-* Configured JAAS Security provider, such as [Keycloak]. Refer to [Security](#security) section for more details
-
-ART-BMS-REST could be run either as a standalone application or as part of EAR deployment.
-
-
-### Running standalone
-
-1. Build ART-BPMS-REST
-
-    ```
-    git clone https://github.com/Artezio/ART-BPMS-REST.git
-    cd ART-BPMS-REST
-    mvn install
-    ```
-   
-1. Start Formio server as described in [Running Formio server](#running-formio-server) section
-
-1. Start Wildfly server. Pass configuration options to the server as described in [Configuration](#configuration) section  
-
-1. Using wildfly CLI (http://localhost:9990), Add the relational database datasource with jndi name `java:/datasources/CamundaDS` which will be used by Camunda engine
-
-1. Install JAAS Security provider for `bpms-rest.war` deployment ([details](#security))
-
-1. Deploy `bpms-rest.war` from `ART-BPMS-REST/target` directory to the server
-
-1. REST API description is available at http://localhost:8080/bpms-rest
-
-1. Refer to [Working with forms](#working-with-forms) section for details on how to deploy and use forms
-
-1. Use REST API endpoints to deploy and run the processes and forms
-
-### Running as EAR module
+### EAR module
 
 1. Build ART-BPMS-REST war archive
 
@@ -127,7 +203,7 @@ ART-BMS-REST could be run either as a standalone application or as part of EAR d
     > </module>
     > ```
 
-1. Run Formio server as described in [Running Formio server](#running-formio-server) section
+1. Run Form.io server as described in [Running Form.io server](#running-formio-server) section
 
 1. Start Wildfly server. Pass configuration options to the server as described in [Configuration](#configuration) section  
 
@@ -145,9 +221,26 @@ ART-BMS-REST could be run either as a standalone application or as part of EAR d
 
 1. Use REST API endpoints to deploy and run the processes and forms
 
-## Working with forms
 
-ART-BPMS-REST uses two Formio servers, Development and Working. 
+### Configuration
+
+ART-BPMS-REST is configured by passing the following properties to the server on startup (as -Dxxx flags, i.e. `-DFORM_VERSIONING=true`):
+* `FORM_VERSIONING`: Switches on and off [form versioning](#forms-versioning). `true` by default
+* `FORMIO_URL`: Form.io Work Server url. By default `http://localhost:3001`
+* `FORMIO_LOGIN`: Login to Form.io Work Server. It's used in communication between ART-BPMS-REST and Form.io server. By default `root@root.root`
+* `FORMIO_PASSWORD`: Password to Form.io Work Server. Used in communication between ART-BPMS-REST and Form.io server. By default `root`
+* `FORMIO_JWT_EXPIRATION_TIME`: Form.io JWT token expiration time in seconds. By default `240`. This is related to Form.io own authentication mechanism and not to ART-BPMS-REST security configuration
+
+The following environment variables can be set:
+
+* `FILE_STORAGE_URL`: file storage URL for custom file storage implementations. By default, files are stored inside Base64 Data Urls.
+
+
+## Usage
+
+### Working with forms
+
+ART-BPMS-REST uses two Form.io servers, Development and Working. 
 
 Development server is used by form designers for creating forms. 
 Forms are then downloaded from Development server to local filesystem before creating a deployment. By adding downloaded forms into Process Application Archive under resources folder, these forms become visible to ART-BPMS-REST so they will be automatically deployed with Camunda resources such as BPMN diagrams.
@@ -155,8 +248,8 @@ Forms are then downloaded from Development server to local filesystem before cre
 Work server is used by ART-BPMS-REST for uploading and storing versioned copies of forms. When a deployment is created and uploaded using ART-BPMS-REST endpoints, all forms' identifiers are modified prior to uploading in such way that they become unique across different deployments. Any forms which were removed from work server will be re-uploaded upon next ART-BPMS-REST statup.
 
 Overall, the workflow looks like this:
-1. Construct forms using Development Formio server
-1. Download forms from Development Formio server using formio-import-export-tool and put forms into Camunda deployment along with other resources, such as BPMN diagrams
+1. Construct forms using Development Form.io server
+1. Download forms from Development Form.io server using formio-import-export-tool and put forms into Camunda deployment along with other resources, such as BPMN diagrams
 1. Set process start form key if necessary
 1. Add BPMN User Tasks with form keys pointing to constructed forms
 1. Deploy process with forms into Camunda
@@ -164,7 +257,7 @@ Overall, the workflow looks like this:
 1. Request and submit task forms using BPMS-REST
 1. If a form requires updating and the form versioning is enabled, make changes to the form, download the form with formio-import-export-tool and make a deployment with the updated form. Processes started from this point will use the updated version of the form.
 
-#### Forms versioning
+### Forms versioning
 
 Form versioning is controlled by property `FORM_VERSIONING`, which accepts values `true` and `false` and is enabled by default
 
@@ -172,16 +265,16 @@ When a deployment is made with form versioning enabled, its forms are given uniq
 
 If form versioning is disabled then forms are uploaded to Work server as is, without identifier modifications. In this case, a form will only be uploaded once and will never be updated, and all deployments will be referencing the same form. If there are multiple forms with the same path, then there's no guarantees on which of them will be deployed and used by the rest of deployments. In this case, processes which use newer versions of the form might function with errors.
 
-#### Validation
+### Validation
 
 On every submit, form data is validated several times:
-1. Before submitting, inside Formio player all data gets validated using constraints defined in form designer
-1. After submitting, the data is sent to Formio Work server to perform dry cleanup and validation (i.e. all extra submitted data which was not present in the form will be removed)
+1. Before submitting, inside Form.io player all data gets validated using constraints defined in form designer
+1. After submitting, the data is sent to Form.io Work server to perform dry cleanup and validation (i.e. all extra submitted data which was not present in the form will be removed)
 1. After dry validation all Java Objects which have `javax.validation` constraints are validated using JavaBeans Validation service
 
-#### Mapping submitted data to Java classes
+### Mapping submitted data to Java classes
 
-When the data is submitted from Formio to Camunda, it's unknown which json object corresponds to which Java class, so all objects are stored as Maps in Process Variables.
+When the data is submitted from Form.io to Camunda, it's unknown which json object corresponds to which Java class, so all objects are stored as Maps in Process Variables.
 
 To convert the submitted objects to Java classes, Process Extensions are used to define mapping between Process Variable and class which should be used for that variable.
 
@@ -210,7 +303,7 @@ Let's assume the following data is submitted with Process Extensions set as in t
 
 Process variable `userInfo` will be stored as class `com.artezio.bpm.model.UserInfo`, and process variable `marriageInfo` will be stored as `Map`
 
-#### Internationalization and localization
+### Internationalization and localization
 
 With ART-BPMS-REST it is possible to ship deployment with process (or case) specific l10n resources which can be fetched and used later.
 Here is an explanation of how ART-BPMS-REST chooses language-related resources:
@@ -225,12 +318,12 @@ consist of language ranges which are RFC standardized set of language tags havin
           *sequentially cut off the underscore-separated parts of the wished resource name until they run out*
     * if at the end no resource is found, empty `java.util.ResourceBundle` is returned
 
-##### Forming of the resource name:
+#### Forming of the resource name:
 The resource name is formed of `i18n/` prefix, the filename of the diagram, which it belongs to, and language tags. The filename and language
 tags are separated by underscore (e.g. `i18n/some-file-name_en_Us`). Language tags are also underscore-separated from each other
 (e.g. `zh-Hant-HK`) .   
     
-##### Example:
+#### Example:
 Suppose a deployment has resource with name `some-diagram-name_en.properties` and we are passing `en-US` language range.
 In accordance with the first step ART-BPMS-REST will try to find the resource with name `some-diagram-name_en_US.properties`.
 But the deployment does not have the resource with such a name, so ART-BPMS-REST will remove 'US' part from `some-diagram-name_en_US.properties`
@@ -239,9 +332,9 @@ a resource, `java.util.ResourceBundle` with info from this resource will be retu
 
 **Please Note**: Language ranges are dash-separated, while suffixes in a resource name are underscore-separated.
 
-## Steps to create and use forms in BPMN
+### Steps to create and use forms in BPMN
 
-1. Log in to Formio Development server and build a form. Set form path to something meaningful, e.g. `forms/user/personal-information`
+1. Log in to Form.io Development server and build a form. Set form path to something meaningful, e.g. `forms/user/personal-information`
 
     ![](doc/create-form.png)
 
@@ -291,7 +384,7 @@ a resource, `java.util.ResourceBundle` with info from this resource will be retu
         Send POST request to `/bpms-rest/api/deployment?name=<deployment_name>` endpoint. 
         * Specify deployment name in the query 
         * Add all forms into request body along with BPMN diagrams and other resources
-        * Set each form `filename` to be the same as form `path` you set in Formio editor
+        * Set each form `filename` to be the same as form `path` you set in Form.io editor
 
 1. Get task form:
     * Task id is required
@@ -300,8 +393,8 @@ a resource, `java.util.ResourceBundle` with info from this resource will be retu
     * Use any of numerous [Formio players](https://help.form.io/developer/frameworks/) to display and submit the form
     
 1. Submit task form:
-    * Make Formio player use endpoint `/bpms-rest/api/task/<taskId>/complete` and call its submit() function.
-    * You can submit the data without Formio players by sending POST request with json which contains submitted data:
+    * Make Form.io player use endpoint `/bpms-rest/api/task/<taskId>/complete` and call its submit() function.
+    * You can submit the data without Form.io players by sending POST request with json which contains submitted data:
         ```json
         {
             "data": {
@@ -311,17 +404,6 @@ a resource, `java.util.ResourceBundle` with info from this resource will be retu
         }
         ```
 
-## Configuration
-ART-BPMS-REST is configured by passing the following properties to the server on startup (as -Dxxx flags, i.e. `-DFORM_VERSIONING=true`):
-* `FORM_VERSIONING`: Switches on and off [form versioning](#forms-versioning). `true` by default
-* `FORMIO_URL`: Formio Work Server url. By default `http://localhost:3001`
-* `FORMIO_LOGIN`: Login to Formio Work Server. It's used in communication between ART-BPMS-REST and Formio server. By default `root@root.root`
-* `FORMIO_PASSWORD`: Password to Formio Work Server. Used in communication between ART-BPMS-REST and Formio server. By default `root`
-* `FORMIO_JWT_EXPIRATION_TIME`: Formio JWT token expiration time in seconds. By default `240`. This is related to Formio own authentication mechanism and not to ART-BPMS-REST security configuration
-
-The following environment variables can be set:
-
-* `FILE_STORAGE_URL`: file storage URL for custom file storage implementations. By default, files are stored inside Base64 Data Urls.
 
 ### Formio-related corner-cases
 * With BPMS-REST it is possible to control evaluation of a bpm process, particularly to continue or cancel it. This decision is applied
@@ -337,9 +419,9 @@ basing on `state` and `isSubmittedDataProcessed` properties.
       ```
       `Button` components with `action` type equal to `Submit` or `Save in state` pass `state` by default. If you use `Button`
        components with another type of `action`, make sure that you pass `state`
-    * `isSubmittedDataProcessed` property is a custom property of Formio [Button Component]. It accepts `true` and `false` values:
+    * `isSubmittedDataProcessed` property is a custom property of Form.io [Button Component]. It accepts `true` and `false` values:
         > If different to boolean value is passed, it is interpreted as `false`.
-        Formio `Button` component definition example:
+        Form.io `Button` component definition example:
       ```json
         {
           (omitted properties)
@@ -353,7 +435,7 @@ basing on `state` and `isSubmittedDataProcessed` properties.
 * `protected` attribute of a subform included in a parent form is treated as follows. When this attribute is set `true`, all subform fields become disabled. This attribute should be used to make entire subforms read-only
 * After submitting all files are converted into Camunda `org.camunda.bpm.engine.variable.value.FileValue`, and their `url` fields are
 set to point to file id in the file storage. Default file storage is base64 url. See [File Storage](#file-storage) 
-for more information about the storage
+for more information about the storage 
 
 ## File Storage
 By default all files are encoded in Base64 and stored in Camunda database as base64 data urls ([RFC 2397](https://tools.ietf.org/html/rfc2397)). 
@@ -361,39 +443,10 @@ It's possible to add a custom FileStorage implementation to store files anywhere
 `com.artezio.bpm.services.integration.FileStorage` interface and making it a CDI bean visible to BPMS-REST module. Only one such implementation is allowed on the classpath. 
 
 When a file gets deserialized into Camunda's engine, FileStorage implementation will be called to store the file. 
-When a file gets serialized from Camunda's engine, FileStorage implementation will be called to retrieve the file.  
+When a file gets serialized from Camunda's engine, FileStorage implementation will be called to retrieve the file. 
 
-## Running Formio server
-
-The simplest way of running Formio server is to run our Formio Docker image from `/formio` subdirectory
-
-See [Formio Docker readme](formio/README.MD) to use our Formio Docker image
-
-To run Formio without Docker, you would have to:
-1. Clone Formio `v1.47.0` sources from [Formio Github repository](https://github.com/formio) and install required dependencies listed on their github page
-2. Replace the file `src/middleware/submissionHandler.js` with the one provided in `ART-BPMS-REST/formio/src/middleware/submissionHandler.js`
-3. Configure MongoDB connection settings, install Formio application with npm and run with nodejs
-
-## Security
-
-ART-BPMS-REST relies on EJB / JAAS security system. You must setup a Security Provider, for example [Keycloak], configure user roles and make sure the deployment `bpms-rest.war` uses your Security provider. Security is usually configured at the server side.
-
-REST endpoints are secured as follows:
-* A user accessing REST endpoints must be authenticated
-* A user accessing Deployment REST endpoints must have role `BPMSAdmin`
-* A user accessing other REST endpoints can have any roles
-* A user without roles won't be able to start any process or complete any task 
-
-BPMN diagrams are secured as follows:
-* If a Task or a Process has no Candidate Starter Groups and no Candidate Started Users, then it cannot be started or completed by a user and can only be started programmatically
-* If a Task or a Process has Candidate Starter Groups, then only users which has these roles will be able to start/complete the task or process
-* If a Task or a Process has Candidate Started Users, then only users with corresponding usernames will be able to start/complete the task or process
-
-## Api Docs
-[Rest Api Docs.MD](/doc/rest-api-docs.md)
-
-[Camunda]: https://camunda.com/
-[Formio]: https://www.form.io/
+[Camunda BPM]: https://camunda.com/
+[Form.io]: https://www.form.io/
 [Button Component]: https://help.form.io/userguide/form-components/#button-1
 [Java]: https://java.com
 [Maven]: https://maven.apache.org/
