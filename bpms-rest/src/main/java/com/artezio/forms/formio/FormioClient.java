@@ -517,13 +517,27 @@ public class FormioClient implements FormClient {
                     } else if (isObjectVariable(attributeValue)) {
                         attributeValue = convertVariablesToFileRepresentations(attributePath, (Map<String, Object>) attributeValue, formDefinition);
                     } else if (isArrayVariable(attributeValue)) {
-                        attributeValue = ((List<Object>) attributeValue).stream()
-                                .map(objectVariable -> convertVariablesToFileRepresentations(attributePath + "[*]", (Map<String, Object>) objectVariable, formDefinition))
-                                .collect(Collectors.toList());
+                        attributeValue = convertListVariableToFileRepresentations(attributePath, (List<Object>) attributeValue, formDefinition);
                     }
                     objectAttribute.setValue(attributeValue);
                 })
                 .collect(HashMap::new, (m, e) -> m.put(e.getKey(), objectVariableAttributes.get(e.getKey())), HashMap::putAll);
+    }
+
+    private List<Object> convertListVariableToFileRepresentations(String attributePath, List<Object> variableValue, String formDefinition) {
+        return variableValue.stream()
+                .map(element -> {
+                    if (isObjectVariable(element)) {
+                        return convertVariablesToFileRepresentations(attributePath, (Map<String, Object>) element, formDefinition);
+                    } else if (isArrayVariable(element)) {
+                        return ((List<Object>) element).stream()
+                                .map(objectVariable -> convertListVariableToFileRepresentations(attributePath + "[*]", (List<Object>) element, formDefinition))
+                                .collect(Collectors.toList());
+                    } else {
+                        return element;
+                    }
+                })
+                .collect(Collectors.toList());
     }
 
     private List<FileValue> convertVariablesToFileRepresentations(Object fileVariableValue) {
