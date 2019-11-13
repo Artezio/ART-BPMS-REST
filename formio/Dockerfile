@@ -23,10 +23,9 @@ RUN git clone -b ${ART_FORMIO_EXT_VERSION} --depth 1 https://github.com/Artezio/
 
 WORKDIR /formio
 
-COPY src/middleware/submissionHandler.js .
 RUN cp server.js server-origin.js
-RUN cp /ART-FORMIO-EXT/cleanUp/server.js .
-RUN cp -r /ART-FORMIO-EXT/cleanUp/src .
+RUN cp /ART-FORMIO-EXT/server.js .
+RUN cp -r /ART-FORMIO-EXT/src .
 RUN npm install
 
 ENTRYPOINT [ "npm", "start" ]
