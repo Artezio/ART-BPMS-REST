@@ -247,7 +247,7 @@ public class FormioClientTest extends ServiceTest {
 
         when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
 
-        Map<String, Object> actual = formioClient.getVariablesWithoutReadOnlyFields(variables, formPath);
+        Map<String, Object> actual = formioClient.removeReadOnlyVariables(variables, formPath);
 
         assertEquals(expected, actual);
     }
@@ -264,7 +264,7 @@ public class FormioClientTest extends ServiceTest {
 
         when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
 
-        Map<String, Object> actual = formioClient.getVariablesWithoutReadOnlyFields(variables, formPath);
+        Map<String, Object> actual = formioClient.removeReadOnlyVariables(variables, formPath);
 
         assertEquals(expected, actual);
     }
@@ -282,7 +282,7 @@ public class FormioClientTest extends ServiceTest {
 
         when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
 
-        Map<String, Object> actual = formioClient.getVariablesWithoutReadOnlyFields(variables, formPath);
+        Map<String, Object> actual = formioClient.removeReadOnlyVariables(variables, formPath);
 
         assertEquals(expected, actual);
     }
@@ -303,7 +303,7 @@ public class FormioClientTest extends ServiceTest {
 
         when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
 
-        Map<String, Object> actual = formioClient.getVariablesWithoutReadOnlyFields(variables, formPath);
+        Map<String, Object> actual = formioClient.removeReadOnlyVariables(variables, formPath);
 
         assertEquals(expected, actual);
     }

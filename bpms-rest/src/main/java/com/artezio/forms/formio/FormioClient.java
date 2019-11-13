@@ -90,7 +90,7 @@ public class FormioClient implements FormClient {
     public String dryValidationAndCleanup(String formPath, Map<String, Object> variables) {
         try {
             variables = convertVariablesToFileRepresentations(variables, getFormDefinition(formPath).toString());
-            variables = getVariablesWithoutReadOnlyFields(variables, formPath);
+            variables = removeReadOnlyVariables(variables, formPath);
             JsonNode data = getFormioService()
                     .submission(formPath, toFormIoSubmissionData(variables))
                     .get("data");
@@ -113,23 +113,23 @@ public class FormioClient implements FormClient {
                 key -> shouldProcessSubmittedData(formDefinitionJson, saveStateComponentsFilter));
     }
 
-    protected Map<String, Object> getVariablesWithoutReadOnlyFields(Map<String, Object> variables, String formPath) {
+    protected Map<String, Object> removeReadOnlyVariables(Map<String, Object> variables, String formPath) {
         JsonNode formDefinition = getFormDefinition(formPath);
-        return getContainerWithoutReadOnlyFields(variables, formDefinition);
+        return removeReadOnlyVariables(variables, formDefinition);
     }
 
-    private Map<String, Object> getContainerWithoutReadOnlyFields(Map<String, Object> variables, JsonNode containerDefinition) {
+    private Map<String, Object> removeReadOnlyVariables(Map<String, Object> variables, JsonNode containerDefinition) {
         JsonNode containerComponents = containerDefinition.get("components");
         getStream(containerComponents)
                 .filter(component -> variables.containsKey(component.get("key").asText()))
                 .forEach(component -> {
                     String componentName = component.get("key").asText();
                     if (isContainerComponent(component) && isComponentEnabled(component)) {
-                        Map<String, Object> components = (Map<String, Object>) variables.get(componentName);
-                        variables.put(componentName, getContainerWithoutReadOnlyFields(components, component));
+                        Map<String, Object> nestedVariables = (Map<String, Object>) variables.get(componentName);
+                        removeReadOnlyVariables(nestedVariables, component);
                     } else if (isArrayComponent(component) && isComponentEnabled(component)) {
-                        List<Map<String, Object>> elements = (List<Map<String, Object>>) variables.get(componentName);
-                        variables.put(componentName, getArrayWithoutReadOnlyFields(elements, component));
+                        List<Map<String, Object>> nestedVariables = (List<Map<String, Object>>) variables.get(componentName);
+                        removeReadOnlyVariables(nestedVariables, component);
                     } else if (!isComponentEnabled(component)) {
                         variables.remove(componentName);
                     }
@@ -137,30 +137,27 @@ public class FormioClient implements FormClient {
         return variables;
     }
 
-    private List<Map<String, Object>> getArrayWithoutReadOnlyFields(List<Map<String, Object>> variables, JsonNode arrayDefinition) {
+    private List<Map<String, Object>> removeReadOnlyVariables(List<Map<String, Object>> variables, JsonNode arrayDefinition) {
         ArrayNode arrayComponents = (ArrayNode) arrayDefinition.get("components");
-        List<Map<String, Object>> result = new ArrayList<>();
-        variables.forEach(variable -> {
-            ArrayList<Map.Entry<String, Object>> variableEntries = new ArrayList<>(variable.entrySet());
-            Map<String, Object> arrElementWrapper = new HashMap<>();
-            for (int i = 0; i < arrayComponents.size(); i++) {
-                JsonNode component = arrayComponents.get(i);
-                Map.Entry<String, Object> variableEntry = variableEntries.get(i);
-                if (isContainerComponent(component) && isComponentEnabled(component)) {
-                    Map<String, Object> components = (Map<String, Object>) variableEntry.getValue();
-                    arrElementWrapper.put(variableEntry.getKey(), getContainerWithoutReadOnlyFields(components, component));
-                } else if (isArrayComponent(component) && isComponentEnabled(component)) {
-                    List<Map<String, Object>> arrElements = (List<Map<String, Object>>) variableEntry.getValue();
-                    arrElementWrapper.put(variableEntry.getKey(), getArrayWithoutReadOnlyFields(arrElements, component));
-                } else if (isComponentEnabled(component)) {
-                    arrElementWrapper.put(variableEntry.getKey(), variableEntry.getValue());
-                }
-            }
-            if (!arrElementWrapper.isEmpty()) {
-                result.add(arrElementWrapper);
-            }
-        });
-        return result;
+        return variables.stream()
+                .peek(wrappedVariables -> {
+                    ArrayList<Map.Entry<String, Object>> wrappedVariableList = new ArrayList<>(wrappedVariables.entrySet());
+                    for (int i = 0; i < arrayComponents.size(); i++) {
+                        JsonNode component = arrayComponents.get(i);
+                        Map.Entry<String, Object> variable = wrappedVariableList.get(i);
+                        if (isContainerComponent(component) && isComponentEnabled(component)) {
+                            Map<String, Object> nestedVariables = (Map<String, Object>) variable.getValue();
+                            removeReadOnlyVariables(nestedVariables, component);
+                        } else if (isArrayComponent(component) && isComponentEnabled(component)) {
+                            List<Map<String, Object>> nestedVariables = (List<Map<String, Object>>) variable.getValue();
+                            removeReadOnlyVariables(nestedVariables, component);
+                        } else if (!isComponentEnabled(component)) {
+                            wrappedVariables.remove(variable.getKey());
+                        }
+                    }
+                })
+                .filter(wrappedVariables -> !wrappedVariables.isEmpty())
+                .collect(Collectors.toList());
     }
 
     private boolean isComponentEnabled(JsonNode component) {
