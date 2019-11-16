@@ -188,7 +188,7 @@ Installation and configuration guide of ART-BPMS-REST standalone web application
             <artifactId>bpms-rest</artifactId>
             <packaging>war</packaging>
         </dependency>
-    <dependencies>
+    </dependencies>
     ```
 
 1. Declare bpms-rest as web module of your EAR deployment
@@ -307,6 +307,7 @@ Process variable `userInfo` will be stored as class `com.artezio.bpm.model.UserI
 
 With ART-BPMS-REST it is possible to ship deployment with process (or case) specific l10n resources which can be fetched and used later.
 Here is an explanation of how ART-BPMS-REST chooses language-related resources:
+
 1. With process definition (or case definition) id also language range preferences are provided. Language range preferences
 consist of language ranges which are RFC standardized set of language tags having info about country, language, locale and so on.
 (For more info about language tags and language ranges see [RFC 5646] and [RFC 4647])
@@ -357,7 +358,7 @@ a resource, `java.util.ResourceBundle` with info from this resource will be retu
         1. Make forms visible to Camunda resource scanner. `processes.xml` file is used for resources declaration. 
             There are two ways to register forms in `processes.xml`:
             * List each form in `process-archive` - `<resource/>` elements
-                ```
+                ```xml
                 <process-archive ...>
                     <resource>/forms/form1</resource>
                     <resource>/forms/form2</resource>
@@ -365,7 +366,7 @@ a resource, `java.util.ResourceBundle` with info from this resource will be retu
                 </process-archive>
                 ```
             * Automatically scan for all forms with specified prefixes
-                ```
+                ```xml
                 <process-archive ...>
                     <properties>
                         <property name="resourceRootPath>/forms/</property>
