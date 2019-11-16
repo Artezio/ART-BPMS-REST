@@ -2,9 +2,16 @@ package com.artezio.bpm.services;
 
 import com.artezio.bpm.localization.BpmResourceBundleControl;
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
+import com.artezio.bpm.services.exceptions.NoDeploymentException;
 import com.artezio.bpm.startup.FormDeployer;
 import com.artezio.logging.Log;
 import com.google.common.base.Charsets;
+import io.swagger.v3.oas.annotations.ExternalDocumentation;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.camunda.bpm.application.ProcessApplicationInterface;
@@ -23,7 +30,6 @@ import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
@@ -33,6 +39,8 @@ import java.util.stream.Collectors;
 
 import static com.artezio.logging.Log.Level.CONFIG;
 import static javax.ws.rs.core.HttpHeaders.ACCEPT_LANGUAGE;
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
 
 @Startup
 @DependsOn("DefaultEjbProcessApplication")
@@ -60,18 +68,33 @@ public class DeploymentSvc {
     @RolesAllowed("BPMSAdmin")
     @POST
     @Path("/create")
-    @Consumes(MediaType.MULTIPART_FORM_DATA)
-    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MULTIPART_FORM_DATA)
+    @Produces(APPLICATION_JSON)
+    @Operation(
+            description = "Create a deployment with specified resources.",
+            externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/deployment-service-api-docs.md"),
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Request successful.",
+                            content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(ref = "#/components/schemas/DeploymentRepresentation"))
+                    ),
+                    @ApiResponse(responseCode = "403", description = "The user is not allowed to create deployments.")
+            }
+    )
     @Log(beforeExecuteMessage = "Creating deployment '{0}'", afterExecuteMessage = "Deployment '{0}' is successfully created")
     public DeploymentRepresentation create(
-            @QueryParam("deployment-name") @Valid @NotNull String deploymentName,
-            @Valid @NotNull MultipartFormDataInput input) {
+            @Parameter(description = "Name for the deployment", required = true) @QueryParam("deployment-name") @Valid @NotNull String deploymentName,
+            @Parameter(
+                    description = "Resources which the deployment will consist of",
+                    required = true,
+                    allowEmptyValue = true,
+                    content = @Content(mediaType = MULTIPART_FORM_DATA)) @Valid @NotNull MultipartFormDataInput input) {
         DeploymentBuilder deploymentBuilder = repositoryService
                 .createDeployment()
                 .name(deploymentName);
-        getFormParts(input).entrySet()
-                .stream()
-                .forEach(entry -> deploymentBuilder.addInputStream(entry.getKey(), entry.getValue()));
+        getFormParts(input)
+                .forEach(deploymentBuilder::addInputStream);
         Deployment deployment = deploymentBuilder.deploy();
         registerInProcessApplication(deployment);
         formDeployer.uploadForms();
@@ -80,7 +103,7 @@ public class DeploymentSvc {
 
     @PermitAll
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of form ids from deployment resources")
-    public List<String> listFormIds() {
+    public List<String> listLatestDeploymentFormIds() {
         Deployment latestDeployment = getLatestDeployment();
         return repositoryService.getDeploymentResources(latestDeployment.getId()).stream()
                 .filter(resource -> resource.getName().startsWith(FORMS_FOLDER))
@@ -90,7 +113,7 @@ public class DeploymentSvc {
 
     @PermitAll
     @Log(level = CONFIG, beforeExecuteMessage = "Getting form '{0}' from deployment resources")
-    public String getForm(String formId) {
+    public String getLatestDeploymentForm(String formId) {
         Deployment latestDeployment = getLatestDeployment();
         formId = !formId.endsWith(".json") ? formId.concat(".json") : formId;
         try (InputStream in = repositoryService.getResourceAsStream(latestDeployment.getId(), formId)) {
@@ -101,6 +124,13 @@ public class DeploymentSvc {
     }
 
     @PermitAll
+    public boolean deploymentsExist() {
+        return !repositoryService.createDeploymentQuery()
+                .list()
+                .isEmpty();
+    }
+
+    @PermitAll
     public String getLatestDeploymentId() {
         return getLatestDeployment().getId();
     }
@@ -108,7 +138,18 @@ public class DeploymentSvc {
     @RolesAllowed("BPMSAdmin")
     @GET
     @Path("/")
-    @Produces(MediaType.APPLICATION_JSON)
+    @Produces(APPLICATION_JSON)
+    @Operation(
+            description = "Get a list of all deployments.",
+            externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/deployment-service-api-docs.md"),
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Request successful.",
+                            content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(ref = "#/components/schemas/DeploymentRepresentation"))
+                    )
+            }
+    )
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of deployments")
     public List<DeploymentRepresentation> list() {
         List<DeploymentRepresentation> result = repositoryService
@@ -123,11 +164,24 @@ public class DeploymentSvc {
     @PermitAll
     @GET
     @Path("/localization-resource")
-    @Produces(MediaType.APPLICATION_JSON)
+    @Produces(APPLICATION_JSON)
+    @Operation(
+            description = "Get localization resources in accordance with user preferences.",
+            externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/deployment-service-api-docs.md"),
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Request successful.",
+                            content = @Content(mediaType = APPLICATION_JSON)
+                    )
+            }
+    )
     public Map<String, String> getLocalizationResource(
-            @QueryParam("process-definition-id") String processDefinitionId,
-            @QueryParam("case-definition-id") String caseDefinitionId,
-            @NotNull @HeaderParam(ACCEPT_LANGUAGE) String languageRangePreferences) {
+            @Parameter(description = "The id of process definition which has the resources. Not required, if 'case-definition-id' is passed.", allowEmptyValue = true) @QueryParam("process-definition-id") String processDefinitionId,
+            @Parameter(description = "The id of case definition which has the resources. Not required, if 'process-definition-id' is passed.", allowEmptyValue = true) @QueryParam("case-definition-id") String caseDefinitionId,
+            @Parameter(
+                    description = "User preferences of languages",
+                    example = "ru,en;q=0.9,en-US;q=0.8") @NotNull @HeaderParam(ACCEPT_LANGUAGE) String languageRangePreferences) {
         String[] preferredLanguageRanges = languageRangePreferences.replace(" ", "").split(",");
         ResourceDefinition resourceDefinition = getResourceDefinition(processDefinitionId, caseDefinitionId);
 
@@ -143,8 +197,17 @@ public class DeploymentSvc {
     @RolesAllowed("BPMSAdmin")
     @DELETE
     @Path("/{deployment-id}")
+    @Operation(
+            description = "Delete the deployment with specified id.",
+            externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/deployment-service-api-docs.md"),
+            responses = {
+                    @ApiResponse(responseCode = "204", description = "Request successful"),
+                    @ApiResponse(responseCode = "403", description = "The user is not allowed to delete deployments.")
+            }
+    )
     @Log(level = CONFIG, beforeExecuteMessage = "Deleting deployment '{0}'", afterExecuteMessage = "Deployment is successfully deleted")
-    public void delete(@PathParam("deployment-id") @NotNull String deploymentId) {
+    public void delete(
+            @Parameter(description = "The id of the deployment.", required = true) @PathParam("deployment-id") @NotNull String deploymentId) {
         repositoryService.deleteDeployment(deploymentId, true);
     }
 
@@ -157,7 +220,9 @@ public class DeploymentSvc {
                 .orderByDeploymentTime()
                 .desc()
                 .list()
-                .get(0);
+                .stream()
+                .findFirst()
+                .orElseThrow(NoDeploymentException::new);
     }
 
     private Map<String, InputStream> getFormParts(MultipartFormDataInput input) {

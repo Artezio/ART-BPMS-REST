@@ -1,13 +1,12 @@
 package com.artezio.bpm.services;
 
-import com.artezio.formio.client.FormClient;
+import com.artezio.forms.formio.FormioClient;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.TaskService;
-import org.camunda.bpm.engine.impl.persistence.entity.DeploymentEntity;
-import org.camunda.bpm.engine.query.Query;
 import org.camunda.bpm.engine.repository.Deployment;
 import org.camunda.bpm.engine.repository.DeploymentQuery;
-import org.camunda.bpm.engine.repository.ProcessDefinitionQuery;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.task.Task;
 import org.junit.After;
@@ -18,7 +17,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Answers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import java.io.IOException;
@@ -28,8 +26,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static java.util.Arrays.asList;
 import static junit.framework.TestCase.assertTrue;
+import static org.codehaus.groovy.runtime.InvokerHelper.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.*;
@@ -41,7 +39,7 @@ public class FormSvcTest extends ServiceTest {
     @InjectMocks
     private FormSvc formSvc = new FormSvc();
     @Mock
-    private FormClient formClient;
+    private FormioClient formioClient;
     @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     private RepositoryService repositoryService;
 
@@ -77,24 +75,6 @@ public class FormSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testToValidFormioIdentifier() {
-        final String identifier = "Some identifier: for task, maybe? / Or process";
-
-        String actual = FormClient.toValidFormioIdentifier(identifier);
-
-        assertTrue(actual.matches("[a-zA-Z0-9-]*"));
-    }
-
-    @Test
-    public void testToValidFormioPath() {
-        final String identifier = "Process 1/subprocess:2/task:15900_1";
-
-        String actual = FormClient.toValidFormioPath(identifier);
-
-        assertTrue(actual.matches("[a-zA-Z0-9-/]*"));
-    }
-
-    @Test
     @Ignore
     public void testGetTaskFormWithData() throws IOException {
         Deployment deployment = createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
@@ -103,7 +83,7 @@ public class FormSvcTest extends ServiceTest {
         String expectedFormPath = "Form_1";
         String expectedResult = "{someFormWithData}";
 
-        when(formClient.getFormWithData(eq(expectedFormPath), any())).thenReturn(expectedResult);
+        when(formioClient.getFormWithData(eq(expectedFormPath), any())).thenReturn(expectedResult);
 
         String actual = formSvc.getTaskFormWithData(task.getId(), Collections.emptyMap());
 
@@ -115,10 +95,10 @@ public class FormSvcTest extends ServiceTest {
     public void testGetStartFormWithData() throws IOException {
         Deployment deployment = createDeployment("test-deployment", "test-process-with-start-form.bpmn");
         ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("testProcessWithStartForm");
-        String expectedFormPath = FormClient.toValidFormioPath("testStartForm");
         String expectedResult = "{someFormWithData}";
+        String expectedFormPath = "";
 
-        when(formClient.getFormWithData(eq(expectedFormPath), any())).thenReturn(expectedResult);
+        when(formioClient.getFormWithData(eq(expectedFormPath), any())).thenReturn(expectedResult);
 
         String actual = formSvc.getStartFormWithData(processInstance.getProcessDefinitionId(), Collections.emptyMap());
 
@@ -126,37 +106,57 @@ public class FormSvcTest extends ServiceTest {
     }
 
     @Test
-    @Ignore
-    public void testShouldSkipValidation_StateWithValidationIsPassed() throws IOException {
-        createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
+    //TODO Replace 'when' part of scenario for repositoryService with method chain invocations.
+    // Problem description: 'when' part of scenario for repositoryService, which is RETURN_DEEP_STUBS, is split into
+    // several steps instead of using a chain method invocations because method 'desc()' returns generic type, hence
+    // mockito has problem with class cast.
+    public void testShouldProcessSubmittedData_DecisionWithValidation() throws IOException {
+        Deployment deployment = createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
         getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
+        JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithState.json"));
 
+        String deploymentId = deployment.getId();
         String taskId = getTaskService().createTaskQuery().taskDefinitionKey("Task_1").singleResult().getId();
-        String submissionState = "stateWithValidation";
-        String formKey = "Form_1";
+        String decision = "submitted";
+        String formKey = "Form_1-" + deploymentId;
 
-        when(formClient.shouldSkipValidation(formKey, submissionState)).thenReturn(false);
+        DeploymentQuery deploymentQuery = mock(DeploymentQuery.class);
+        when(repositoryService.createDeploymentQuery()).thenReturn(deploymentQuery);
+        when(deploymentQuery.orderByDeploymentTime()).thenReturn(deploymentQuery);
+        when(deploymentQuery.desc()).thenReturn(deploymentQuery);
+        when(deploymentQuery.list()).thenReturn(asList(deployment));
+        when(formioClient.shouldProcessSubmittedData(formKey, decision)).thenReturn(true);
 
-        boolean actual = formSvc.shouldSkipValidation(taskId, submissionState);
+        boolean shouldSkipValidation = formSvc.shouldProcessSubmittedData(taskId, decision);
 
-        assertFalse(actual);
+        assertTrue(shouldSkipValidation);
     }
 
     @Test
-    @Ignore
-    public void testShouldSkipValidation_StateWithoutValidationIsPassed() throws IOException {
-        createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
+    //TODO Replace 'when' part of scenario for repositoryService with method chain invocations.
+    // Problem description: 'when' part of scenario for repositoryService, which is RETURN_DEEP_STUBS, is split into
+    // several steps instead of using a chain method invocations because method 'desc()' returns generic type, hence
+    // mockito has problem with class cast.
+    public void testShouldProcessSubmittedData_DecisionWithoutValidation() throws IOException {
+        Deployment deployment = createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
         getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
+        JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithState.json"));
 
+        String deploymentId = deployment.getId();
         String taskId = getTaskService().createTaskQuery().taskDefinitionKey("Task_1").singleResult().getId();
-        String submissionState = "stateWithoutValidation";
-        String formKey = "Form_1";
+        String decision = "canceled";
+        String formKey = "Form_1-" + deploymentId;
 
-        when(formClient.shouldSkipValidation(formKey, submissionState)).thenReturn(true);
+        DeploymentQuery deploymentQuery = mock(DeploymentQuery.class);
+        when(repositoryService.createDeploymentQuery()).thenReturn(deploymentQuery);
+        when(deploymentQuery.orderByDeploymentTime()).thenReturn(deploymentQuery);
+        when(deploymentQuery.desc()).thenReturn(deploymentQuery);
+        when(deploymentQuery.list()).thenReturn(asList(deployment));
+        when(formioClient.shouldProcessSubmittedData(formKey, decision)).thenReturn(false);
 
-        boolean actual = formSvc.shouldSkipValidation(taskId, submissionState);
+        boolean actual = formSvc.shouldProcessSubmittedData(taskId, decision);
 
-        assertTrue(actual);
+        assertFalse(actual);
     }
 
 }

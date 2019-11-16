@@ -12,7 +12,8 @@ import static java.util.Arrays.asList;
 
 public class BpmResourceBundleControl extends ResourceBundle.Control {
 
-    private final List<String> FORMAT_BPM_RESOURCES = Collections.singletonList("java.bpm.resources");
+    private static final String BPM_RESOURCE_NAME_PREFIX = "i18n/";
+    private static final List<String> FORMAT_BPM_RESOURCES = Collections.singletonList("java.bpm.resources");
 
     private RepositoryService repositoryService;
     private String deploymentId;
@@ -30,10 +31,10 @@ public class BpmResourceBundleControl extends ResourceBundle.Control {
     @Override
     public ResourceBundle newBundle(String baseName, Locale locale, String format, ClassLoader loader, boolean reload)
             throws IOException {
-        String requestedPropertyResourceName = toResourceName(toBundleName(baseName, locale), "properties");
+        String requestedPropertyResourceName = BPM_RESOURCE_NAME_PREFIX + toResourceName(toBundleName(baseName, locale), "properties");
         InputStream propertyResource = null;
         try {
-            List<String> deploymentPropertyResourceNames = findAppropriatePropertyResourceNames(baseName, locale.getLanguage());
+            List<String> deploymentPropertyResourceNames = findAppropriatePropertyResourceNames(BPM_RESOURCE_NAME_PREFIX + baseName, locale.getLanguage());
             String resultPropertyResourceName = findExactlyMatchingPropertyResourceName(requestedPropertyResourceName, deploymentPropertyResourceNames);
             if (resultPropertyResourceName == null) {
                 resultPropertyResourceName = findMostAppropriatePropertyResourceName(requestedPropertyResourceName, deploymentPropertyResourceNames);

@@ -23,10 +23,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -57,7 +54,7 @@ abstract public class ServiceTest {
         for (String fileName : fileNames) {
             File file = getFile(fileName);
             try (FileInputStream in = new FileInputStream(file)) {
-                deploymentBuilder.addInputStream(file.getName(), in);
+                deploymentBuilder.addInputStream(fileName, in);
             } catch (IOException e) {
                 throw e;
             }
@@ -135,7 +132,15 @@ abstract public class ServiceTest {
         task.setAssignee(assignee);
         taskService.saveTask(task);
         taskService.addCandidateUser(taskId, candidateUserId);
-        candidateGroups.forEach(group ->taskService.addCandidateGroup(taskId, group));
+        candidateGroups.forEach(group -> taskService.addCandidateGroup(taskId, group));
+        return task;
+    }
+
+    Task createTask(String taskId, String assignee, String candidateUserId, List<String> candidateGroups, Date dueDate, Date followUpDate) {
+        Task task = createTask(taskId, assignee, candidateUserId, candidateGroups);
+        task.setDueDate(dueDate);
+        task.setFollowUpDate(followUpDate);
+        getTaskService().saveTask(task);
         return task;
     }
 

@@ -1,10 +1,11 @@
 package com.artezio.bpm.services;
 
 import com.artezio.bpm.rest.dto.task.TaskRepresentation;
+import com.artezio.bpm.rest.query.task.TaskQueryParams;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.bpm.validation.VariableValidator;
-import com.artezio.formio.client.FormClient;
+import com.artezio.forms.formio.FormioClient;
 import junitx.framework.ListAssert;
 import junitx.util.PrivateAccessor;
 import org.apache.commons.io.IOUtils;
@@ -31,11 +32,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import javax.ws.rs.core.*;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -61,18 +63,17 @@ public class TaskSvcTest extends ServiceTest {
     @Mock
     private FormSvc formSvc;
     @Mock
-    private FormClient formio;
+    private FormioClient formio;
     @Mock
     private VariablesMapper variablesMapper;
     @Mock
     private VariableValidator variableValidator;
+    private SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSZ");
 
     @Before
     public void init() throws NoSuchFieldException {
         Field taskServiceField = taskSvc.getClass().getDeclaredField("taskService");
-        Field runtimeServiceField = taskSvc.getClass().getDeclaredField("runtimeService");
         setField(taskSvc, taskServiceField, getTaskService());
-        setField(taskSvc, runtimeServiceField, getRuntimeService());
     }
 
     @After
@@ -104,11 +105,12 @@ public class TaskSvcTest extends ServiceTest {
         List<String> callerGroups = asList("testGroup");
         createTask("testTask1", null, callerId, emptyList());
         createTask("testTask2", null, callerId, emptyList());
+        TaskQueryParams queryParams = new TaskQueryParams();
 
         when(identityService.userGroups()).thenReturn(callerGroups);
         when(identityService.userId()).thenReturn(callerId);
 
-        List<TaskRepresentation> actual = taskSvc.listAvailable();
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
 
         assertFalse(actual.isEmpty());
     }
@@ -118,6 +120,7 @@ public class TaskSvcTest extends ServiceTest {
         String candidateId = "candidateId";
         String callerId = "callerId";
         List<String> callerGroups = asList("callerGroup");
+        TaskQueryParams queryParams = new TaskQueryParams();
 
         createTask("testTask1", null, candidateId, emptyList());
         createTask("testTask2", null, candidateId, emptyList());
@@ -125,7 +128,7 @@ public class TaskSvcTest extends ServiceTest {
         when(identityService.userGroups()).thenReturn(callerGroups);
         when(identityService.userId()).thenReturn(callerId);
 
-        List<TaskRepresentation> actual = taskSvc.listAvailable();
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
 
         assertTrue(actual.isEmpty());
     }
@@ -135,6 +138,7 @@ public class TaskSvcTest extends ServiceTest {
         String candidateId = "candidateId";
         String callerId = "callerId";
         List<String> callerGroups = asList("testGroup");
+        TaskQueryParams queryParams = new TaskQueryParams();
 
         createTask("testTask1", null, candidateId, callerGroups);
         createTask("testTask2", null, candidateId, callerGroups);
@@ -142,7 +146,7 @@ public class TaskSvcTest extends ServiceTest {
         when(identityService.userGroups()).thenReturn(callerGroups);
         when(identityService.userId()).thenReturn(callerId);
 
-        List<TaskRepresentation> actual = taskSvc.listAvailable();
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
 
         assertTrue(!actual.isEmpty());
     }
@@ -153,6 +157,7 @@ public class TaskSvcTest extends ServiceTest {
         List<String> candidateGroups = asList("candidateGroup");
         String callerId = "callerId";
         List<String> callerGroups = asList("testGroup");
+        TaskQueryParams queryParams = new TaskQueryParams();
 
         createTask("testTask1", null, candidateId, candidateGroups);
         createTask("testTask2", null, candidateId, candidateGroups);
@@ -160,20 +165,354 @@ public class TaskSvcTest extends ServiceTest {
         when(identityService.userGroups()).thenReturn(callerGroups);
         when(identityService.userId()).thenReturn(callerId);
 
-        List<TaskRepresentation> actual = taskSvc.listAvailable();
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
 
         assertTrue(actual.isEmpty());
     }
 
     @Test
-    public void testListAssigned() {
+    public void testListAvailable_ByDueDate() throws ParseException {
+        String candidateId = "candidateId";
+        List<String> candidateGroups = asList("candidateGroup");
         String callerId = "callerId";
+        List<String> callerGroups = asList("candidateGroup");
+        String stringRepresentationOfDate = "2019-01-01 00:00:00.000+0000";
+        Date dueDate = dateFormatter.parse(stringRepresentationOfDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setDueDate(dueDate);
+
+        createTask("testTask1", null, candidateId, candidateGroups, dueDate, null);
+        createTask("testTask2", null, candidateId, candidateGroups, null, null);
+
+        when(identityService.userGroups()).thenReturn(callerGroups);
+        when(identityService.userId()).thenReturn(callerId);
+
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
+
+        assertEquals(1, actual.size());
+    }
+
+    @Test
+    public void testListAvailable_ByDueDateExpression() throws ParseException {
+        String candidateId = "candidateId";
+        List<String> candidateGroups = asList("candidateGroup");
+        String callerId = "callerId";
+        List<String> callerGroups = asList("candidateGroup");
+        String stringRepresentationOfDate = "2019-01-01 00:00:00.000+0000";
+        String dueDateExpression = "${dateTime().parse(\"2019-01-01T00:00:00.000+0000\")}";
+        Date dueDate = dateFormatter.parse(stringRepresentationOfDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setDueDateExpression(dueDateExpression);
+
+        createTask("testTask1", null, candidateId, candidateGroups, dueDate, null);
+        createTask("testTask2", null, candidateId, candidateGroups, null, null);
+
+        when(identityService.userGroups()).thenReturn(callerGroups);
+        when(identityService.userId()).thenReturn(callerId);
+
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
+
+        assertEquals(1, actual.size());
+    }
+
+    @Test
+    public void testListAvailable_ByDueAfter() throws ParseException {
+        String candidateId = "candidateId";
+        List<String> candidateGroups = asList("candidateGroup");
+        String callerId = "callerId";
+        List<String> callerGroups = asList("candidateGroup");
+        String stringRepresentationOfDueDate = "2019-01-01 00:00:00.000+0000";
+        String stringRepresentationOfDueDateAfter = "2018-01-01 00:00:00.000+0000";
+        Date dueDate = dateFormatter.parse(stringRepresentationOfDueDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setDueAfter(dateFormatter.parse(stringRepresentationOfDueDateAfter));
+
+        Task testTask1 = createTask("testTask1", null, candidateId, candidateGroups, dueDate, null);
+        createTask("testTask2", null, candidateId, candidateGroups);
+
+        when(identityService.userGroups()).thenReturn(callerGroups);
+        when(identityService.userId()).thenReturn(callerId);
+
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
+
+        assertEquals(1, actual.size());
+        assertEquals(testTask1.getId(), actual.get(0).getId());
+    }
+
+    @Test
+    public void testListAvailable_ByDueAfterExpression() throws ParseException {
+        String candidateId = "candidateId";
+        List<String> candidateGroups = asList("candidateGroup");
+        String callerId = "callerId";
+        List<String> callerGroups = asList("candidateGroup");
+        String stringRepresentationOfDueDate = "2019-01-01 00:00:00.000+0000";
+        String dueAfterExpression = "${dateTime().parse(\"2018-01-01T00:00:00.000+0000\")}";
+        Date dueDate = dateFormatter.parse(stringRepresentationOfDueDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setDueAfterExpression(dueAfterExpression);
+
+        Task testTask1 = createTask("testTask1", null, candidateId, candidateGroups, dueDate, null);
+        Task testTask2 = createTask("testTask2", null, candidateId, candidateGroups, null, null);
+
+        when(identityService.userGroups()).thenReturn(callerGroups);
+        when(identityService.userId()).thenReturn(callerId);
+
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
+
+        assertEquals(1, actual.size());
+        assertEquals(testTask1.getId(), actual.get(0).getId());
+    }
+
+    @Test
+    public void testListAvailable_ByDueBefore() throws ParseException {
+        String candidateId = "candidateId";
+        List<String> candidateGroups = asList("candidateGroup");
+        String callerId = "callerId";
+        List<String> callerGroups = asList("candidateGroup");
+        String stringRepresentationOfDueDate = "2018-01-01 00:00:00.000+0000";
+        String stringRepresentationOfDueDateBefore = "2019-01-01 00:00:00.000+0000";
+        Date dueDate = dateFormatter.parse(stringRepresentationOfDueDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setDueBefore(dateFormatter.parse(stringRepresentationOfDueDateBefore));
+
+        Task testTask1 = createTask("testTask1", null, candidateId, candidateGroups, dueDate, null);
+        createTask("testTask2", null, candidateId, candidateGroups, null, null);
+
+        when(identityService.userGroups()).thenReturn(callerGroups);
+        when(identityService.userId()).thenReturn(callerId);
+
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
+
+        assertEquals(1, actual.size());
+        assertEquals(testTask1.getId(), actual.get(0).getId());
+    }
+
+    @Test
+    public void testListAvailable_ByDueBeforeExpression() throws ParseException {
+        String candidateId = "candidateId";
+        List<String> candidateGroups = asList("candidateGroup");
+        String callerId = "callerId";
+        List<String> callerGroups = asList("candidateGroup");
+        String stringRepresentationOfDueDate = "2018-01-01 00:00:00.000+0000";
+        String dueBeforeExpression = "${dateTime().parse(\"2019-01-01T00:00:00.000+0000\")}";
+        Date dueDate = dateFormatter.parse(stringRepresentationOfDueDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setDueBeforeExpression(dueBeforeExpression);
+
+        Task testTask1 = createTask("testTask1", null, candidateId, candidateGroups, dueDate, null);
+        createTask("testTask2", null, candidateId, candidateGroups, null, null);
+
+        when(identityService.userGroups()).thenReturn(callerGroups);
+        when(identityService.userId()).thenReturn(callerId);
+
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
+
+        assertEquals(1, actual.size());
+        assertEquals(testTask1.getId(), actual.get(0).getId());
+    }
+
+    @Test
+    public void testListAvailable_ByFollowUpDate() throws ParseException {
+        String candidateId = "candidateId";
+        List<String> candidateGroups = asList("candidateGroup");
+        String callerId = "callerId";
+        List<String> callerGroups = asList("candidateGroup");
+        String stringRepresentationOfDate = "2019-01-01 00:00:00.000+0000";
+        Date followUpDate = dateFormatter.parse(stringRepresentationOfDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setFollowUpDate(followUpDate);
+
+        Task testTask1 = createTask("testTask1", null, candidateId, candidateGroups, null, followUpDate);
+        createTask("testTask2", null, candidateId, candidateGroups, null, null);
+
+        when(identityService.userGroups()).thenReturn(callerGroups);
+        when(identityService.userId()).thenReturn(callerId);
+
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
+
+        assertEquals(1, actual.size());
+        assertEquals(testTask1.getId(), actual.get(0).getId());
+    }
+
+    @Test
+    public void testListAvailable_ByFollowUpDateExpression() throws ParseException {
+        String candidateId = "candidateId";
+        List<String> candidateGroups = asList("candidateGroup");
+        String callerId = "callerId";
+        List<String> callerGroups = asList("candidateGroup");
+        String stringRepresentationOfDate = "2019-01-01 00:00:00.000+0000";
+        String followUpDateExpression = "${dateTime().parse(\"2019-01-01T00:00:00.000+0000\")}";
+        Date followUpDate = dateFormatter.parse(stringRepresentationOfDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setFollowUpDateExpression(followUpDateExpression);
+
+        createTask("testTask1", null, candidateId, candidateGroups, null, followUpDate);
+        createTask("testTask2", null, candidateId, candidateGroups);
+
+        when(identityService.userGroups()).thenReturn(callerGroups);
+        when(identityService.userId()).thenReturn(callerId);
+
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
+
+        assertEquals(1, actual.size());
+    }
+
+    @Test
+    public void testListAvailable_ByFollowUpAfter() throws ParseException {
+        String candidateId = "candidateId";
+        List<String> candidateGroups = asList("candidateGroup");
+        String callerId = "callerId";
+        List<String> callerGroups = asList("candidateGroup");
+        String stringRepresentationOfDueDate = "2019-01-01 00:00:00.000+0000";
+        String stringRepresentationOfFollowUpAfterDate = "2018-01-01 00:00:00.000+0000";
+        Date followUpAfterDate = dateFormatter.parse(stringRepresentationOfDueDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setFollowUpAfter(dateFormatter.parse(stringRepresentationOfFollowUpAfterDate));
+
+        Task testTask1 = createTask("testTask1", null, candidateId, candidateGroups, null, followUpAfterDate);
+        createTask("testTask2", null, candidateId, candidateGroups);
+
+        when(identityService.userGroups()).thenReturn(callerGroups);
+        when(identityService.userId()).thenReturn(callerId);
+
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
+
+        assertEquals(1, actual.size());
+        assertEquals(testTask1.getId(), actual.get(0).getId());
+    }
+
+    @Test
+    public void testListAvailable_ByFollowUpAfterExpression() throws ParseException {
+        String candidateId = "candidateId";
+        List<String> candidateGroups = asList("candidateGroup");
+        String callerId = "callerId";
+        List<String> callerGroups = asList("candidateGroup");
+        String stringRepresentationOfFollowUpAfterDate = "2019-01-01 00:00:00.000+0000";
+        String followUpAfterExpression = "${dateTime().parse(\"2018-01-01T00:00:00.000+0000\")}";
+        Date followUpAfterDate = dateFormatter.parse(stringRepresentationOfFollowUpAfterDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setFollowUpAfterExpression(followUpAfterExpression);
+
+        Task testTask1 = createTask("testTask1", null, candidateId, candidateGroups, null, followUpAfterDate);
+        Task testTask2 = createTask("testTask2", null, candidateId, candidateGroups, null, null);
+
+        when(identityService.userGroups()).thenReturn(callerGroups);
+        when(identityService.userId()).thenReturn(callerId);
+
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
+
+        assertEquals(1, actual.size());
+        assertEquals(testTask1.getId(), actual.get(0).getId());
+    }
+
+    @Test
+    public void testListAvailable_ByFollowUpBefore() throws ParseException {
+        String candidateId = "candidateId";
+        List<String> candidateGroups = asList("candidateGroup");
+        String callerId = "callerId";
+        List<String> callerGroups = asList("candidateGroup");
+        String stringRepresentationOfFollowUpDate = "2018-01-01 00:00:00.000+0000";
+        String stringRepresentationOfFollowUpBeforeDate = "2019-01-01 00:00:00.000+0000";
+        Date followUpDate = dateFormatter.parse(stringRepresentationOfFollowUpDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setFollowUpBefore(dateFormatter.parse(stringRepresentationOfFollowUpBeforeDate));
+
+        Task testTask1 = createTask("testTask1", null, candidateId, candidateGroups, null, followUpDate);
+        createTask("testTask2", null, candidateId, candidateGroups);
+
+        when(identityService.userGroups()).thenReturn(callerGroups);
+        when(identityService.userId()).thenReturn(callerId);
+
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
+
+        assertEquals(1, actual.size());
+        assertEquals(testTask1.getId(), actual.get(0).getId());
+    }
+
+    @Test
+    public void testListAvailable_ByFollowUpBeforeExpression() throws ParseException {
+        String candidateId = "candidateId";
+        List<String> candidateGroups = asList("candidateGroup");
+        String callerId = "callerId";
+        List<String> callerGroups = asList("candidateGroup");
+        String stringRepresentationOfFollowUpDate = "2018-01-01 00:00:00.000+0000";
+        String followUpBeforeExpression = "${dateTime().parse(\"2019-01-01T00:00:00.000+0000\")}";
+        Date followUpDate = dateFormatter.parse(stringRepresentationOfFollowUpDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setFollowUpBeforeExpression(followUpBeforeExpression);
+
+        Task testTask1 = createTask("testTask1", null, candidateId, candidateGroups, null, followUpDate);
+        createTask("testTask2", null, candidateId, candidateGroups);
+
+        when(identityService.userGroups()).thenReturn(callerGroups);
+        when(identityService.userId()).thenReturn(callerId);
+
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
+
+        assertEquals(1, actual.size());
+        assertEquals(testTask1.getId(), actual.get(0).getId());
+    }
+
+    @Test
+    public void testListAvailable_ByFollowUpBeforeExpressionOrNotExistent() throws ParseException {
+        String candidateId = "candidateId";
+        List<String> candidateGroups = asList("candidateGroup");
+        String callerId = "callerId";
+        List<String> callerGroups = asList("candidateGroup");
+        String stringRepresentationOfFollowUpDate = "2018-01-01 00:00:00.000+0000";
+        String stringRepresentationOfFollowUpBeforeDate = "2019-01-01 00:00:00.000+0000";
+        Date followUpDate = dateFormatter.parse(stringRepresentationOfFollowUpDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setFollowUpBeforeOrNotExistent(dateFormatter.parse(stringRepresentationOfFollowUpBeforeDate));
+
+        Task testTask1 = createTask("testTask1", null, candidateId, candidateGroups, null, followUpDate);
+        Task testTask2 = createTask("testTask2", null, candidateId, candidateGroups);
+
+        when(identityService.userGroups()).thenReturn(callerGroups);
+        when(identityService.userId()).thenReturn(callerId);
+
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
+
+        assertEquals(2, actual.size());
+        assertEquals(testTask1.getId(), actual.get(0).getId());
+        assertEquals(testTask2.getId(), actual.get(1).getId());
+    }
+
+    @Test
+    public void testListAvailable_ByFollowUpBeforeExpressionOrNotExistentExpression() throws ParseException {
+        String candidateId = "candidateId";
+        List<String> candidateGroups = asList("candidateGroup");
+        String callerId = "callerId";
+        List<String> callerGroups = asList("candidateGroup");
+        String stringRepresentationOfFollowUpDate = "2018-01-01 00:00:00.000+0000";
+        String followUpBeforeExpression = "${dateTime().parse(\"2019-01-01T00:00:00.000+0000\")}";
+        Date followUpDate = dateFormatter.parse(stringRepresentationOfFollowUpDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setFollowUpBeforeOrNotExistentExpression(followUpBeforeExpression);
+
+        Task testTask1 = createTask("testTask1", null, candidateId, candidateGroups, null, followUpDate);
+        Task testTask2 = createTask("testTask2", null, candidateId, candidateGroups);
+
+        when(identityService.userGroups()).thenReturn(callerGroups);
+        when(identityService.userId()).thenReturn(callerId);
+
+        List<TaskRepresentation> actual = taskSvc.listAvailable(queryParams);
+
+        assertEquals(2, actual.size());
+        assertEquals(testTask1.getId(), actual.get(0).getId());
+        assertEquals(testTask2.getId(), actual.get(1).getId());
+    }
+
+    @Test
+    public void testListAssigned() throws ParseException {
+        String callerId = "callerId";
+        TaskQueryParams queryParams = new TaskQueryParams();
 
         createTask("testTask", callerId, callerId, emptyList());
 
         when(identityService.userId()).thenReturn(callerId);
 
-        List<TaskRepresentation> taskRepresentationList = taskSvc.listAssigned();
+        List<TaskRepresentation> taskRepresentationList = taskSvc.listAssigned(queryParams);
 
         assertTrue(!taskRepresentationList.isEmpty());
     }
@@ -183,14 +522,139 @@ public class TaskSvcTest extends ServiceTest {
         String candidateId = "candidateId";
         String taskAssignee = "taskAssignee";
         String callerId = "callerId";
+        TaskQueryParams queryParams = new TaskQueryParams();
 
         createTask("testTask", taskAssignee, candidateId, emptyList());
 
         when(identityService.userId()).thenReturn(callerId);
 
-        List<TaskRepresentation> taskRepresentationList = taskSvc.listAssigned();
+        List<TaskRepresentation> taskRepresentationList = taskSvc.listAssigned(queryParams);
 
         assertTrue(taskRepresentationList.isEmpty());
+    }
+
+    @Test
+    public void testListAssigned_ByDueDate() throws ParseException {
+        String candidateId = "candidateId";
+        String taskAssignee = "taskAssignee";
+        String stringRepresentationOfDate = "2019-01-01 00:00:00.000+0000";
+        Date dueDate = dateFormatter.parse(stringRepresentationOfDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setDueDate(dateFormatter.parse(stringRepresentationOfDate));
+
+        Task testTask1 = createTask("testTask1", taskAssignee, candidateId, emptyList(), dueDate, null);
+        createTask("testTask2", taskAssignee, candidateId, emptyList());
+
+        when(identityService.userId()).thenReturn(taskAssignee);
+
+        List<TaskRepresentation> actual = taskSvc.listAssigned(queryParams);
+
+        assertEquals(1, actual.size());
+        assertEquals(testTask1.getId(), actual.get(0).getId());
+    }
+
+    @Test
+    public void testListAssigned_ByDueDateExpression() throws ParseException {
+        String candidateId = "candidateId";
+        String taskAssignee = "taskAssignee";
+        String stringRepresentationOfDate = "2019-01-01 00:00:00.000+0000";
+        String dueDateExpression = "${dateTime().parse(\"2019-01-01T00:00:00.000+0000\")}";
+        Date dueDate = dateFormatter.parse(stringRepresentationOfDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setDueDateExpression(dueDateExpression);
+
+        createTask("testTask1", taskAssignee, candidateId, emptyList(), dueDate, null);
+        createTask("testTask2", taskAssignee, candidateId, emptyList());
+
+        when(identityService.userId()).thenReturn(taskAssignee);
+
+        List<TaskRepresentation> actual = taskSvc.listAssigned(queryParams);
+
+        assertEquals(1, actual.size());
+    }
+
+    @Test
+    public void testListAssigned_ByDueAfter() throws ParseException {
+        String candidateId = "candidateId";
+        String taskAssignee = "taskAssignee";
+        String stringRepresentationOfDueDate = "2019-01-01 00:00:00.000+0000";
+        String stringRepresentationOfDueAfterDate = "2018-01-01 00:00:00.000+0000";
+        Date dueDate = dateFormatter.parse(stringRepresentationOfDueDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setDueAfter(dateFormatter.parse(stringRepresentationOfDueAfterDate));
+
+        Task testTask1 = createTask("testTask1", taskAssignee, candidateId, emptyList(), dueDate, null);
+        createTask("testTask2", taskAssignee, candidateId, emptyList());
+
+        when(identityService.userId()).thenReturn(taskAssignee);
+
+        List<TaskRepresentation> actual = taskSvc.listAssigned(queryParams);
+
+        assertEquals(1, actual.size());
+        assertEquals(testTask1.getId(), actual.get(0).getId());
+    }
+
+    @Test
+    public void testListAssigned_ByDueAfterExpression() throws ParseException {
+        String candidateId = "candidateId";
+        String taskAssignee = "taskAssignee";
+        String stringRepresentationOfDueDate = "2019-01-01 00:00:00.000+0000";
+        String dueAfterExpression = "${dateTime().parse(\"2018-01-01T00:00:00.000+0000\")}";
+        Date dueDate = dateFormatter.parse(stringRepresentationOfDueDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setDueAfterExpression(dueAfterExpression);
+
+        Task testTask1 = createTask("testTask1", taskAssignee, candidateId, emptyList(), dueDate, null);
+        createTask("testTask2", taskAssignee, candidateId, emptyList());
+
+        when(identityService.userId()).thenReturn(taskAssignee);
+
+        List<TaskRepresentation> actual = taskSvc.listAssigned(queryParams);
+
+        assertEquals(1, actual.size());
+        assertEquals(testTask1.getId(), actual.get(0).getId());
+    }
+
+    @Test
+    public void testListAssigned_ByDueBefore() throws ParseException {
+        String candidateId = "candidateId";
+        String taskAssignee = "taskAssignee";
+        String stringRepresentationOfDueDate = "2018-01-01 00:00:00.000+0000";
+        String stringRepresentationOfDueBeforeDate = "2019-01-01 00:00:00.000+0000";
+        Date dueDate = dateFormatter.parse(stringRepresentationOfDueDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setDueBefore(dateFormatter.parse(stringRepresentationOfDueBeforeDate));
+
+        Task testTask1 = createTask("testTask1", taskAssignee, candidateId, emptyList(), dueDate, null);
+        createTask("testTask2", taskAssignee, candidateId, emptyList());
+
+        when(identityService.userId()).thenReturn(taskAssignee);
+
+        List<TaskRepresentation> actual = taskSvc.listAssigned(queryParams);
+
+        assertEquals(1, actual.size());
+        assertEquals(testTask1.getId(), actual.get(0).getId());
+    }
+
+    @Test
+    public void testListAssigned_ByDueBeforeExpression() throws ParseException {
+        String candidateId = "candidateId";
+        String taskAssignee = "taskAssignee";
+        String stringRepresentationOfDueDate = "2018-01-01 00:00:00.000+0000";
+        String dueBeforeExpression = "${dateTime().parse(\"2019-01-01T00:00:00.000+0000\")}";
+        Date dueDate = dateFormatter.parse(stringRepresentationOfDueDate);
+        TaskQueryParams queryParams = new TaskQueryParams();
+        queryParams.setDueBeforeExpression(dueBeforeExpression);
+
+        Task testTask1 = createTask("testTask1", taskAssignee, candidateId, emptyList(), dueDate, null);
+        createTask("testTask2", taskAssignee, candidateId, emptyList());
+
+        when(identityService.userId()).thenReturn(taskAssignee);
+
+        List<TaskRepresentation> actual = taskSvc.listAssigned(queryParams);
+
+        assertEquals(1, actual.size());
+        assertEquals(testTask1.getId(), actual.get(0).getId());
     }
 
     @Test
@@ -395,20 +859,20 @@ public class TaskSvcTest extends ServiceTest {
 
     @Ignore
     @Test
-    public void testComplete_SubmissionStateIsSubmitted() throws IOException, NoSuchFieldException {
+    public void testComplete_DecisionHasSubmittedValue() throws IOException, NoSuchFieldException {
         String callerId = "callerId";
         String taskId = "testTask";
         String formPath = "formPath";
         String cleanDataJson = "{\"var1\": \"value1\"}";
-        String submissionState = "submitted";
+        String decision = "submitted";
         Map<String, Object> inputVariables = new HashMap<String, Object>() {{
             put("var1", "value1");
             put("var2", "value2");
-            put("state", submissionState);
+            put("decision", decision);
         }};
         Map<String, Object> expectedVariables = new HashMap<String, Object>() {{
             put("var1", "value1");
-            put("state", submissionState);
+            put("decision", decision);
         }};
         ArgumentCaptor<Map<String, Object>> taskVariablesCaptor = ArgumentCaptor.forClass(Map.class);
         Map<String, Object> taskVariables = new HashMap<String, Object>() {{put("var1", "");}};
@@ -417,7 +881,7 @@ public class TaskSvcTest extends ServiceTest {
         setVariablesToTask(taskId, taskVariables);
 
         when(identityService.userId()).thenReturn(callerId);
-        when(formSvc.shouldSkipValidation(taskId, submissionState)).thenReturn(false);
+        when(formSvc.shouldProcessSubmittedData(taskId, decision)).thenReturn(false);
         when(formSvc.dryValidationAndCleanupTaskForm(taskId, inputVariables)).thenReturn(cleanDataJson);
         when(formService
                 .getTaskFormData(taskId)
@@ -451,14 +915,14 @@ public class TaskSvcTest extends ServiceTest {
 
     @Ignore
     @Test
-    public void testComplete_SubmissionStateIsRejected() throws IOException, NoSuchFieldException {
+    public void testComplete_DecisionHasRejectedValue() throws IOException, NoSuchFieldException {
         String callerId = "callerId";
         String taskId = "testTask";
-        String submissionState = "rejected";
+        String decision = "rejected";
         Map<String, Object> inputVariables = new HashMap<String, Object>() {{
             put("var1", "value1");
             put("var2", "value2");
-            put("state", submissionState);
+            put("decision", decision);
         }};
         Map<String, Object> taskVariables = new HashMap<>();
 
@@ -466,7 +930,7 @@ public class TaskSvcTest extends ServiceTest {
         setVariablesToTask(taskId, taskVariables);
 
         when(identityService.userId()).thenReturn(callerId);
-        when(formSvc.shouldSkipValidation(taskId, submissionState)).thenReturn(true);
+        when(formSvc.shouldProcessSubmittedData(taskId, decision)).thenReturn(true);
         RuntimeService mockRuntimeService = mock(RuntimeService.class);
         ProcessInstanceQuery mockProcessInstanceQuery = mock(ProcessInstanceQuery.class);
         PrivateAccessor.setField(taskSvc, "runtimeService", mockRuntimeService);
@@ -493,17 +957,17 @@ public class TaskSvcTest extends ServiceTest {
         String callerId = "callerId";
         String taskId = "testTask";
         String formKey = null;
-        String submissionState = "submitted";
+        String decision = "submitted";
         String processDefinitionKey = "processDefinitionKey";
         Map<String, Object> inputVariables = new HashMap<String, Object>() {{
             put("var1", "value1");
             put("var2", "value2");
-            put("state", submissionState);
+            put("decision", decision);
         }};
         Map<String, Object> expectedVariables = new HashMap<String, Object>() {{
             put("var1", "value1");
             put("var2", "value2");
-            put("state", submissionState);
+            put("decision", decision);
         }};
         BpmnModelInstance bpmnModelInstance = mock(BpmnModelInstance.class);
         Process processElement = mock(Process.class);
@@ -522,7 +986,7 @@ public class TaskSvcTest extends ServiceTest {
         when(mockInstance.getId()).thenReturn("id1");
         when(identityService.userId()).thenReturn(callerId);
         when(formService.getTaskFormData(taskId).getFormKey()).thenReturn(formKey);
-        when(formSvc.shouldSkipValidation(taskId, submissionState)).thenReturn(false);
+        when(formSvc.shouldProcessSubmittedData(taskId, decision)).thenReturn(false);
         when(repositoryService.createProcessDefinitionQuery()
                 .processDefinitionId(nullable(String.class))
                 .singleResult()

@@ -4,9 +4,14 @@ import com.artezio.bpm.rest.dto.repository.ProcessDefinitionRepresentation;
 import com.artezio.bpm.rest.dto.task.TaskRepresentation;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.validation.VariableValidator;
-import com.artezio.formio.client.exceptions.FormNotFoundException;
 import com.artezio.logging.Log;
+import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.camunda.bpm.engine.FormService;
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.RuntimeService;
@@ -28,7 +33,6 @@ import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +42,7 @@ import java.util.stream.Collectors;
 import static com.artezio.bpm.services.VariablesMapper.EXTENSION_NAME_PREFIX;
 import static com.artezio.logging.Log.Level.CONFIG;
 import static java.util.Collections.emptyMap;
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 @Path("/process-definition")
 @Stateless
@@ -63,7 +68,23 @@ public class ProcessDefinitionSvc {
     @PermitAll
     @GET
     @Path("/")
-    @Produces(MediaType.APPLICATION_JSON)
+    @Produces(APPLICATION_JSON)
+    @Operation(
+            description = "List process definitions startable by the user created this request.",
+            externalDocs = @ExternalDocumentation(
+                    url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/process-definition-service-api-docs.md"
+            ),
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Successful request.",
+                            content = @Content(
+                                    mediaType = APPLICATION_JSON,
+                                    schema = @Schema(ref = "#/components/schemas/ProcessDefinitionRepresentation")
+                            )
+                    )
+            }
+    )
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of startable by caller process definitions")
     public List<ProcessDefinitionRepresentation> listStartableByUser() {
         return repositoryService
@@ -78,17 +99,31 @@ public class ProcessDefinitionSvc {
 
     @POST
     @Path("/key/{process-definition-key}/start")
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(APPLICATION_JSON)
+    @Produces(APPLICATION_JSON)
     @PermitAll
-    @Operation(description = "Start a process instance using input variables. If an execution doesn't have some of input variables, they are ignored. " +
-            "Note: if two or more files with identical names are uploaded in one variable, the only one of these " +
-            "files will be used and it is not determined which one will be chosen." +
-            "Returns next assigned task if available")
+    @Operation(
+            description = "Instantiate a process definition.",
+            externalDocs = @ExternalDocumentation(
+                    url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/process-definition-service-api-docs.md"
+            ),
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Request successful.",
+                            content = @Content(
+                                    mediaType = APPLICATION_JSON,
+                                    schema = @Schema(ref = "#/components/schemas/TaskRepresentation")
+                            )
+                    ),
+                    @ApiResponse(responseCode = "204", description = "Request successful, but there are no tasks assigned to the user."),
+                    @ApiResponse(responseCode = "403", description = "The user is not allowed to start the process.")
+            }
+    )
     @Log(level = CONFIG, beforeExecuteMessage = "Starting process '{0}'", afterExecuteMessage = "Process '{0}' successfully started")
     public TaskRepresentation start(
-            @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey,
-            Map<String, Object> inputVariables) throws IOException {
+            @Parameter(description = "The key of the process definition to be started.") @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey,
+            @RequestBody(description = "A JSON object with variables.") Map<String, Object> inputVariables) throws IOException {
         ProcessDefinition processDefinition = getLastProcessDefinition(processDefinitionKey);
         ensureStartableByUser(processDefinition);
         ProcessInstance processInstance = processDefinition.hasStartFormKey()
@@ -99,11 +134,32 @@ public class ProcessDefinitionSvc {
 
     @GET
     @Path("/key/{process-definition-key}/form")
-    @Produces(MediaType.APPLICATION_JSON)
+    @Produces(APPLICATION_JSON)
     @PermitAll
+    @Operation(
+            description = "Load the start form definition for the process, if any.",
+            externalDocs = @ExternalDocumentation(
+                    url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/process-definition-service-api-docs.md"
+            ),
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Request successful.",
+                            content = @Content(mediaType = APPLICATION_JSON)
+                    ),
+                    @ApiResponse(
+                            responseCode = "403",
+                            description = "The user doesn't have an access to load start form for the process."
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "No deployed form for a given process definition exists."
+                    )
+            }
+    )
     @Log(beforeExecuteMessage = "Loading start form for process '{0}'", afterExecuteMessage = "Start form for process '{0}' successfully loaded")
     public String loadStartForm(
-            @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey) {
+            @Parameter(description = "The key of the process definition, which form is loaded for.") @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey) {
         ProcessDefinition processDefinition = getLastProcessDefinition(processDefinitionKey);
         ensureStartableByUser(processDefinition);
         FormData formData = camundaFormService.getStartFormData(processDefinition.getId());
@@ -136,37 +192,8 @@ public class ProcessDefinitionSvc {
                 .anyMatch(role -> identityService.userGroups().contains(role));
     }
 
-    private Map<String, String> getProcessExtensions(ProcessDefinition processDefinition) {
-        String processDefinitionId = processDefinition.getId();
-        String processDefinitionKey = processDefinition.getKey();
-        BpmnModelInstance bpmnModelInstance = repositoryService.getBpmnModelInstance(processDefinitionId);
-        Process processElement = bpmnModelInstance.getModelElementById(processDefinitionKey);
-        ExtensionElements extensionElements = processElement.getExtensionElements();
-        return extensionElements != null
-                ? extensionElements.getElements().stream()
-                .flatMap(extensionElement -> ((CamundaProperties) extensionElement).getCamundaProperties().stream())
-                .filter(extension -> extension.getCamundaName().startsWith(EXTENSION_NAME_PREFIX))
-                .collect(Collectors.toMap(CamundaProperty::getCamundaName, CamundaProperty::getCamundaValue))
-                : emptyMap();
-    }
-
-    private ProcessInstance startProcess(ProcessDefinition processDefinition, Map<String, Object> inputVariables) {
-        Map<String, String> processExtensions = getProcessExtensions(processDefinition);
-        inputVariables = variablesMapper.convertVariablesToEntities(inputVariables, processExtensions);
-        variableValidator.validate(inputVariables);
-        return runtimeService.startProcessInstanceByKey(processDefinition.getKey(), inputVariables);
-    }
-
-    private ProcessInstance startProcessByFormSubmission(ProcessDefinition processDefinition, Map<String, Object> variables) throws IOException, FormNotFoundException {
-        Map<String, Object> mergedVariables = validateAndMergeToFormVariables(variables, processDefinition.getId());
-        Map<String, String> processExtensions = getProcessExtensions(processDefinition);
-        mergedVariables = variablesMapper.convertVariablesToEntities(mergedVariables, processExtensions);
-        variableValidator.validate(mergedVariables);
-        return camundaFormService.submitStartForm(processDefinition.getId(), mergedVariables);
-    }
-
     protected Map<String, Object> validateAndMergeToFormVariables(Map<String, Object> inputVariables,
-                                                                  String processDefinitionId) throws IOException, FormNotFoundException {
+                                                                  String processDefinitionId) throws IOException {
         StartFormData formData = camundaFormService.getStartFormData(processDefinitionId);
         String formKey = formData.getFormKey();
         if (formKey == null) {
@@ -199,6 +226,35 @@ public class ProcessDefinitionSvc {
                 .latestVersion()
                 .processDefinitionKey(processDefinitionKey)
                 .singleResult();
+    }
+
+    private Map<String, String> getProcessExtensions(ProcessDefinition processDefinition) {
+        String processDefinitionId = processDefinition.getId();
+        String processDefinitionKey = processDefinition.getKey();
+        BpmnModelInstance bpmnModelInstance = repositoryService.getBpmnModelInstance(processDefinitionId);
+        Process processElement = bpmnModelInstance.getModelElementById(processDefinitionKey);
+        ExtensionElements extensionElements = processElement.getExtensionElements();
+        return extensionElements != null
+                ? extensionElements.getElements().stream()
+                .flatMap(extensionElement -> ((CamundaProperties) extensionElement).getCamundaProperties().stream())
+                .filter(extension -> extension.getCamundaName().startsWith(EXTENSION_NAME_PREFIX))
+                .collect(Collectors.toMap(CamundaProperty::getCamundaName, CamundaProperty::getCamundaValue))
+                : emptyMap();
+    }
+
+    private ProcessInstance startProcess(ProcessDefinition processDefinition, Map<String, Object> inputVariables) {
+        Map<String, String> processExtensions = getProcessExtensions(processDefinition);
+        inputVariables = variablesMapper.convertVariablesToEntities(inputVariables, processExtensions);
+        variableValidator.validate(inputVariables);
+        return runtimeService.startProcessInstanceByKey(processDefinition.getKey(), inputVariables);
+    }
+
+    private ProcessInstance startProcessByFormSubmission(ProcessDefinition processDefinition, Map<String, Object> variables) throws IOException {
+        Map<String, Object> mergedVariables = validateAndMergeToFormVariables(variables, processDefinition.getId());
+        Map<String, String> processExtensions = getProcessExtensions(processDefinition);
+        mergedVariables = variablesMapper.convertVariablesToEntities(mergedVariables, processExtensions);
+        variableValidator.validate(mergedVariables);
+        return camundaFormService.submitStartForm(processDefinition.getId(), mergedVariables);
     }
 
 }

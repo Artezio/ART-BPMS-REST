@@ -13,12 +13,6 @@
             <role-name>*</role-name>
         </auth-constraint>
     </security-constraint>
-    <login-config>
-        <auth-method>KEYCLOAK</auth-method>
-    </login-config>
-    <security-role>
-        <role-name>BPMSAdmin</role-name>
-    </security-role>
     <security-role>
         <role-name>*</role-name>
     </security-role>
