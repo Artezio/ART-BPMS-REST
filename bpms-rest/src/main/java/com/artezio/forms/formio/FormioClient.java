@@ -90,7 +90,7 @@ public class FormioClient implements FormClient {
     public String dryValidationAndCleanup(String formPath, Map<String, Object> variables) {
         try {
             variables = convertVariablesToFileRepresentations(variables, getFormDefinition(formPath).toString());
-            variables = removeReadOnlyVariables(variables, formPath);
+//            variables = removeReadOnlyVariables(variables, formPath);
             JsonNode data = getFormioService()
                     .submission(formPath, toFormIoSubmissionData(variables))
                     .get("data");

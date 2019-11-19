@@ -5,7 +5,7 @@ services:
     container_name: bpms-rest
     hostname: bpms-rest
     build:
-      context: ./bpms-rest/docker
+      context: ./bpms-rest
       args:
         JBOSS_CLI_ADMIN_LOGIN: ${JBOSS_CLI_ADMIN_LOGIN}
         JBOSS_CLI_ADMIN_PASSWORD: ${JBOSS_CLI_ADMIN_PASSWORD}
@@ -19,12 +19,14 @@ services:
       BPMS_REST_DB_NAME: ${BPMS_REST_DB_NAME}
       BPMS_REST_DB_LOGIN: ${BPMS_REST_DB_LOGIN}
       BPMS_REST_DB_PASSWORD: ${BPMS_REST_DB_PASSWORD}
-      FORMIO_URL: ${FORMIO_URL}
+      FORMIO_URL: http://${FORMIO_HOST}:${FORMIO_PORT}
       FORMIO_LOGIN: ${FORMIO_ROOT_EMAIL}
       FORMIO_PASSWORD: ${FORMIO_ROOT_PASSWORD}
       FORM_VERSIONING: ${FORM_VERSIONING}
       JBOSS_ARGUMENTS: ${JBOSS_ARGUMENTS}
-      KEYCLOAK_SERVER_URL: ${KEYCLOAK_SERVER_URL}
+      KEYCLOAK_HOST: ${KEYCLOAK_HOST}
+      KEYCLOAK_PORT: ${KEYCLOAK_PORT}
+      KEYCLOAK_SERVER_URL: http://${KEYCLOAK_HOST}:${KEYCLOAK_PORT}/auth
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM}
       KEYCLOAK_USERNAME_ATTRIBUTE: ${KEYCLOAK_USERNAME_ATTRIBUTE}
@@ -43,15 +45,17 @@ services:
     container_name: keycloak
     hostname: keycloak
     build:
-      context: ./bpms-rest/docker/keycloak
+      context: ./keycloak
+    environment:
+      KEYCLOAK_PORT: ${KEYCLOAK_PORT}
     ports:
-      - "${KEYCLOAK_PORT}:8180"
+      - "${KEYCLOAK_PORT}:${KEYCLOAK_PORT}"
 
   formio:
     container_name: formio
     hostname: formio
     build:
-      context: ./formio
+      context: formio
       args:
         ROOT_EMAIL: ${FORMIO_ROOT_EMAIL}
         ROOT_PASSWORD: ${FORMIO_ROOT_PASSWORD}
