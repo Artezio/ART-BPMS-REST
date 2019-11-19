@@ -37,7 +37,7 @@ ART-BPMS-REST uses Form.io node.js servers for storing and validating user forms
 ## Architecture Overview
 
 ![](doc/architecture-overview.png)
-
+\* — ART-FORMIO-EXT is a plugin for form.io that allows to clean up forms (see [ART-FORMIO-EXT Github repository](https://github.com/Artezio/ART-FORMIO-EXT))
 ## Security
 
 Application REST API is based on JAX-RS with EJB technology. The application specifies that users having the given roles are allowed access to REST API in declarative way. Authentication must be implemented in an application server in a vendor specific way according to an identity management solution. REST endpoints are secured as follows:
@@ -72,8 +72,8 @@ Installation and configuration guide of ART-BPMS-REST standalone web application
 1.	Keycloak Server. Keycloak is used for authentication. Download Keycloak Server from the [download page](https://www.keycloak.org/downloads.html) and install according to the [Getting Started Guide](https://www.keycloak.org/docs/latest/getting_started/index.html). Keycloak has to contain realm and client for ART-BPMS-REST application, role `BPMSAdmin` and at lest one user with current role. Also you can use our Docker image with predefined settings (TBD).
 
 1.	Form.io Server. The simplest way of running Form.io server is to run our Form.io Docker image from `/formio` subdirectory. See [Form.io Docker readme](formio/README.MD) to use our Form.io Docker image. To run Form.io without Docker, you would have to:
-      - Clone Form.io `v1.47.0` sources from [Form.io Github repository](https://github.com/formio) and install required dependencies listed on their github page
-      - Replace the file `src/middleware/submissionHandler.js` with the one provided in `ART-BPMS-REST/formio/src/middleware/submissionHandler.js`
+      - Clone Form.io `v1.59.0` sources from [Form.io Github repository](https://github.com/formio) and install required dependencies listed on their github page
+      - Install ART-FORMIO-EXT according to [the install instruction](https://github.com/Artezio/ART-FORMIO-EXT#install-instruction)
       - Configure MongoDB connection settings, install Form.io application with npm and run with nodejs
 
 1.	Java 8 or greater 
