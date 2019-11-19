@@ -28,7 +28,9 @@ ENV BPMS_REST_DB_PORT 5432
 ENV BPMS_REST_DB_NAME bpms
 ENV BPMS_REST_DB_LOGIN sa
 ENV BPMS_REST_DB_PASSWORD sa
-ENV FORMIO_URL http://localhost:3001
+ENV FORMIO_HOST localhost
+ENV FORMOI_PORT 3001
+ENV FORMIO_URL http://${FORMIO_HOST}:${FORMIO_PORT}
 ENV FORMIO_LOGIN root@root.root
 ENV FORMIO_PASSWORD root
 ENV FORM_VERSIONING ""
@@ -48,9 +50,6 @@ ENV JDBC_MYSQL_VERSION 5.1.46
 ENV JDBC_MSSQL_VERSION 6.4.0.jre7
 ENV JDBC_MARIADB_VERSION 2.2.3 
 ENV JDBC_ORACLE_VERSION ojdbc6
-
-# Deploy WAR
-COPY --chown=jboss:0 --from=maven_builder /ART-BPMS-REST/bpms-rest/target/bpms-rest.war /opt/jboss/wildfly/standalone/deployments/bpms-rest.war
 
 # Install database drivers
 COPY --chown=jboss:0 tools /opt/jboss/tools/bpms-rest/
