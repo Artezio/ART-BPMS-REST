@@ -3,7 +3,7 @@ FROM node:lts-alpine
 
 ARG FORMIO_VERSION=v1.59.0
 ARG ART_FORMIO_EXT_VERSION=1.0
-ARG FORMIO_CLIENT_VERSION=master
+ARG FORMIO_CLIENT_VERSION=v1.5.0
 
 # "bcrypt" requires python/make/g++, all must be installed in alpine
 # (note: using pinned versions to ensure immutable build environment)
