@@ -1,7 +1,7 @@
 # ART-BPMS-REST
 
 ART-BPMS-REST is a module which adds [Form.io] forms support to [Camunda BPM] engine, as well as some other useful features. 
-It provides a set of [REST endpoints](/doc/rest-api-docs.md) for working with Deployments, Processes and Tasks. 
+It provides a set of [REST endpoints] for working with Deployments, Processes and Tasks. 
 Forms are designed using Form.io node.js application, stored in Camunda deployments and then could be displayed using any of Form.io form players.
 
 Features:
@@ -57,7 +57,26 @@ The Identity Service provides user info including user roles. **NOTE! Current ve
 
 ### Full Distribution ART-BPMS-REST + Keycloak + Form.io with Docker Compose
 
-TBD
+Installation the full distribution with docker compose:
+1. Clone this repository `git clone http://github.com/Artezio/ART-BPMS-REST.git`
+2. Open console and go to `%ART_BPMS_REST_HOME_DIR%/docker`
+3. To change default values of docker variables edit `.env` file. See [Docker variables](/doc/docker-variables.md) for full description of the variables
+4. Run `docker-compose up` 
+
+### Partial installation
+
+It is possible to install particular docker container(s) (e.g. ART-BPMS-REST).
+1. Open console and go to `%ART_BPMS_REST_HOME_DIR%/docker`
+2. Go to any folder you need (`bpms-rest`, `formio`, `keycloak`)
+3. Run 
+    ```
+    docker build .
+    docker run -it -p {container_app_port}:{host_app_port} {your_container_id}
+    ```
+
+For more information about `build` and `run` commands see [Docker CLI Run] and [Docker CLI Build]. <br/>
+>Formio has detached `docker-compose.yml` so you can run `docker-compose up` to run only formio containers (Formio server
+> and monogo database). For more information see [Formio Docker].
 
 ### Standalone Web application
 
@@ -71,14 +90,14 @@ Installation and configuration guide of ART-BPMS-REST standalone web application
 
 1.	Keycloak Server. Keycloak is used for authentication. Download Keycloak Server from the [download page](https://www.keycloak.org/downloads.html) and install according to the [Getting Started Guide](https://www.keycloak.org/docs/latest/getting_started/index.html). Keycloak has to contain realm and client for ART-BPMS-REST application, role `BPMSAdmin` and at lest one user with current role. Also you can use our Docker image with predefined settings (TBD).
 
-1.	Form.io Server. The simplest way of running Form.io server is to run our Form.io Docker image from `/formio` subdirectory. See [Form.io Docker readme](formio/README.MD) to use our Form.io Docker image. To run Form.io without Docker, you would have to:
-      - Clone Form.io `v1.47.0` sources from [Form.io Github repository](https://github.com/formio) and install required dependencies listed on their github page
+1.	Form.io Server. The simplest way of running Form.io server is to run our Form.io Docker image from `/formio` subdirectory. See [Form.io Docker readme](docker/formio/README.MD) to use our Form.io Docker image. To run Form.io without Docker, you would have to:
+      - Clone Form.io `v1.59.0` sources from [Form.io Github repository](https://github.com/formio) and install required dependencies listed on their github page
       - Replace the file `src/middleware/submissionHandler.js` with the one provided in `ART-BPMS-REST/formio/src/middleware/submissionHandler.js`
       - Configure MongoDB connection settings, install Form.io application with npm and run with nodejs
 
 1.	Java 8 or greater 
 
-#### Installion
+#### Installation
 
 1.	Wildfly Application server. [Download](https://wildfly.org/downloads/) and unpack Wildfly 17 Java EE Full & Web Distribution archive. **NOTE! You could use another JavaEE8-approved server, but there are no guarantees on its workability.**
 
@@ -89,7 +108,7 @@ Installation and configuration guide of ART-BPMS-REST standalone web application
       **NOTE! Don’t use WildFly Elytron Security because it has some issues with Keycloak adapter and EJB security.**
 
 1.	Keycloak profile. Add secure-deployment description for ART-BPMS-REST application in Keycloak profile in Wildfly configuration file standalone.xml:
-      ```
+      ```xml
       <subsystem xmlns="urn:jboss:domain:keycloak:1.1">
           <secure-deployment name="bpms-rest.war">
               <realm>art-bpms</realm>
@@ -119,7 +138,7 @@ Installation and configuration guide of ART-BPMS-REST standalone web application
 1.	JDBC driver deployment. Deploy JDBC driver according to database on WildFly. For instance, [driver for PostgreSQL](https://jdbc.postgresql.org/).
 
 1.	Datasource profile. Add datasource with jndi name `java:/datasources/CamundaDS` which will be used by Camunda engine. Set datasource options according to database and JDBC driver. For instance:
-      ```
+      ```xml
       <datasource jndi-name="java:/datasources/CamundaDS" pool-name="bpms-rest-datasource" enabled="true" use-ccm="true">
          <connection-url>jdbc:postgresql://localhost:5432/art-bpms</connection-url>
          <driver>postgresql</driver>
@@ -286,7 +305,7 @@ In the picture above, two mappings are created: between process variable `userIn
 
 Let's assume the following data is submitted with Process Extensions set as in the picture above:
 
-```json
+    ```json
     {
         "data": {
             "userInfo": {
@@ -299,7 +318,7 @@ Let's assume the following data is submitted with Process Extensions set as in t
             ...
         }
     }
-```
+    ```
 
 Process variable `userInfo` will be stored as class `com.artezio.bpm.model.UserInfo`, and process variable `marriageInfo` will be stored as `Map`
 
@@ -454,3 +473,7 @@ When a file gets serialized from Camunda's engine, FileStorage implementation wi
 [Git]: https://git-scm.com/
 [Keycloak]: https://www.keycloak.org/
 [Wildfly 15]: https://wildfly.org/downloads/
+[Docker CLI Run]: https://docs.docker.com/engine/reference/commandline/run/
+[Docker CLI Build]: https://docs.docker.com/engine/reference/commandline/build/
+[REST endpoints]: /doc/rest-api-docs.md
+[Formio Docker]: /docker/formio/README.MD
