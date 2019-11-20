@@ -8,7 +8,7 @@
 `JBOSS_CLI_ADMIN_LOGIN` - jboss admin username <br/>
 `JBOSS_CLI_ADMIN_PASSWORD` - jboss admin password <br/>
 `KEYCLOAK_ADAPTER_VERSION` - keycloak adapter version <br/>
-`KEYCLOAK_ADAPTER_DOWNLOAD_URL` - keycloak adapter download url. By default is commented. Uncomment and use it if you download <br/>
+`KEYCLOAK_ADAPTER_DOWNLOAD_URL` - keycloak adapter download url. By default is commented. Uncomment and use it if you download 
 keycloak adapter from url different to official site url <br/>
 
 ### Environment variables
@@ -43,3 +43,11 @@ keycloak adapter from url different to official site url <br/>
 `FORMIO_ROOT_EMAIL` - formio admin email <br/>
 `FORMIO_ROOT_PASSWORD` - formio admin password <br/>
 `MONGODB_URL` - a url to mongo database <br/>
+
+## Ports
+
+`FORMIO_PORT` - formio server port <br/>
+`BPMS_REST_APP_PORT` - wildfly server public port <br/>
+`BPMS_REST_MANAGEMENT_PORT` - wildfly server management port <br/>
+`KEYCLOAK_PORT` - keycloak server public port <br/>
+`BPMS_REST_DB_PORT` - application database port

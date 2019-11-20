@@ -18,11 +18,17 @@ ART-BPMS-REST uses Form.io node.js servers for storing and validating user forms
 ---
 * [Architecture Overview](#architecture-overview)
 * [Security](#security)
-* [Installation](#installation)
-    * [Full Distribution ART-BPMS-REST + Keycloak + Form.io with Docker Compose](#full-distribution-art-bpms-rest--keycloak--formio-with-docker-compose)
-    * [Standalone Web application](#standalone-web-application)
+* [Environment Installation](#environment-installation)
+    * [Docker](#docker)
+        * [Full installation](#full-installation)
+        * [Partial installation](#partial-installation)
+    * [Manual](#manual)
+        * [Requirements](#requirements)
+        * [Installation](#installation)
+* [Deploy](#deploy)
+    * [WAR module](#war-module)
     * [EAR module](#ear-module)
-    * [Configuration](#configuration)
+* [Configuration](#configuration)
 * [Usage](#usage)
     * [Working with forms](#working-with-forms)
     * [Form versioning](#forms-versioning)
@@ -53,57 +59,74 @@ The application also provides access to BMN tasks according to user roles (group
 
 The Identity Service provides user info including user roles. **NOTE! Current version of the application implements Identity Service for Keycloak identity management solution. Therefore Keycloak is used for REST security.**
 
-## Installation
-
-### Full Distribution ART-BPMS-REST + Keycloak + Form.io with Docker Compose
-
-Installation the full distribution with docker compose:
-1. Clone this repository `git clone http://github.com/Artezio/ART-BPMS-REST.git`
-2. Open console and go to `%ART_BPMS_REST_HOME_DIR%/docker`
-3. To change default values of docker variables edit `.env` file. See [Docker variables](/doc/docker-variables.md) for full description of the variables
-4. Run `docker-compose up` 
-
-### Partial installation
-
-It is possible to install particular docker container(s) (e.g. ART-BPMS-REST).
-1. Open console and go to `%ART_BPMS_REST_HOME_DIR%/docker`
-2. Go to any folder you need (`bpms-rest`, `formio`, `keycloak`)
-3. Run 
-    ```
-    docker build .
-    docker run -it -p {container_app_port}:{host_app_port} {your_container_id}
-    ```
-
-For more information about `build` and `run` commands see [Docker CLI Run] and [Docker CLI Build]. <br/>
->Formio has detached `docker-compose.yml` so you can run `docker-compose up` to run only formio containers (Formio server
-> and monogo database). For more information see [Formio Docker].
-
-### Standalone Web application
-
-Installation and configuration guide of ART-BPMS-REST standalone web application using a WildFly application server and Keycloak as example.
+## Environment Installation
 
 ![](doc/deployment-diagram.png)
 
-#### Environment
+ART-BPMS-REST environment consists of Wildfly, Relational Database, Keycloak, Formio, Formio Database (MongoDB). You can either
+install environment fully or partially selecting particular components you need.  
 
-1.	Relational Database Server. Since ART-BPMS-REST is based on Camunda Procces Engine supported database is required. See [Camunda documentation](https://docs.camunda.org/manual/7.10/introduction/supported-environments/#supported-database-products) page. For instance, [PostgreSQL database system](https://www.postgresql.org). The DB Server has to contain empty database for Camunda.
+### Docker
 
-1.	Keycloak Server. Keycloak is used for authentication. Download Keycloak Server from the [download page](https://www.keycloak.org/downloads.html) and install according to the [Getting Started Guide](https://www.keycloak.org/docs/latest/getting_started/index.html). Keycloak has to contain realm and client for ART-BPMS-REST application, role `BPMSAdmin` and at lest one user with current role. Also you can use our Docker image with predefined settings (TBD).
+#### Full installation
 
-1.	Form.io Server. The simplest way of running Form.io server is to run our Form.io Docker image from `/formio` subdirectory. See [Form.io Docker readme](docker/formio/README.MD) to use our Form.io Docker image. To run Form.io without Docker, you would have to:
+1. Clone this repository `git clone http://github.com/Artezio/ART-BPMS-REST.git`
+2. Open console and go to `%ART_BPMS_REST_HOME_DIR%/docker`
+3. To change default values of docker variables edit `.env` file. See [Docker variables](/doc/docker-variables.md) for full description of the variables
+4. Run `docker-compose up`
+
+Check that [bpms-rest app], [keycloak app] and [formio app] work.
+
+#### Partial installation
+
+Each component of the environment  (`bpms-rest`, `formio`, `keycloak`) has its own `Dockerfile`, therefore you can run the components separately:
+
+1. Open console and go to `%ART_BPMS_REST_HOME_DIR%/docker/%COMPONENT_DIR%`
+2. Run 
+    ```
+    docker build .
+    docker run -it -p {host_app_port}:{container_app_port} {container}
+    ```
+
+Check that containers, you run, work ([bpms-rest app], [keycloak app], [formio app]).
+
+For more information about `build` and `run` commands see [Docker CLI Run] and [Docker CLI Build]. <br/>
+>Formio component has detached `docker-compose.yml`, so you can run `docker-compose up` under correspondent folder to run
+> only formio containers (Formio server and MongoDB). For more information see [Formio Docker].
+
+### Manual
+
+#### Requirements
+
+1. Java 8 or greater
+
+1. Wildfly Server. Wildlfy is used as an application server for ART-BPMS-REST to be deployed to.
+
+1. Relational Database Server. Since ART-BPMS-REST is based on Camunda Procces Engine supported database is required. See [Camunda documentation](https://docs.camunda.org/manual/7.10/introduction/supported-environments/#supported-database-products) page. For instance, [PostgreSQL database system](https://www.postgresql.org). The DB Server has to contain empty database for Camunda.
+
+1. Keycloak Server. Keycloak is used for authentication. Download Keycloak Server from the [download page](https://www.keycloak.org/downloads.html) and install according to the [Getting Started Guide](https://www.keycloak.org/docs/latest/getting_started/index.html). Keycloak has to contain realm and client for ART-BPMS-REST application, role `BPMSAdmin` and at lest one user with current role. Also you can use our Docker image with predefined settings (TBD).
+
+1. Form.io Server. The simplest way of running Form.io server is to run our Form.io Docker image from `/formio` subdirectory. See [Form.io Docker readme](docker/formio/README.MD) to use our Form.io Docker image. To run Form.io without Docker, you would have to:
       - Clone Form.io `v1.59.0` sources from [Form.io Github repository](https://github.com/formio) and install required dependencies listed on their github page
       - Install ART-FORMIO-EXT according to [the install instruction](https://github.com/Artezio/ART-FORMIO-EXT#install-instruction)
       - Configure MongoDB connection settings, install Form.io application with npm and run with nodejs
-
-1.	Java 8 or greater 
 
 #### Installation
 
 1.	Wildfly Application server. [Download](https://wildfly.org/downloads/) and unpack Wildfly 17 Java EE Full & Web Distribution archive. **NOTE! You could use another JavaEE8-approved server, but there are no guarantees on its workability.**
 
-1.	Keycloak adapter. [Download](https://www.keycloak.org/downloads.html) Keycloak Client Adapter for Wildfly. Unpack the keycloak adapter archive to the WildFly home directory. To configure the adapter execute: 
+1.	Keycloak adapter. [Download](https://www.keycloak.org/downloads.html) Keycloak Client Adapter for Wildfly. Unpack the keycloak adapter archive to the WildFly home directory. To configure the adapter execute:
+
+      Linux/Unix:
+      ```shell script
+      cd bin
+      ./bin/jboss-cli.sh --file=bin/adapter-install-offline.cli
       ```
-      $ ./bin/jboss-cli.sh --file=bin/adapter-install-offline.cli
+      
+      Windows:
+      ```cmd
+      cd bin
+      jboss-cli.bat --file=adapter-install-offline.cli
       ```
       **NOTE! Don’t use WildFly Elytron Security because it has some issues with Keycloak adapter and EJB security.**
 
@@ -167,19 +190,28 @@ Installation and configuration guide of ART-BPMS-REST standalone web application
       </datasource>
       ```
 
+## Application Deploy
+
+### WAR module
+
+ART-BPMS-REST application can be used as standalone web application.
+
 1.	Download ART-BPMS-REST project from git repository and build with maven: 
       ```
-      mvn clean package
+      git clone http://github.com/Artezio/ART-BPMS-REST.git
+      cd ART-BPMS-REST
+      mvn package
       ```
 
-1.	ART-BPMS-REST deployment. Deploy bpms-rest\target\bpms-rest.war on WildFly.
+1.	Deploy `%ART_BPMS_REST_HOME_DIR%\bpms-rest\target\bpms-rest.war` on WildFly.
 
-1.	Pass configuration options to the server as described in [Configuration](#configuration) section. Restart WildFly and follow the link <host>/bpms-rest/swagger-ui.html for REST API description.
-
+1.	Pass configuration options to the server as described in [Configuration](#configuration) section. Restart WildFly and follow the link [bpms-rest app] for REST API description.
 
 ### EAR module
 
-1. Build ART-BPMS-REST war archive
+ART-BPMS-REST application can be included into another application as a part of ear archive.
+
+1. Download ART-BPMS-REST project from git repository and build with maven:
 
     ```
     git clone https://github.com/Artezio/ART-BPMS-REST.git
@@ -222,26 +254,7 @@ Installation and configuration guide of ART-BPMS-REST standalone web application
     > </module>
     > ```
 
-1. Run Form.io server as described in [Running Form.io server](#running-formio-server) section
-
-1. Start Wildfly server. Pass configuration options to the server as described in [Configuration](#configuration) section  
-
-1. Using wildfly CLI (http://localhost:9990), Add the relational database datasource with jndi name `java:/datasources/CamundaDS` which will be used by Camunda engine
-
-1. Install JAAS Security provider for `bpms-rest.war` deployment ([details](#security))
-
-1. Bundle process application JARs inside your EAR deployment or skip this step to deploy them later using REST API
- 
-1. Build EAR archive and deploy it to the server. All Process Application Archive will be automatically deployed along with included forms
-
-1. Follow REST API descriptions at `http://localhost:8080/bpms-rest` to work with BPMS-REST backend
-
-1. Refer to [Working with forms](#working-with-forms) section for details on how to deploy and use forms
-
-1. Use REST API endpoints to deploy and run the processes and forms
-
-
-### Configuration
+## Configuration
 
 ART-BPMS-REST is configured by passing the following properties to the server on startup (as -Dxxx flags, i.e. `-DFORM_VERSIONING=true`):
 * `FORM_VERSIONING`: Switches on and off [form versioning](#forms-versioning). `true` by default
@@ -249,11 +262,7 @@ ART-BPMS-REST is configured by passing the following properties to the server on
 * `FORMIO_LOGIN`: Login to Form.io Work Server. It's used in communication between ART-BPMS-REST and Form.io server. By default `root@root.root`
 * `FORMIO_PASSWORD`: Password to Form.io Work Server. Used in communication between ART-BPMS-REST and Form.io server. By default `root`
 * `FORMIO_JWT_EXPIRATION_TIME`: Form.io JWT token expiration time in seconds. By default `240`. This is related to Form.io own authentication mechanism and not to ART-BPMS-REST security configuration
-
-The following environment variables can be set:
-
-* `FILE_STORAGE_URL`: file storage URL for custom file storage implementations. By default, files are stored inside Base64 Data Urls.
-
+* `FILE_STORAGE_URL`: file storage URL for custom file storage implementations. By default, files are stored inside Base64 Data Urls
 
 ## Usage
 
@@ -294,6 +303,8 @@ On every submit, form data is validated several times:
 ### Mapping submitted data to Java classes
 
 When the data is submitted from Form.io to Camunda, it's unknown which json object corresponds to which Java class, so all objects are stored as Maps in Process Variables.
+It is more convenient to contain variables as java classes because in this occasion you can use advantages of java classes. For example if a class is marked
+by [JSR 303] annotations, the class is passing bean validation.
 
 To convert the submitted objects to Java classes, Process Extensions are used to define mapping between Process Variable and class which should be used for that variable.
 
@@ -320,7 +331,7 @@ Let's assume the following data is submitted with Process Extensions set as in t
     }
 ```
 
-Process variable `userInfo` will be stored as class `com.artezio.bpm.model.UserInfo`, and process variable `marriageInfo` will be stored as `Map`
+Process variable `userInfo` will be stored as class `com.artezio.bpm.model.UserInfo`, and process variable `marriageInfo` will be stored as `Map`.
 
 ### Internationalization and localization
 
@@ -469,6 +480,7 @@ When a file gets serialized from Camunda's engine, FileStorage implementation wi
 [Form.io]: https://www.form.io/
 [Button Component]: https://help.form.io/userguide/form-components/#button-1
 [Java]: https://java.com
+[JSR 303]: https://beanvalidation.org/1.0/spec/
 [Maven]: https://maven.apache.org/
 [Git]: https://git-scm.com/
 [Keycloak]: https://www.keycloak.org/
@@ -477,3 +489,6 @@ When a file gets serialized from Camunda's engine, FileStorage implementation wi
 [Docker CLI Build]: https://docs.docker.com/engine/reference/commandline/build/
 [REST endpoints]: /doc/rest-api-docs.md
 [Formio Docker]: /docker/formio/README.MD
+[bpms-rest app]: http://localhost:8080/bpms-rest
+[keycloak app]: http://localhost:8180/auth
+[formio app]: http://localhost:3001
