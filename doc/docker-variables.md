@@ -20,6 +20,8 @@ keycloak adapter from url different to official site url <br/>
 `BPMS_REST_DB_PASSWORD` - database password <br/>
 `FORMIO_HOST` - host of the Formio server <br/>
 `FORM_VERSIONING` - indicates if formio versioning is enabled or not <br/>
+`FORMIO_JWT_EXPIRATION_TIME` - Form.io JWT token expiration time in seconds. This is related to Form.io own authentication mechanism and not to ART-BPMS-REST security configuration
+`FILE_STORAGE_URL` - file storage URL for custom file storage implementations. By default, files are stored inside Base64 Data Urls
 `JBOSS_ARGUMENTS` - use this variable to override standard wildfly arguments <br/>
 `KEYCLOAK_HOST` - host of the keycloak server <br/>
 `KEYCLOAK_CLIENT_ID` - keycloak client id to be used by bpms-rest <br/>
