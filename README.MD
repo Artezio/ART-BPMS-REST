@@ -75,8 +75,6 @@ install environment fully or partially selecting particular components you need.
 3. To change default values of docker variables edit `.env` file. See [Docker variables](/doc/docker-variables.md) for full description of the variables
 4. Run `docker-compose up`
 
-Check that [bpms-rest app], [keycloak app] and [formio app] work.
-
 The following resources are available according to the default values of docker variables:
 
 |Description|URL|Credentials|
