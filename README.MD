@@ -25,7 +25,7 @@ ART-BPMS-REST uses Form.io node.js servers for storing and validating user forms
     * [Manual](#manual)
         * [Requirements](#requirements)
         * [Installation](#installation)
-* [Deploy](#deploy)
+* [Deploy](#application-deploy)
     * [WAR module](#war-module)
     * [EAR module](#ear-module)
 * [Configuration](#configuration)
@@ -76,6 +76,23 @@ install environment fully or partially selecting particular components you need.
 4. Run `docker-compose up`
 
 Check that [bpms-rest app], [keycloak app] and [formio app] work.
+
+The following resources are available according to the default values of docker variables:
+
+|Description|URL|Credentials|
+|-----------|---|-----------|
+|WildFly application server|http://localhost:8080||
+|WildFly management console|http://localhost:9990/console/index.html|admin:admin|
+|WildFly remote socket debugging|http://localhost:8787||
+|Form.io server|http://localhost:3001||
+|Form.io client application|http://localhost:3001/#/|root<span></span>@root.root:root|
+|Keycloak server|http://localhost:8180||
+|Keycloak administration console|http://localhost:8180/auth/admin/|admin:password|
+|ART-BPMS-REST application*|http://localhost:8080/bpms-rest||
+|ART-BPMS-REST API documentation*|http://localhost:8080/bpms-rest/swagger-ui.html|bpmsadmin:1|
+
+\* — it will be available after the ART-BPMS-REST deploy (see [Deploy section](#application-deploy))
+
 
 #### Partial installation
 
