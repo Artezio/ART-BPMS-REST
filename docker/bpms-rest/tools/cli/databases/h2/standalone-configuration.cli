@@ -1,7 +1,0 @@
-embed-server --server-config=standalone.xml --std-out=echo
-try
-	/subsystem=datasources/data-source=bpms-rest-datasource: remove()
-catch
-end-try
-run-batch --file=/opt/jboss/tools/bpms-rest/cli/databases/h2/change-database.cli
-stop-embedded-server

@@ -1,9 +1,23 @@
 version: '3.7'
 
 services:
-  bpms-rest:
-    container_name: bpms-rest
-    hostname: bpms-rest
+  bpm-database:
+    container_name: bpm-database
+    hostname: bpm-database
+    image: postgres:12.1
+    environment:
+      POSTGRES_DB: ${BPMS_REST_DB_NAME}
+      POSTGRES_USER: ${BPMS_REST_DB_LOGIN}
+      POSTGRES_PASSWORD: ${BPMS_REST_DB_PASSWORD}
+    ports:
+      - "${BPMS_REST_DB_PORT}:5432"
+
+  wildfly:
+    container_name: wildfly
+    hostname: wildfly
+    depends_on:
+      - bpm-database
+    command: ["/wait-for-postgres.sh", "${BPMS_REST_DB_HOST}", "${BPMS_REST_DB_PORT}", "${BPMS_REST_DB_NAME}", "${BPMS_REST_DB_LOGIN}", "${BPMS_REST_DB_PASSWORD}", "/opt/jboss/tools/bpms-rest/docker-entrypoint.sh"]
     build:
       context: ./bpms-rest
       args:
@@ -45,6 +59,33 @@ services:
       - "${BPMS_REST_APP_PORT}:8080"
       - "${BPMS_REST_MANAGEMENT_PORT}:9990"
       - "${BPMS_REST_DEBUG_PORT}:8787"
+
+  cockpit:
+    container_name: cockpit
+    hostname: cockpit
+    depends_on:
+      - bpm-database
+    command: ["/wait-for-postgres.sh", "${BPMS_REST_DB_HOST}", "${BPMS_REST_DB_PORT}", "${BPMS_REST_DB_NAME}", "${BPMS_REST_DB_LOGIN}", "${BPMS_REST_DB_PASSWORD}", "/sbin/tini", "--", "./camunda.sh"]
+    build:
+      context: ./cockpit
+    environment:
+      BPMS_REST_DB_HOST: ${BPMS_REST_DB_HOST}
+      BPMS_REST_DB_PORT: ${BPMS_REST_DB_PORT}
+      BPMS_REST_DB_NAME: ${BPMS_REST_DB_NAME}
+      BPMS_REST_DB_LOGIN: ${BPMS_REST_DB_LOGIN}
+      BPMS_REST_DB_PASSWORD: ${BPMS_REST_DB_PASSWORD}
+      DB_CONN_MAXACTIVE: ${CAMUNDA_DB_CONN_MAXACTIVE}
+      DB_CONN_MAXIDLE: ${CAMUNDA_DB_CONN_MAXIDLE}
+      DB_CONN_MINIDLE: ${CAMUNDA_DB_CONN_MINIDLE}
+      DB_DRIVER: ${BPMS_REST_DB_DRIVER}
+      DB_URL: jdbc:${BPMS_REST_DB_DRIVER_NAME}://${BPMS_REST_DB_HOST}:${BPMS_REST_DB_PORT}/${BPMS_REST_DB_NAME}
+      DB_USERNAME: ${BPMS_REST_DB_LOGIN}
+      DB_PASSWORD: ${BPMS_REST_DB_PASSWORD}
+      DB_VALIDATE_ON_BORROW: ${CAMUNDA_DB_VALIDATE_ON_BORROW}
+      DB_VALIDATION_QUERY: ${CAMUNDA_DB_VALIDATION_QUERY}
+      JAVA_OPTS: ${CAMUNDA_PLATFORM_JAVA_OPTS}
+    ports:
+      - "${COCKPIT_PORT}:8080"
 
   keycloak:
     container_name: keycloak

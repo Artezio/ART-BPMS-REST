@@ -63,8 +63,8 @@ The Identity Service provides user info including user roles. **NOTE! Current ve
 
 ![](doc/deployment-diagram.png)
 
-ART-BPMS-REST environment consists of Wildfly, Relational Database, Keycloak, Formio, Formio Database (MongoDB). You can either
-install environment fully or partially selecting particular components you need.  
+ART-BPMS-REST environment consists of Wildfly, Relational Database, Keycloak, Formio, Formio Database (MongoDB) and additionally to this
+ART-BPMS-REST ships with Camunda Cockpit tool. You can either install environment fully or partially selecting particular components you need.  
 
 ### Docker
 
@@ -77,11 +77,13 @@ install environment fully or partially selecting particular components you need.
 
 The following resources are available according to the default values of docker variables:
 
+##### ART-BPMS-REST environment resources
 |Description|URL|Credentials|
 |-----------|---|-----------|
 |WildFly application server|http://localhost:8080||
 |WildFly management console|http://localhost:9990/console/index.html|admin:admin|
 |WildFly remote socket debugging|http://localhost:8787||
+|Cockpit|http://localhost:8380/camunda/app/cockpit/default/#/dashboard|demo:demo|
 |Form.io server|http://localhost:3001||
 |Form.io client application|http://localhost:3001/#/|root<span></span>@root.root:root|
 |Keycloak server|http://localhost:8180||
@@ -91,10 +93,9 @@ The following resources are available according to the default values of docker 
 
 \* — it will be available after the ART-BPMS-REST deploy (see [Deploy section](#application-deploy))
 
-
 #### Partial installation
 
-Each component of the environment  (`bpms-rest`, `formio`, `keycloak`) has its own `Dockerfile`, therefore you can run the components separately:
+Each component of the environment  (`bpms-rest`, `formio`, `keycloak`, `cockpit`) has its own `Dockerfile`, therefore you can run the components separately:
 
 1. Open console and go to `%ART_BPMS_REST_HOME_DIR%/docker/%COMPONENT_DIR%`
 2. Run 
@@ -103,7 +104,13 @@ Each component of the environment  (`bpms-rest`, `formio`, `keycloak`) has its o
     docker run -it -p {host_app_port}:{container_app_port} {container}
     ```
 
-Check that containers, you run, work ([bpms-rest app], [keycloak app], [formio app]).
+**Note:**
+* `cockpit` has more environment variables than described in `.env` file. Therefore if you run `cockpit` separately, check [Camunda BPM Platform] for an actual list of the environment variables.
+* `Dockerfile` for `cockpit` has `BPMS_REST_DB_HOST`, `BPMS_REST_DB_PORT`, `BPMS_REST_DB_NAME`, `BPMS_REST_DB_LOGIN`, `BPMS_REST_DB_PASSWORD` variables. These variables are required for `wait-for-postgres.sh` script
+
+Urls of all containers described on [ART-BPMS-REST Environment Resources](#art-bpms-rest-environment-resources).
+
+**Note:** If you run `cockpit` for the first time, you are asked for creating a new admin user.
 
 For more information about `build` and `run` commands see [Docker CLI Run] and [Docker CLI Build]. <br/>
 >Formio component has detached `docker-compose.yml`, so you can run `docker-compose up` under correspondent folder to run
@@ -502,6 +509,7 @@ When a file gets serialized from Camunda's engine, FileStorage implementation wi
 [Wildfly 15]: https://wildfly.org/downloads/
 [Docker CLI Run]: https://docs.docker.com/engine/reference/commandline/run/
 [Docker CLI Build]: https://docs.docker.com/engine/reference/commandline/build/
+[Camunda BPM Platform]: https://github.com/camunda/docker-camunda-bpm-platform#camunda-bpm-platform-docker-images
 [REST endpoints]: /doc/rest-api-docs.md
 [Formio Docker]: /docker/formio/README.MD
 [bpms-rest app]: http://localhost:8080/bpms-rest

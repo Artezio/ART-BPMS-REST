@@ -1,5 +1,14 @@
 # Docker variables
 
+## Ports
+
+`FORMIO_PORT` - formio server port <br/>
+`BPMS_REST_APP_PORT` - wildfly server public port <br/>
+`BPMS_REST_MANAGEMENT_PORT` - wildfly server management port <br/>
+`COCKPIT_PORT` - camunda cockpit port <br/>
+`KEYCLOAK_PORT` - keycloak server public port <br/>
+`BPMS_REST_DB_PORT` - application database port
+
 ## BPMS-REST variables
 
 ### Arguments
@@ -13,9 +22,9 @@ keycloak adapter from url different to official site url <br/>
 
 ### Environment variables
 
-`BPMS_REST_DB_VENDOR` - database vendor for bpms-rest application <br/>
-`BPMS_REST_DB_HOST` - host of the database for bpms-rest <br/>
-`BPMS_REST_DB_NAME` - name of the database for bpms-rest <br/>
+`BPMS_REST_DB_VENDOR` - database vendor <br/>
+`BPMS_REST_DB_HOST` - host of the database <br/>
+`BPMS_REST_DB_NAME` - name of the database <br/>
 `BPMS_REST_DB_LOGIN` - database username <br/>
 `BPMS_REST_DB_PASSWORD` - database password <br/>
 `FORMIO_HOST` - host of the Formio server <br/>
@@ -35,6 +44,22 @@ keycloak adapter from url different to official site url <br/>
 `JDBC_MARIADB_VERSION` - version of mariadb jdbc driver <br/>
 `JDBC_ORACLE_VERSION` - version of oracle jdbc driver <br/>
 
+## Camunda variables
+
+`BPMS_REST_DB_HOST` - host of the database <br/> 
+`BPMS_REST_DB_NAME` - name of the database <br/>
+`BPMS_REST_DB_LOGIN` - database username <br/>
+`BPMS_REST_DB_PASSWORD` - database password <br/>
+`DB_CONN_MAXACTIVE` - the maximum number of active connections <br/>
+`DB_CONN_MAXIDLE` - the maximum number of idle connections <br/>
+`DB_CONN_MINIDLE` - the minimum number of idle connections <br/>
+`DB_DRIVER` - the database driver class name, supported are mysql, postgresql:
+    * mysql: `DB_DRIVER=com.mysql.jdbc.Driver` <br/>
+    * postgresql: `DB_DRIVER=org.postgresql.Driver` <br/>
+`DB_VALIDATE_ON_BORROW` - validate database connections before they are used <br/>
+`DB_VALIDATION_QUERY` - the query to execute to validate database connections 
+`JAVA_OPTS` - value of correspondent environment variable
+
 ## Keycloak variables
 
 `KEYCLOAK_ADMIN_LOGIN` - keycloak admin username <br/>
@@ -45,11 +70,3 @@ keycloak adapter from url different to official site url <br/>
 `FORMIO_ROOT_EMAIL` - formio admin email <br/>
 `FORMIO_ROOT_PASSWORD` - formio admin password <br/>
 `MONGODB_URL` - a url to mongo database <br/>
-
-## Ports
-
-`FORMIO_PORT` - formio server port <br/>
-`BPMS_REST_APP_PORT` - wildfly server public port <br/>
-`BPMS_REST_MANAGEMENT_PORT` - wildfly server management port <br/>
-`KEYCLOAK_PORT` - keycloak server public port <br/>
-`BPMS_REST_DB_PORT` - application database port

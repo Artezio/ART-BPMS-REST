@@ -45,6 +45,7 @@ ENV JDBC_ORACLE_VERSION ojdbc6
 
 # Install database drivers
 COPY --chown=jboss:0 tools /opt/jboss/tools/bpms-rest/
+COPY ./wait-for-postgres.sh /
 RUN chmod +x /opt/jboss/tools/bpms-rest/*.sh && \
     /opt/jboss/tools/bpms-rest/install-databases.sh
 
@@ -54,6 +55,7 @@ RUN /opt/jboss/tools/bpms-rest/configure-wildfly.sh
 # Setup demo database
 USER root
 RUN mkdir -p /opt/bpms-rest-h2-db && chown jboss:0 /opt/bpms-rest-h2-db
+RUN yum -y install postgresql.x86_64
 
 USER jboss
 
