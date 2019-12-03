@@ -13,7 +13,7 @@ Features:
 * Form cache
 * Default implementation of Message Correlation and Signal services
 
-ART-BPMS-REST uses Form.io node.js servers for storing and validating user forms. Two Form.io servers are required to use this module — Development server and Work server. The development server is used by forms designers for constructing forms. These forms are then downloaded using [formio-import-export-tool](https://github.com/artezio/) and deployed to Camunda along with BPMN diagrams. When the deployment is made, these forms are automatically versioned and uploaded to the work server. ART-BPMS-REST then uses the work server to load forms and validate submitted data.
+ART-BPMS-REST uses Form.io node.js servers for storing and validating user forms. Two Form.io servers are required to use this module — Development server and Work server. The development server is used by forms designers for constructing forms. These forms are then downloaded using [formio-import-export-tool](https://github.com/artezio/) and deployed to Camunda along with BPMN diagrams. When the deployment is made, these forms are automatically versioned and uploaded to the work server. ART-BPMS-REST then uses the work server to load forms and validate submitted data. 
 
 ---
 * [Architecture Overview](#architecture-overview)
@@ -37,6 +37,7 @@ ART-BPMS-REST uses Form.io node.js servers for storing and validating user forms
     * [Internationalization and Localization](#internationalization-and-localization)
    * [Steps to create and use forms in BPMN](#steps-to-create-and-use-forms-in-bpmn)
    * [Corner cases](#formio-related-corner-cases)
+   * [Bpms-rest SPA example](#bpms-rest-spa-example)
 * [File storage](#file-storage)
 ---
 
@@ -71,7 +72,7 @@ ART-BPMS-REST ships with Camunda Cockpit tool. You can either install environmen
 #### Full installation
 
 1. Clone this repository `git clone http://github.com/Artezio/ART-BPMS-REST.git`
-2. Open console and go to `%ART_BPMS_REST_HOME_DIR%/docker`
+2. Open console and go to `ART_BPMS_REST_HOME_DIR/docker`
 3. To change default values of docker variables edit `.env` file. See [Docker variables](/doc/docker-variables.md) for full description of the variables
 4. Run `docker-compose up`
 
@@ -89,6 +90,7 @@ The following resources are available according to the default values of docker 
 |Keycloak server|http://localhost:8180||
 |Keycloak administration console|http://localhost:8180/auth/admin/|admin:password|
 |ART-BPMS-REST application*|http://localhost:8080/bpms-rest||
+|ART-BPMS-REST SPA application|http://localhost:8080/bpms-rest-spa||
 |ART-BPMS-REST API documentation*|http://localhost:8080/bpms-rest/swagger-ui.html|bpmsadmin:1|
 
 \* — it will be available after the ART-BPMS-REST deploy (see [Deploy section](#application-deploy))
@@ -97,7 +99,7 @@ The following resources are available according to the default values of docker 
 
 Each component of the environment  (`bpms-rest`, `formio`, `keycloak`, `cockpit`) has its own `Dockerfile`, therefore you can run the components separately:
 
-1. Open console and go to `%ART_BPMS_REST_HOME_DIR%/docker/%COMPONENT_DIR%`
+1. Open console and go to `ART_BPMS_REST_HOME_DIR/docker/COMPONENT_DIR`
 2. Run 
     ```
     docker build .
@@ -225,7 +227,7 @@ ART-BPMS-REST application can be used as standalone web application.
       mvn package
       ```
 
-1.	Deploy `%ART_BPMS_REST_HOME_DIR%\bpms-rest\target\bpms-rest.war` on WildFly.
+1.	Deploy `ART_BPMS_REST_HOME_DIR\bpms-rest\target\bpms-rest.war` on WildFly.
 
 1.	Pass configuration options to the server as described in [Configuration](#configuration) section. Restart WildFly and follow the link [bpms-rest app] for REST API description.
 
@@ -489,6 +491,16 @@ basing on `state` and `isSubmittedDataProcessed` properties.
 * After submitting all files are converted into Camunda `org.camunda.bpm.engine.variable.value.FileValue`, and their `url` fields are
 set to point to file id in the file storage. Default file storage is base64 url. See [File Storage](#file-storage) 
 for more information about the storage 
+
+### Bpms-rest SPA example
+
+As bpms-rest is consist of REST services it is often convenient to use front-end applications to communicate with bpms-rest services. ART-BPMS-REST
+module contains such an application in the form of SPA application. To deploy the application:
+1. Go to `ART_BPMS_REST_HOME_DIR/bpms-rest-spa-example`
+2. Run `mvn package`
+3. Deploy `target/bpms-rest-spa.war` to your web server
+
+To check that it works see [ART-BPMS-REST environment resources](#art-bpms-rest-environment-resources) for an url to the application.
 
 ## File Storage
 By default all files are encoded in Base64 and stored in Camunda database as base64 data urls ([RFC 2397](https://tools.ietf.org/html/rfc2397)). 
