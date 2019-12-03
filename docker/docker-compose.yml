@@ -1,9 +1,23 @@
 version: '3.7'
 
 services:
-  bpms-rest:
-    container_name: bpms-rest
-    hostname: bpms-rest
+  bpm-database:
+    container_name: bpm-database
+    hostname: bpm-database
+    image: postgres:12.1
+    environment:
+      POSTGRES_DB: ${BPMS_REST_DB_NAME}
+      POSTGRES_USER: ${BPMS_REST_DB_LOGIN}
+      POSTGRES_PASSWORD: ${BPMS_REST_DB_PASSWORD}
+    ports:
+      - "${BPMS_REST_DB_PORT}:5432"
+
+  wildfly:
+    container_name: wildfly
+    hostname: wildfly
+    depends_on:
+      - bpm-database
+    command: ["/wait-for-postgres.sh", "${BPMS_REST_DB_HOST}", "${BPMS_REST_DB_PORT}", "${BPMS_REST_DB_NAME}", "${BPMS_REST_DB_LOGIN}", "${BPMS_REST_DB_PASSWORD}", "/opt/jboss/tools/bpms-rest/docker-entrypoint.sh"]
     build:
       context: ./bpms-rest
       args:
@@ -21,12 +35,16 @@ services:
       BPMS_REST_DB_PASSWORD: ${BPMS_REST_DB_PASSWORD}
       FORMIO_HOST: ${FORMIO_HOST}
       FORMIO_PORT: ${FORMIO_PORT}
+      FORMIO_URL: http://${FORMIO_HOST}:${FORMIO_PORT}
       FORMIO_LOGIN: ${FORMIO_ROOT_EMAIL}
       FORMIO_PASSWORD: ${FORMIO_ROOT_PASSWORD}
+      FORMIO_JWT_EXPIRATION_TIME: ${FORMIO_JWT_EXPIRATION_TIME}
+      FILE_STORAGE_URL: ${FILE_STORAGE_URL}
       FORM_VERSIONING: ${FORM_VERSIONING}
       JBOSS_ARGUMENTS: ${JBOSS_ARGUMENTS}
       KEYCLOAK_HOST: ${KEYCLOAK_HOST}
       KEYCLOAK_PORT: ${KEYCLOAK_PORT}
+      KEYCLOAK_SERVER_URL: http://${KEYCLOAK_HOST}:${KEYCLOAK_PORT}/auth
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM}
       KEYCLOAK_USERNAME_ATTRIBUTE: ${KEYCLOAK_USERNAME_ATTRIBUTE}
@@ -40,12 +58,43 @@ services:
     ports:
       - "${BPMS_REST_APP_PORT}:8080"
       - "${BPMS_REST_MANAGEMENT_PORT}:9990"
+      - "${BPMS_REST_DEBUG_PORT}:8787"
+
+  cockpit:
+    container_name: cockpit
+    hostname: cockpit
+    depends_on:
+      - bpm-database
+    command: ["/wait-for-postgres.sh", "${BPMS_REST_DB_HOST}", "${BPMS_REST_DB_PORT}", "${BPMS_REST_DB_NAME}", "${BPMS_REST_DB_LOGIN}", "${BPMS_REST_DB_PASSWORD}", "/sbin/tini", "--", "./camunda.sh"]
+    build:
+      context: ./cockpit
+    environment:
+      BPMS_REST_DB_HOST: ${BPMS_REST_DB_HOST}
+      BPMS_REST_DB_PORT: ${BPMS_REST_DB_PORT}
+      BPMS_REST_DB_NAME: ${BPMS_REST_DB_NAME}
+      BPMS_REST_DB_LOGIN: ${BPMS_REST_DB_LOGIN}
+      BPMS_REST_DB_PASSWORD: ${BPMS_REST_DB_PASSWORD}
+      DB_CONN_MAXACTIVE: ${CAMUNDA_DB_CONN_MAXACTIVE}
+      DB_CONN_MAXIDLE: ${CAMUNDA_DB_CONN_MAXIDLE}
+      DB_CONN_MINIDLE: ${CAMUNDA_DB_CONN_MINIDLE}
+      DB_DRIVER: ${BPMS_REST_DB_DRIVER}
+      DB_URL: jdbc:${BPMS_REST_DB_DRIVER_NAME}://${BPMS_REST_DB_HOST}:${BPMS_REST_DB_PORT}/${BPMS_REST_DB_NAME}
+      DB_USERNAME: ${BPMS_REST_DB_LOGIN}
+      DB_PASSWORD: ${BPMS_REST_DB_PASSWORD}
+      DB_VALIDATE_ON_BORROW: ${CAMUNDA_DB_VALIDATE_ON_BORROW}
+      DB_VALIDATION_QUERY: ${CAMUNDA_DB_VALIDATION_QUERY}
+      JAVA_OPTS: ${CAMUNDA_PLATFORM_JAVA_OPTS}
+    ports:
+      - "${COCKPIT_PORT}:8080"
 
   keycloak:
     container_name: keycloak
     hostname: keycloak
     build:
       context: ./keycloak
+      args:
+        KEYCLOAK_ADMIN_LOGIN: ${KEYCLOAK_ADMIN_LOGIN}
+        KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
     environment:
       KEYCLOAK_PORT: ${KEYCLOAK_PORT}
     ports:
@@ -72,6 +121,7 @@ services:
       ROOT_PASSWORD: ${FORMIO_ROOT_PASSWORD}
 
   mongo:
+    container_name: mongo
     image: mongo:4.1
     restart: always
     volumes:

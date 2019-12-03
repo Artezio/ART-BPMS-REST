@@ -1,4 +1,4 @@
-FROM jboss/keycloak:7.0.0 as keycloak
+FROM jboss/keycloak:7.0.1 as keycloak
 
 ARG KEYCLOAK_ADMIN_LOGIN=admin
 ARG KEYCLOAK_ADMIN_PASSWORD=password
