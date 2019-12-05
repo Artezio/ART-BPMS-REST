@@ -1,5 +1,6 @@
 package com.artezio.forms.formio;
 
+import com.artezio.bpm.services.DeploymentSvc;
 import com.artezio.bpm.services.VariablesMapper;
 import com.artezio.forms.FormClient;
 import com.artezio.forms.formio.auth.AddJwtTokenRequestFilter;
@@ -7,9 +8,11 @@ import com.artezio.forms.formio.exceptions.FormNotFoundException;
 import com.artezio.forms.formio.exceptions.FormValidationException;
 import com.artezio.forms.formio.jackson.ObjectMapperProvider;
 import com.artezio.logging.Log;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.BooleanNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.Criteria;
@@ -18,11 +21,9 @@ import com.jayway.jsonpath.JsonPath;
 import net.minidev.json.JSONArray;
 import org.apache.commons.text.CaseUtils;
 import org.camunda.bpm.engine.variable.value.FileValue;
-import com.artezio.camunda.spinjar.jackson.JacksonDataFormatConfigurator;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
-import spinjar.com.fasterxml.jackson.databind.DeserializationFeature;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -46,14 +47,15 @@ public class FormioClient implements FormClient {
     private final static Map<String, JsonNode> FORMS_CACHE = new ConcurrentHashMap<>();
     private final static Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private final static Map<Integer, Boolean> SUBMITTED_DATA_PROCESSING_PROPERTY_CACHE = new ConcurrentHashMap<>();
+    private final static boolean IS_FORM_VERSIONING_ENABLED = Boolean.parseBoolean(System.getProperty("FORM_VERSIONING", "true"));
     private static ResteasyClient client;
 
-    private final static spinjar.com.fasterxml.jackson.databind.ObjectMapper MAPPER = new spinjar.com.fasterxml.jackson.databind.ObjectMapper()
+    private final static ObjectMapper MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             .setDefaultMergeable(false);
 
     static {
-        JacksonDataFormatConfigurator.registerSpinjarFileValueSerializers(MAPPER);
+        ObjectMapperProvider.registerFileValueSerializers(MAPPER);
         client = new ResteasyClientBuilder()
                 .connectionPoolSize(10)
                 .register(new AddJwtTokenRequestFilter())
@@ -63,6 +65,8 @@ public class FormioClient implements FormClient {
 
     @Inject
     private VariablesMapper variablesMapper;
+    @Inject
+    private DeploymentSvc deploymentSvc;
 
     @Log(level = CONFIG, beforeExecuteMessage = "Getting definition with data for a form '{0}'")
     public String getFormWithData(String formPath, Map<String, Object> variables) {
@@ -76,6 +80,8 @@ public class FormioClient implements FormClient {
     public void uploadForm(String formDefinition) {
         String path = null;
         FormioService formioService = getFormioService();
+        formDefinition = IS_FORM_VERSIONING_ENABLED ? addVersion(formDefinition) : formDefinition;
+        uploadNestedForms(formDefinition);
         try {
             path = MAPPER.readTree(formDefinition).get("path").asText();
             formioService.createForm(formDefinition);
@@ -112,10 +118,128 @@ public class FormioClient implements FormClient {
                 Objects.hash(formDefinitionJson, submissionState),
                 key -> shouldProcessSubmittedData(formDefinitionJson, saveStateComponentsFilter));
     }
-
+    
     protected Map<String, Object> removeReadOnlyVariables(Map<String, Object> variables, String formPath) {
         JsonNode formDefinition = getFormDefinition(formPath);
         return removeReadOnlyVariables(variables, formDefinition);
+    }
+
+    protected String uploadNestedForms(String formDefinition) {
+        try {
+            return uploadNestedForms(MAPPER.readTree(formDefinition)).toString();
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to read form.", e);
+        }
+    }
+
+    protected JsonNode uploadNestedForms(JsonNode definition) throws IOException {
+        if (isNestedForm(definition) && !definition.get("path").asText().isEmpty()) {
+            return uploadNestedForm(definition);
+        }
+        if (definition.isArray()) {
+            return uploadNestedForms((ArrayNode) definition);
+        }
+        if (definition.isObject()) {
+            return uploadNestedForms((ObjectNode) definition);
+        }
+        return definition;
+    }
+
+    protected JsonNode uploadNestedForms(ObjectNode node) throws IOException {
+        node = node.deepCopy();
+        List<String> fieldNames = new ArrayList<>();
+        node.fieldNames().forEachRemaining(fieldNames::add);
+        for (String fieldName : fieldNames) {
+            JsonNode nodeWithReplacedIds = uploadNestedForms(node.get(fieldName));
+            node.set(fieldName, nodeWithReplacedIds);
+        }
+        return node;
+    }
+
+    protected JsonNode uploadNestedForms(ArrayNode node) throws IOException {
+        node = node.deepCopy();
+        for (int i = 0; i < node.size(); i++) {
+            JsonNode nodeWithReplacedIds = uploadNestedForms(node.get(i));
+            node.set(i, nodeWithReplacedIds);
+        }
+        return node;
+    }
+
+    protected JsonNode uploadNestedForm(JsonNode referenceDefinition) throws IOException {
+        String formPath = referenceDefinition.get("path").asText().substring(1);
+        JsonNode formDefinition = MAPPER.readTree(referenceDefinition.toString());
+        String latestDeploymentFormDefinition = deploymentSvc.getLatestDeploymentForm(formPath);
+        if (IS_FORM_VERSIONING_ENABLED) {
+            uploadForm(uploadNestedForms(addVersion(latestDeploymentFormDefinition)));
+        } else {
+            uploadForm(uploadNestedForms(latestDeploymentFormDefinition));
+        }
+        return setNestedFormFields(formDefinition);
+    }
+
+    protected JsonNode setNestedFormFields(JsonNode referenceDefinition) throws IOException {
+        ObjectNode modifiedNode = referenceDefinition.deepCopy();
+        String id = getFormDefinition(referenceDefinition.get("path").asText()).get("_id").asText();
+        modifiedNode.put("form", id);
+        modifiedNode.put("reference", false);
+        modifiedNode.put("path", "");
+        if (referenceDefinition.has("protected") && referenceDefinition.get("protected").asBoolean()) {
+            modifiedNode.remove("protected");
+            referenceDefinition = disableAllFields(modifiedNode);
+            return uploadNestedForms(referenceDefinition);
+        } else {
+            return uploadNestedForms(modifiedNode);
+        }
+    }
+
+    protected JsonNode disableAllFields(JsonNode node) {
+        if (node.isArray()) {
+            ArrayNode arrayNode = node.deepCopy();
+            for (int index = 0; index < node.size(); index++) {
+                arrayNode.set(index, disableAllFields(node.get(index)));
+            }
+            return arrayNode;
+        }
+        if (node.isObject()) {
+            ObjectNode objectNode = node.deepCopy();
+            if (objectNode.has("type")) {
+                objectNode.set("disabled", BooleanNode.TRUE);
+            }
+            if (objectNode.isContainerNode()) {
+                List<String> fieldNames = new ArrayList<>();
+                node.fieldNames().forEachRemaining(fieldNames::add);
+                for (String fieldName : fieldNames) {
+                    JsonNode nodeWithDisabledFields = disableAllFields(node.get(fieldName));
+                    objectNode.set(fieldName, nodeWithDisabledFields);
+                }
+            }
+            return objectNode;
+        }
+        return node;
+    }
+
+    protected boolean isNestedForm(JsonNode node) {
+        return node.isContainerNode()
+                && node.has("form")
+                && node.has("type")
+                && node.get("type").asText().equals("form");
+    }
+
+    private String addVersion(String formDefinition) {
+        String version = deploymentSvc.getLatestDeploymentId();
+        try {
+            ObjectNode form = (ObjectNode) MAPPER.readTree(formDefinition);
+            form.put("path", form.get("path").asText() + "-" + version);
+            if (form.has("name")) {
+                form.put("name", form.get("name").asText() + "-" + version);
+            }
+            if (form.has("machineName")) {
+                form.put("machineName", form.get("machineName").asText() + "-" + version);
+            }
+            return form.toString();
+        } catch (IOException e) {
+            throw new RuntimeException("Error while parsing json form definition", e);
+        }
     }
 
     private Map<String, Object> removeReadOnlyVariables(Map<String, Object> variables, JsonNode containerDefinition) {
@@ -205,16 +329,6 @@ public class FormioClient implements FormClient {
     protected static FormioService getFormioService() {
         ResteasyWebTarget target = client.target(UriBuilder.fromPath(FORMIO_SERVICE_PATH));
         return target.proxy(FormioService.class);
-    }
-
-    protected static String toValidFormioIdentifier(String identifier) {
-        final String invalidExclusivePattern = "[^a-zA-Z0-9-]";
-        return identifier.replaceAll(invalidExclusivePattern, "-");
-    }
-
-    protected static String toValidFormioPath(String path) {
-        final String invalidExclusivePattern = "[^a-zA-Z0-9-/]";
-        return path.replaceAll(invalidExclusivePattern, "-");
     }
 
     protected JsonNode unwrapSubformData(JsonNode data, String formPath) {
