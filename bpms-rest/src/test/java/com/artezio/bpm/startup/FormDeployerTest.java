@@ -42,9 +42,6 @@ public class FormDeployerTest {
         ObjectNode nestedArrayFormDefinitionNode = (ObjectNode) formDefinitionNode.get("components").get(2).get("components").get(0);
         nestedArrayFormDefinitionNode.remove("form");
         String nestedArrayFormDefinition = nestedArrayFormDefinitionNode.toString();
-        when(formioClient.getFormDefinition("/forms/nested-1-" + latestDeploymentIdSuffix)).thenReturn(nestedForm1DefinitionNode);
-        when(formioClient.getFormDefinition("/forms/nested-2-" + latestDeploymentIdSuffix)).thenReturn(nestedForm2DefinitionNode);
-        when(formioClient.getFormDefinition("/forms/nested-array-1-" + latestDeploymentIdSuffix)).thenReturn(nestedArrayFormDefinitionNode);
         when(deploymentSvc.getLatestDeploymentForm("forms/nested-1")).thenReturn(nestedForm1Definition);
         when(deploymentSvc.getLatestDeploymentForm("forms/nested-2")).thenReturn(nestedForm2Definition);
         when(deploymentSvc.getLatestDeploymentForm("forms/nested-array-1")).thenReturn(nestedArrayFormDefinition);

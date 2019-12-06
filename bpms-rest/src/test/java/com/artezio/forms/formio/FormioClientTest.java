@@ -77,7 +77,7 @@ public class FormioClientTest extends ServiceTest {
 
         when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
 
-        JsonNode actual = formioClient.getFormDefinition(formPath);
+        FormComponent actual = formioClient.getFormDefinition(formPath);
 
         assertNotNull(actual);
 
@@ -86,13 +86,13 @@ public class FormioClientTest extends ServiceTest {
 
     @Test
     public void testGetFormDefinition_ThereIsFormsCacheHit() throws NoSuchFieldException, IllegalAccessException {
-        JsonNode formDefinition = new ObjectNode(JsonNodeFactory.instance);
+        FormComponent formDefinition = new FormComponent();
         String formKey = "formKey";
         Field formsCacheField = FormioClient.class.getDeclaredField("FORMS_CACHE");
         formsCacheField.setAccessible(true);
-        ((Map<String, JsonNode>) formsCacheField.get(FormioClient.class)).put(formKey, formDefinition);
+        ((Map<String, FormComponent>) formsCacheField.get(FormioClient.class)).put(formKey, formDefinition);
 
-        JsonNode actual = formioClient.getFormDefinition(formKey);
+        FormComponent actual = formioClient.getFormDefinition(formKey);
 
         assertNotNull(actual);
 
@@ -132,7 +132,8 @@ public class FormioClientTest extends ServiceTest {
 
     @Test
     public void testUnwrapData() throws IOException {
-        JsonNode definition = new ObjectMapper().readTree(new String(Files.readAllBytes(Paths.get("./src/test/resources/full-form-with-nested-forms.json"))));
+        JsonNode definitionSource = new ObjectMapper().readTree(new String(Files.readAllBytes(Paths.get("./src/test/resources/full-form-with-nested-forms.json"))));
+        FormComponent definition = new ObjectMapper().treeToValue(definitionSource, FormComponent.class);
         JsonNode submittedData = new ObjectMapper().readTree(
                 "{" +
                         "\"text\": \"text\", " +
@@ -234,77 +235,106 @@ public class FormioClientTest extends ServiceTest {
     }
 
     @Test
-    public void removeReadOnlyFieldsTest_SimpleFieldIsDisabled() throws IOException {
+    public void enrichReadOnlyVariablesTest_SimpleFieldIsDisabled() throws IOException {
+        
         JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithDisabledFields.json"));
-        Map<String, Object> variables = new HashMap<>();
-        variables.put("enabledField", "1");
-        variables.put("disabledField", "1");
-        variables.put("submit", true);
+        String formName = "forms/formWithDisabledFields";
+        
+        Map<String, Object> submittedData = new HashMap<>();
+        submittedData.put("enabledField", "1");
+        submittedData.put("disabledField", "1");
+        submittedData.put("submit", true);
+        
+        Map<String, Object> currentData = new HashMap<>();
+        currentData.put("disabledField", "2");
+        
         Map<String, Object> expected = new HashMap<>();
         expected.put("enabledField", "1");
+        expected.put("disabledField", "2");
         expected.put("submit", true);
-        String formPath = "forms/formWithDisabledFields";
-
-        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
-
-        Map<String, Object> actual = formioClient.removeReadOnlyVariables(variables, formPath);
-
+        
+        when(formioService.getForm(formName, true)).thenReturn(formDefinition);
+        
+        Map<String, Object> actual = formioClient.enrichReadOnlyVariables(formName, submittedData, currentData);
+    
         assertEquals(expected, actual);
     }
-
+    
     @Test
-    public void removeReadOnlyFieldsTest_ContainerFieldIsDisabled() throws IOException {
+    public void enrichReadOnlyVariablesTest_ContainerFieldIsDisabled() throws IOException {
+        
         JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithDisabledFields.json"));
-        Map<String, Object> variables = new HashMap<>();
-        variables.put("disabledDataGrid", asList(new HashMap<String, Object>() {{ put("enabledField", "1"); }}));
-        variables.put("submit", true);
+        String formName = "forms/formWithDisabledFields";
+        
+        Map<String, Object> submittedData = new HashMap<>();
+        submittedData.put("disabledDataGrid", asList(new HashMap<String, Object>() {{ put("enabledField", "1"); }}));
+        submittedData.put("submit", true);
+        
+        Map<String, Object> currentData = new HashMap<>();
+        currentData.put("disabledDataGrid", asList(new HashMap<String, Object>() {{ put("enabledField", "2"); }}));
+        
         Map<String, Object> expected = new HashMap<>();
+        expected.put("disabledDataGrid", asList(new HashMap<String, Object>() {{ put("enabledField", "1"); }}));
         expected.put("submit", true);
-        String formPath = "forms/formWithDisabledFields";
-
-        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
-
-        Map<String, Object> actual = formioClient.removeReadOnlyVariables(variables, formPath);
-
+        
+        when(formioService.getForm(formName, true)).thenReturn(formDefinition);
+        
+        Map<String, Object> actual = formioClient.enrichReadOnlyVariables(formName, submittedData, currentData);
+    
         assertEquals(expected, actual);
     }
-
+    
     @Test
-    public void removeReadOnlyFieldsTest_ContainerFieldHasDisabledComponents() throws IOException {
+    public void enrichReadOnlyVariablesTest_ContainerFieldHasDisabledComponents() throws IOException {
+        
         JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithDisabledFields.json"));
-        Map<String, Object> variables = new HashMap<>();
-        variables.put("fieldContainer", new HashMap<String, Object>() {{ put("disabledField", "1"); put("enabledField", "1"); }});
-        variables.put("submit", true);
+        String formName = "forms/formWithDisabledFields";
+        
+        Map<String, Object> submittedData = new HashMap<>();
+        submittedData.put("fieldContainer", new HashMap<String, Object>() {{ put("disabledField", "1"); put("enabledField", "1"); }});
+        submittedData.put("submit", true);
+        
+        Map<String, Object> currentData = new HashMap<>();
+        currentData.put("fieldContainer", new HashMap<String, Object>() {{ put("disabledField", "2"); put("enabledField", "2"); }});
+        
         Map<String, Object> expected = new HashMap<>();
-        expected.put("fieldContainer", new HashMap<String, Object>() {{ put("enabledField", "1"); }});
+        expected.put("fieldContainer", new HashMap<String, Object>() {{ put("disabledField", "2"); put("enabledField", "1"); }});
         expected.put("submit", true);
-        String formPath = "forms/formWithDisabledFields";
-
-        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
-
-        Map<String, Object> actual = formioClient.removeReadOnlyVariables(variables, formPath);
-
+        
+        when(formioService.getForm(formName, true)).thenReturn(formDefinition);
+        
+        Map<String, Object> actual = formioClient.enrichReadOnlyVariables(formName, submittedData, currentData);
+    
         assertEquals(expected, actual);
     }
-
+    
     @Test
-    public void removeReadOnlyFieldsTest_ArrayFieldsHaveDisabledComponents() throws IOException {
+    public void enrichReadOnlyVariablesTest_ArrayFieldsHaveDisabledComponents() throws IOException {
+        
         JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithDisabledFields.json"));
-        Map<String, Object> variables = new HashMap<>();
-        variables.put("disabledDataGrid", asList(new HashMap<String, Object>() {{ put("enabledField", "1"); }}));
-        variables.put("fieldDataGrid", asList(new HashMap<String, Object>() {{ put("disabledField", "1"); put("enabledField", "1"); }}));
-        variables.put("fieldEditGrid", asList(new HashMap<String, Object>() {{ put("disabledField", "1"); put("enabledField", "1"); }}));
-        variables.put("submit", true);
+        String formName = "forms/formWithDisabledFields";
+        
+        Map<String, Object> submittedData = new HashMap<>();
+        submittedData.put("disabledDataGrid", asList(new HashMap<String, Object>() {{ put("enabledField", "1"); }}));
+        submittedData.put("fieldDataGrid", asList(new HashMap<String, Object>() {{ put("disabledField", "1"); put("enabledField", "1"); }}));
+        submittedData.put("fieldEditGrid", asList(new HashMap<String, Object>() {{ put("disabledField", "1"); put("enabledField", "1"); }}));
+        submittedData.put("submit", true);
+        
+        Map<String, Object> currentData = new HashMap<>();
+        currentData.put("disabledDataGrid", asList(new HashMap<String, Object>() {{ put("enabledField", "2"); }}));
+        currentData.put("fieldDataGrid", asList(new HashMap<String, Object>() {{ put("disabledField", "2"); put("enabledField", "2"); }}));
+        currentData.put("fieldEditGrid", asList(new HashMap<String, Object>() {{ put("disabledField", "2"); put("enabledField", "2"); }}));
+        
         Map<String, Object> expected = new HashMap<>();
-        expected.put("fieldDataGrid", asList(new HashMap<String, Object>() {{ put("enabledField", "1"); }}));
-        expected.put("fieldEditGrid", asList(new HashMap<String, Object>() {{ put("enabledField", "1"); }}));
+        expected.put("disabledDataGrid", asList(new HashMap<String, Object>() {{ put("enabledField", "1"); }}));
+        expected.put("fieldDataGrid", asList(new HashMap<String, Object>() {{ put("disabledField", "2"); put("enabledField", "1"); }}));
+        expected.put("fieldEditGrid", asList(new HashMap<String, Object>() {{ put("disabledField", "2"); put("enabledField", "1"); }}));
         expected.put("submit", true);
-        String formPath = "forms/formWithDisabledFields";
-
-        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
-
-        Map<String, Object> actual = formioClient.removeReadOnlyVariables(variables, formPath);
-
+        
+        when(formioService.getForm(formName, true)).thenReturn(formDefinition);
+        
+        Map<String, Object> actual = formioClient.enrichReadOnlyVariables(formName, submittedData, currentData);
+    
         assertEquals(expected, actual);
     }
 

@@ -1,5 +1,7 @@
 package com.artezio.forms.formio;
 
+import static java.util.AbstractMap.SimpleEntry;
+
 import com.artezio.bpm.services.VariablesMapper;
 import com.artezio.forms.FormClient;
 import com.artezio.forms.formio.auth.AddJwtTokenRequestFilter;
@@ -7,15 +9,16 @@ import com.artezio.forms.formio.exceptions.FormNotFoundException;
 import com.artezio.forms.formio.exceptions.FormValidationException;
 import com.artezio.forms.formio.jackson.ObjectMapperProvider;
 import com.artezio.logging.Log;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.jayway.jsonpath.Criteria;
-import com.jayway.jsonpath.Filter;
 import com.jayway.jsonpath.JsonPath;
+
 import net.minidev.json.JSONArray;
+
 import org.apache.commons.text.CaseUtils;
 import org.camunda.bpm.engine.variable.value.FileValue;
 import com.artezio.camunda.spinjar.jackson.JacksonDataFormatConfigurator;
@@ -31,6 +34,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
 import java.io.IOException;
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -43,14 +47,16 @@ import static com.artezio.logging.Log.Level.CONFIG;
 public class FormioClient implements FormClient {
 
     private final static String FORMIO_SERVICE_PATH = System.getProperty("FORMIO_URL", "http://localhost:3001");
-    private final static Map<String, JsonNode> FORMS_CACHE = new ConcurrentHashMap<>();
+    private final static Map<String, FormComponent> FORMS_CACHE = new ConcurrentHashMap<>();
     private final static Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private final static Map<Integer, Boolean> SUBMITTED_DATA_PROCESSING_PROPERTY_CACHE = new ConcurrentHashMap<>();
-    private static ResteasyClient client;
-
+    private final static ObjectMapper JSON_MAPPER = new ObjectMapper();
+    //TODO rename
     private final static spinjar.com.fasterxml.jackson.databind.ObjectMapper MAPPER = new spinjar.com.fasterxml.jackson.databind.ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             .setDefaultMergeable(false);
+    
+    private static ResteasyClient client;
 
     static {
         JacksonDataFormatConfigurator.registerSpinjarFileValueSerializers(MAPPER);
@@ -65,9 +71,9 @@ public class FormioClient implements FormClient {
     private VariablesMapper variablesMapper;
 
     @Log(level = CONFIG, beforeExecuteMessage = "Getting definition with data for a form '{0}'")
-    public String getFormWithData(String formPath, Map<String, Object> variables) {
-        JsonNode form = getForm(formPath);
-        JsonNode data = cleanUnusedData(formPath, variables);
+    public String getFormWithData(String formPath, Map<String, Object> formVariables) {
+        JsonNode form = getFormDefinitionSource(formPath);
+        JsonNode data = cleanUnusedData(formPath, formVariables);
         ((ObjectNode) form).set("data", wrapSubformData(data, form));
         return form.toString();
     }
@@ -86,90 +92,134 @@ public class FormioClient implements FormClient {
         }
     }
 
+    //TODO change output type. Map?
     @Log(level = CONFIG, beforeExecuteMessage = "Performing dry validation and cleanup of a form '{0}'")
-    public String dryValidationAndCleanup(String formPath, Map<String, Object> variables) {
+    public String dryValidationAndCleanup(String formPath, Map<String, Object> submittedData,
+            Map<String, Object> currentData) {
         try {
-            variables = convertVariablesToFileRepresentations(variables, getFormDefinition(formPath).toString());
-//            variables = removeReadOnlyVariables(variables, formPath);
-            JsonNode data = getFormioService()
-                    .submission(formPath, toFormIoSubmissionData(variables))
+            submittedData = convertVariablesToFileRepresentations(formPath, submittedData);
+            submittedData = enrichReadOnlyVariables(formPath, submittedData, currentData);
+            JsonNode submittedFormioData = getFormioService()
+                    .submission(formPath, toFormIoSubmissionData(submittedData))
                     .get("data");
-            return unwrapSubformData(data, formPath).toString();
-        } catch (BadRequestException bre) {
-            throw new FormValidationException(getExceptionDetails(bre.getResponse()));
+            return unwrapSubformData(submittedFormioData, formPath).toString();
+        } catch (BadRequestException ex) {
+            throw new FormValidationException(getExceptionDetails(ex.getResponse()));
+        } catch (Exception ex) {
+            throw new FormValidationException(ex.getMessage());
         }
     }
+    
+    protected FormComponent getFormDefinition(String formPath) {
+        return FORMS_CACHE.computeIfAbsent(formPath, path -> convertToFormComponent(getFormDefinitionSource(formPath)));
+    }
 
-    @Log(level = CONFIG, beforeExecuteMessage = "Getting definition of a form '{0}'")
-    public JsonNode getFormDefinition(String formPath) {
-        return FORMS_CACHE.computeIfAbsent(formPath, path -> getFormioService().getForm(path, true));
+    private FormComponent convertToFormComponent(JsonNode formSource) {
+        try {
+            return JSON_MAPPER.treeToValue(formSource, FormComponent.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Could not parse json form definition", e);
+        }
+    }
+    
+    private Map<String, Object> convertVariablesToFileRepresentations(String formName,
+            Map<String, Object> submittedData) {
+        return convertVariablesToFileRepresentations(submittedData, getFormDefinition(formName).toString());
+    }
+
+    //TODO rename
+    @SuppressWarnings("unchecked")
+    protected Map<String, Object> enrichReadOnlyVariables(String formName, Map<String, Object> editableData, Map<String, Object> readOnlyData)
+            throws JsonProcessingException {
+        return getComponentsValue(getFormDefinition(formName).getComponents(), editableData, readOnlyData);
+    }
+
+    private Map<String, Object> getComponentsValue(List<FormComponent> formComponents, Map<String, Object> editableData,
+            Map<String, Object> readOnlyData) {
+        return Optional.ofNullable(formComponents)
+                .map(Collection::stream)
+                .orElse(Stream.empty())
+                .filter(FormComponent::isInput)
+                .filter(FormComponent::hasKey)
+                .map(component -> getComponentValue(component, editableData, readOnlyData))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+     
+    private Map.Entry<String, Object> getComponentValue(FormComponent component, Map<String, Object> editableData, Map<String, Object> readOnlyData) {
+        if (component.isContainer()) {
+            return getContainerComponentValue(component, editableData, readOnlyData);
+        } else if (component.isArray()) {
+            return getArrayComponentValue(component, editableData, readOnlyData);
+        } else {
+            return getSimpleComponentValue(component, editableData, readOnlyData);
+        }
+    }
+     
+    private Map.Entry<String, Object> getArrayComponentValue(FormComponent formComponent, Map<String, Object> editableData,
+            Map<String, Object> readOnlyData) {
+        String componentKey = formComponent.getKey();
+        List<Map<String, Object>> containerValue = new ArrayList<>();
+        
+        List<Map<String, Object>> editableArrayData = (List<Map<String, Object>>) editableData.get(componentKey);
+        List<Map<String, Object>> readOnlyDataArrayData = (List<Map<String, Object>>) readOnlyData.get(componentKey);
+        if (editableArrayData != null) {
+            for (int i = 0; i < editableArrayData.size(); i++) {
+                Map<String, Object> editableArrayItemData = editableArrayData.get(i);
+                Map<String, Object> readOnlyDataArrayItemData = readOnlyDataArrayData.get(i);
+                Map<String, Object> containerItemValue = getComponentsValue(formComponent.getComponents(), editableArrayItemData, readOnlyDataArrayItemData);
+               containerValue.add(containerItemValue);
+           }
+        }
+                
+        return containerValue.isEmpty()? null : new SimpleEntry<>(componentKey, containerValue);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map.Entry<String, Object> getContainerComponentValue(FormComponent formComponent, Map<String, Object> editableData,
+            Map<String, Object> readOnlyData) {
+        String componentKey = formComponent.getKey();
+        editableData = (Map<String, Object>) editableData.get(componentKey);
+        readOnlyData = (Map<String, Object>) readOnlyData.get(componentKey);
+        Map<String, Object> containerValue = getComponentsValue(formComponent.getComponents(), editableData, readOnlyData);
+        return containerValue.isEmpty()? null : new SimpleEntry<>(componentKey, containerValue);
+    }
+
+    private Map.Entry<String, Object> getSimpleComponentValue(FormComponent formComponent, Map<String, Object> editableData, Map<String, Object> readOnlyData) {
+
+        String componentKey = formComponent.getKey();
+        Entry<String, Object> editableDataEntry = Optional.ofNullable(editableData)
+                .map(Map::entrySet)
+                .map(Collection::stream)
+                .orElse(Stream.empty())
+                .filter(entry -> componentKey.equals(entry.getKey()))
+                .findFirst()
+                .orElse(null);
+        Entry<String, Object> readOnlyDataEntry = Optional.ofNullable(readOnlyData)
+                .map(Map::entrySet)
+                .map(Collection::stream)
+                .orElse(Stream.empty()) 
+                .filter(entry -> componentKey.equals(entry.getKey()))
+                .findFirst()
+                .orElse(null);
+
+        return formComponent.isEditable() ? editableDataEntry : readOnlyDataEntry;
     }
 
     public boolean shouldProcessSubmittedData(String formPath, String submissionState) {
-        String formDefinitionJson = getFormDefinition(formPath).toString();
-        Filter saveStateComponentsFilter = Filter.filter((Criteria.where("action").eq("saveState").and("state").eq(submissionState)));
+        FormComponent formDefinition = getFormDefinition(formPath);
         return SUBMITTED_DATA_PROCESSING_PROPERTY_CACHE.computeIfAbsent(
-                Objects.hash(formDefinitionJson, submissionState),
-                key -> shouldProcessSubmittedData(formDefinitionJson, saveStateComponentsFilter));
+                Objects.hash(formDefinition, submissionState),
+                key -> shouldProcessSubmittedData(formDefinition, submissionState));
     }
 
-    protected Map<String, Object> removeReadOnlyVariables(Map<String, Object> variables, String formPath) {
-        JsonNode formDefinition = getFormDefinition(formPath);
-        return removeReadOnlyVariables(variables, formDefinition);
-    }
-
-    private Map<String, Object> removeReadOnlyVariables(Map<String, Object> variables, JsonNode containerDefinition) {
-        JsonNode containerComponents = containerDefinition.get("components");
-        getStream(containerComponents)
-                .filter(component -> variables.containsKey(component.get("key").asText()))
-                .forEach(component -> {
-                    String componentName = component.get("key").asText();
-                    if (isContainerComponent(component) && isComponentEnabled(component)) {
-                        Map<String, Object> nestedVariables = (Map<String, Object>) variables.get(componentName);
-                        removeReadOnlyVariables(nestedVariables, component);
-                    } else if (isArrayComponent(component) && isComponentEnabled(component)) {
-                        List<Map<String, Object>> nestedVariables = (List<Map<String, Object>>) variables.get(componentName);
-                        removeReadOnlyVariables(nestedVariables, component);
-                    } else if (!isComponentEnabled(component)) {
-                        variables.remove(componentName);
-                    }
-        });
-        return variables;
-    }
-
-    private List<Map<String, Object>> removeReadOnlyVariables(List<Map<String, Object>> variables, JsonNode arrayDefinition) {
-        ArrayNode arrayComponents = (ArrayNode) arrayDefinition.get("components");
-        return variables.stream()
-                .peek(wrappedVariables -> {
-                    ArrayList<Map.Entry<String, Object>> wrappedVariableList = new ArrayList<>(wrappedVariables.entrySet());
-                    for (int i = 0; i < arrayComponents.size(); i++) {
-                        JsonNode component = arrayComponents.get(i);
-                        Map.Entry<String, Object> variable = wrappedVariableList.get(i);
-                        if (isContainerComponent(component) && isComponentEnabled(component)) {
-                            Map<String, Object> nestedVariables = (Map<String, Object>) variable.getValue();
-                            removeReadOnlyVariables(nestedVariables, component);
-                        } else if (isArrayComponent(component) && isComponentEnabled(component)) {
-                            List<Map<String, Object>> nestedVariables = (List<Map<String, Object>>) variable.getValue();
-                            removeReadOnlyVariables(nestedVariables, component);
-                        } else if (!isComponentEnabled(component)) {
-                            wrappedVariables.remove(variable.getKey());
-                        }
-                    }
-                })
-                .filter(wrappedVariables -> !wrappedVariables.isEmpty())
-                .collect(Collectors.toList());
-    }
-
-    private boolean isComponentEnabled(JsonNode component) {
-        return component.get("disabled") == null || component.get("disabled").asText().equals("false");
-    }
-
-    private boolean shouldProcessSubmittedData(String formDefinitionJson, Filter saveStateComponentsFilter) {
-        return (boolean) ((JSONArray) JsonPath.read(formDefinitionJson, "$..components[?]", saveStateComponentsFilter))
-                .stream()
-                .map(stateComponent -> (Map<String, Object>) stateComponent)
-                .map(stateComponent -> (Map<String, Object>) stateComponent.get("properties"))
+    private boolean shouldProcessSubmittedData(FormComponent formDefinition, String submissionState) {
+        return formDefinition.getChildComponents().stream()
+                .filter(component -> "saveState".equals(component.getAction()))
+                .filter(component -> submissionState.equals(component.getState()))
+                .map(FormComponent::getProperties)
                 .map(properties -> properties.get("isSubmittedDataProcessed"))
+                .map(Boolean.class::cast)
                 .filter(Objects::nonNull)
                 .findFirst()
                 .orElse(true);
@@ -194,7 +244,7 @@ public class FormioClient implements FormClient {
         return "";
     }
 
-    protected JsonNode getForm(String formPath) throws FormNotFoundException {
+    protected JsonNode getFormDefinitionSource(String formPath) throws FormNotFoundException {
         try {
             return getFormioService().getForm(formPath, true);
         } catch (BadRequestException bre) {
@@ -218,61 +268,57 @@ public class FormioClient implements FormClient {
     }
 
     protected JsonNode unwrapSubformData(JsonNode data, String formPath) {
-        JsonNode formDefinition = getFormDefinition(formPath);
+        FormComponent formDefinition = getFormDefinition(formPath);
         return unwrapSubformData(data, formDefinition);
     }
 
-    protected JsonNode unwrapSubformData(JsonNode data, JsonNode definition) {
-        if (hasChildComponents(definition)) {
-            List<JsonNode> childComponents = getChildComponentDefinitions(definition);
+    protected JsonNode unwrapSubformData(JsonNode data, FormComponent formDefinition) {
+        if (formDefinition.hasComponents()) {
+            List<FormComponent> childComponents = formDefinition.getChildComponents();
             if (data.isObject()) {
                 return unwrapSubformDataFromObject(data, childComponents);
             }
             if (data.isArray()) {
-                return unwrapSubformDataFromArray(data, childComponents, definition);
+                return unwrapSubformDataFromArray(data, childComponents, formDefinition);
             }
         }
         return data;
     }
 
-    protected JsonNode wrapSubformData(JsonNode data, JsonNode definition) {
+    protected JsonNode wrapSubformData(JsonNode data, JsonNode formDefinitionSource) {
+        FormComponent formDefinition = convertToFormComponent(formDefinitionSource);
+        return wrapSubformData(data, formDefinition);
+    }
+    
+    protected JsonNode wrapSubformData(JsonNode data, FormComponent formDefinition) {
         if (data.isObject()) {
-            return wrapSubformDataInObject(data, definition);
+            return wrapSubformDataInObject(data, formDefinition);
         }
         if (data.isArray()) {
-            return wrapSubformDataInArray((ArrayNode) data, definition);
+            return wrapSubformDataInArray((ArrayNode) data, formDefinition);
         }
         return data;
     }
 
-    protected JsonNode wrapSubformDataInObject(JsonNode data, JsonNode definition) {
+    protected JsonNode wrapSubformDataInObject(JsonNode data, FormComponent formComponent) {
         ObjectNode dataWithWrappedChildren = data.deepCopy();
-        if (hasChildComponents(definition)) {
-            List<JsonNode> childComponents = getChildComponentDefinitions(definition);
-            for (JsonNode child : childComponents) {
-                String key = child.get("key").asText();
+        if (formComponent.hasComponents()) {
+            List<FormComponent> childComponents = formComponent.getChildComponents();
+            for (FormComponent child : childComponents) {
+                String key = child.getKey();
                 if (dataWithWrappedChildren.has(key)) {
                     dataWithWrappedChildren.set(key, wrapSubformData(dataWithWrappedChildren.get(key), child));
                 }
             }
         }
-        if (isSubform(definition)) {
+        if (formComponent.isSubform()) {
             ObjectNode wrappedData = JsonNodeFactory.instance.objectNode();
             wrappedData.set("data", dataWithWrappedChildren);
             return wrappedData;
         }
         return dataWithWrappedChildren;
     }
-
-    protected JsonNode wrapSubformDataInArray(ArrayNode data, JsonNode definition) {
-        data = data.deepCopy();
-        for (int index = 0; index < data.size(); index++) {
-            JsonNode wrappedElement = wrapSubformData(data.get(index), definition);
-            data.set(index, wrappedElement);
-        }
-        return getWrappedComponents(data, definition);
-    }
-
+    
     protected boolean isSubform(JsonNode definition) {
         JsonNode nodeType = definition.at("/type");
         return !nodeType.isMissingNode() && nodeType.asText().equals("form") && !definition.at("/src").isMissingNode();
@@ -282,37 +328,21 @@ public class FormioClient implements FormClient {
         return !definition.at("/components").isMissingNode();
     }
 
-    protected List<JsonNode> getChildComponentDefinitions(JsonNode definition) {
-        final Set<String> layoutComponentTypes = new HashSet<>(Arrays.asList("well", "table", "columns", "fieldset", "panel"));
-        final Set<String> containerComponentTypes = new HashSet<>(Arrays.asList("well", "fieldset", "panel"));
-        List<JsonNode> nodes = new ArrayList<>();
-        getStream(definition.get("components"))
-                .filter(component -> !layoutComponentTypes.contains(component.get("type").asText()))
-                .forEach(nodes::add);
-        getStream(definition.get("components"))
-                .filter(component -> containerComponentTypes.contains(component.get("type").asText()))
-                .flatMap(component -> getStream(component.get("components")))
-                .forEach(nodes::add);
-        getStream(definition.get("components"))
-                .filter(component -> "columns".equals(component.get("type").asText()))
-                .flatMap(component -> getStream(component.get("columns")))
-                .flatMap(component -> getStream(component.get("components")))
-                .forEach(nodes::add);
-        getStream(definition.get("components"))
-                .filter(component -> "table".equals(component.get("type").asText()))
-                .flatMap(component -> getStream(component.get("rows")))
-                .flatMap(this::getStream)
-                .flatMap(component -> getStream(component.get("components")))
-                .forEach(nodes::add);
-        return nodes;
+    protected JsonNode wrapSubformDataInArray(ArrayNode data, FormComponent formComponent) {
+        data = data.deepCopy();
+        for (int index = 0; index < data.size(); index++) {
+            JsonNode wrappedElement = wrapSubformData(data.get(index), formComponent);
+            data.set(index, wrappedElement);
+        }
+        return getWrappedComponents(data, formComponent);
     }
 
-    protected ArrayNode getArrayWithRemovedRedundantObjectElementWrappers(ArrayNode arrayNode, JsonNode formDefinition) {
+    protected ArrayNode getArrayWithRemovedRedundantObjectElementWrappers(ArrayNode arrayNode, FormComponent formDefinition) {
         ArrayNode resultArrayNode = JsonNodeFactory.instance.arrayNode();
         getStream(arrayNode)
                 .flatMap(this::getStream)
                 .forEach(resultArrayNode::add);
-        if (isArrayComponent(formDefinition)) {
+        if (formDefinition.isArray()) {
             return transformElementsToFlatIfNecessary(resultArrayNode);
         } else {
             return resultArrayNode;
@@ -321,7 +351,7 @@ public class FormioClient implements FormClient {
 
     private JsonNode cleanUnusedData(String formPath, Map<String, Object> variables) {
         Map<String, Object> convertedVariables = variablesMapper.convertEntitiesToMaps(variables);
-        List<JsonNode> childComponentDefinitions = getChildComponentDefinitions(getFormDefinition(formPath));
+        List<FormComponent> childComponentDefinitions = getFormDefinition(formPath).getChildComponents();
         Map<String, Object> wrappedObjects = getWrappedVariables(convertedVariables, childComponentDefinitions);
         try {
             return getFormioService()
@@ -341,10 +371,10 @@ public class FormioClient implements FormClient {
         }};
     }
 
-    private JsonNode unwrapSubformDataFromObject(JsonNode data, List<JsonNode> childComponents) {
+    private JsonNode unwrapSubformDataFromObject(JsonNode data, List<FormComponent> childComponents) {
         ObjectNode result = JsonNodeFactory.instance.objectNode();
-        for (JsonNode childDefinition : childComponents) {
-            String key = childDefinition.get("key").asText();
+        for (FormComponent childDefinition : childComponents) {
+            String key = childDefinition.getKey();
             if (data.has(key)) {
                 JsonNode unwrappedData = unwrapSubformData(data, childDefinition, key);
                 result.set(key, unwrappedData);
@@ -353,12 +383,12 @@ public class FormioClient implements FormClient {
         return result;
     }
 
-    private JsonNode unwrapSubformDataFromArray(JsonNode data, List<JsonNode> childComponents, JsonNode formDefinition) {
+    private JsonNode unwrapSubformDataFromArray(JsonNode data, List<FormComponent> childComponents, FormComponent formDefinition) {
         ArrayNode unwrappedArray = data.deepCopy();
         for (int index = 0; index < data.size(); index++) {
             ObjectNode currentNode = JsonNodeFactory.instance.objectNode();
-            for (JsonNode childDefinition : childComponents) {
-                String key = childDefinition.get("key").asText();
+            for (FormComponent childDefinition : childComponents) {
+                String key = childDefinition.getKey();
                 JsonNode unwrappedData = unwrapSubformData(data.get(index), childDefinition, key);
                 currentNode.set(key, unwrappedData);
             }
@@ -367,11 +397,11 @@ public class FormioClient implements FormClient {
         return getArrayWithRemovedRedundantObjectElementWrappers(unwrappedArray, formDefinition);
     }
 
-    private JsonNode unwrapSubformData(JsonNode data, JsonNode childDefinition, String key) {
+    private JsonNode unwrapSubformData(JsonNode data, FormComponent childDefinition, String key) {
         if (!data.has(key)) {
             return data;
         }
-        if (isSubform(childDefinition)) {
+        if (childDefinition.isSubform()) {
             data = data.get(key).get("data");
         } else {
             data = data.get(key);
@@ -379,28 +409,16 @@ public class FormioClient implements FormClient {
         return unwrapSubformData(data, childDefinition);
     }
 
-    private boolean isContainerComponent(JsonNode componentDefinition) {
-        JsonNode type = componentDefinition.get("type");
-        String componentType = type != null ? type.asText() : "";
-        return componentType.equals("form") || componentType.equals("container") || componentType.equals("survey");
-    }
-
-    private boolean isArrayComponent(JsonNode componentDefinition) {
-        JsonNode type = componentDefinition.get("type");
-        String componentType = type != null ? type.asText() : "";
-        return componentType.equals("datagrid") || componentType.equals("editgrid");
-    }
-
-    private Map<String, Object> getWrappedVariables(Map<String, Object> variables, List<JsonNode> components) {
+    private Map<String, Object> getWrappedVariables(Map<String, Object> variables, List<FormComponent> components) {
         return variables.entrySet().stream()
                 .map(variable -> {
                     String variableName = variable.getKey();
                     Object variableValue = variable.getValue();
-                    Optional<JsonNode> component = findComponentByKey(variableName, components);
+                    Optional<FormComponent> component = findComponentByKey(variableName, components);
                     if (component.isPresent()) {
-                        if (isContainerComponent(component.get()) && variableValue != null) {
+                        if (component.get().isContainer() && variableValue != null) {
                             variableValue = getContainerWithWrappedElements((Map<String, Object>) variableValue, component.get());
-                        } else if (isArrayComponent(component.get()) && ((List<Object>) variableValue).size() != 0) {
+                        } else if (component.get().isArray() && ((List<Object>) variableValue).size() != 0) {
                             variableValue = getArrayWithWrappedElements((List<Object>) variableValue, component.get());
                         }
                     }
@@ -408,18 +426,18 @@ public class FormioClient implements FormClient {
                 }).collect(HashMap::new, (m, e) -> m.put(e.getKey(), e.getValue()), HashMap::putAll);
     }
 
-    private List<Object> getArrayWithWrappedElements(List<Object> variableValue, JsonNode component) {
+    private List<Object> getArrayWithWrappedElements(List<Object> variableValue, FormComponent component) {
         List<Object> arrayVariableWithWrappedElements = new ArrayList<>();
-        List<JsonNode> arrayComponentElems = getChildComponentDefinitions(component);
+        List<FormComponent> arrayComponentElems = component.getChildComponents();
         for (int i = 0; i < arrayComponentElems.size(); i++) {
-            JsonNode arrayComponentElem = arrayComponentElems.get(i);
-            String arrayComponentElemKey = arrayComponentElem.get("key").asText();
-            if (isContainerComponent(arrayComponentElem)) {
+            FormComponent arrayComponentElem = arrayComponentElems.get(i);
+            String arrayComponentElemKey = arrayComponentElem.getKey();
+            if (arrayComponentElem.isContainer()) {
                 Map<String, Object> wrappedContainer = new HashMap<>();
                 Map<String, Object> value = getContainerWithWrappedElements((Map<String, Object>) variableValue.get(i), arrayComponentElem);
                 wrappedContainer.put(arrayComponentElemKey, value);
                 arrayVariableWithWrappedElements.add(wrappedContainer);
-            } else if (isArrayComponent(arrayComponentElem)) {
+            } else if (arrayComponentElem.isArray()) {
                 Map<String, Object> wrappedArray = new HashMap<>();
                 List<Object> value = getArrayWithWrappedElements((List<Object>) variableValue.get(i), arrayComponentElem);
                 wrappedArray.put(arrayComponentElemKey, value);
@@ -431,26 +449,26 @@ public class FormioClient implements FormClient {
         return arrayVariableWithWrappedElements;
     }
 
-    private Map<String, Object> getContainerWithWrappedElements(Map<String, Object> variableValue, JsonNode component) {
-        Map<String, Object> wrappedElements = getWrappedVariables(variableValue, getChildComponentDefinitions(component));
+    private Map<String, Object> getContainerWithWrappedElements(Map<String, Object> variableValue, FormComponent component) {
+        Map<String, Object> wrappedElements = getWrappedVariables(variableValue, component.getChildComponents());
         return wrapIfNecessary(wrappedElements, component);
     }
 
-    private Map<String, Object> getFieldsForWrappedComponents(Map<String, Object> variableFields, JsonNode component) {
-        List<String> componentElementNames = getChildComponentDefinitions(component).stream()
-                .map(componentField -> componentField.get("key").asText())
+    private Map<String, Object> getFieldsForWrappedComponents(Map<String, Object> variableFields, FormComponent component) {
+        List<String> componentElementNames = component.getChildComponents().stream()
+                .map(componentField -> componentField.getKey())
                 .collect(Collectors.toList());
         return variableFields.entrySet().stream()
                 .filter(entry -> !componentElementNames.contains(entry.getKey()))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    private Map<String, Object> wrapIfNecessary(Map<String, Object> variableValue, JsonNode component) {
-        if (isMustBeWrapped(component)) {
+    private Map<String, Object> wrapIfNecessary(Map<String, Object> variableValue, FormComponent component) {
+        if (component.mustBeWrapped()) {
             Map<String, Object> wrappedVariableValue = new HashMap<>();
-            getChildComponentDefinitions(component)
+            component.getChildComponents()
                     .forEach(childComponent -> {
-                        String childComponentKey = childComponent.get("key").asText();
+                        String childComponentKey = childComponent.getKey();
                         if (variableValue.containsKey(childComponentKey)) {
                             wrappedVariableValue.put(childComponentKey, variableValue.get(childComponentKey));
                         }
@@ -464,30 +482,21 @@ public class FormioClient implements FormClient {
         }
     }
 
-    private boolean isMustBeWrapped(JsonNode componentDefinition) {
-        try {
-            return getChildComponentDefinitions(componentDefinition).stream()
-                    .anyMatch(childComponent -> childComponent.get("key").asText().equals("flat"));
-        } catch (RuntimeException ignored) {
-            return false;
-        }
-    }
-
     private String getWrapperName(Map<String, Object> variable) {
         return CaseUtils.toCamelCase((String) variable.get("type"), false, '_');
     }
 
-    private ArrayNode getWrappedComponents(ArrayNode arrayNode, JsonNode componentDefinition) {
-        if (isArrayComponent(componentDefinition)) {
+    private ArrayNode getWrappedComponents(ArrayNode arrayNode, FormComponent formComponent) {
+        if (formComponent.isArray()) {
             arrayNode = getArrayWithWrappedByTypeElements(arrayNode);
         }
-        return isMustBeWrapped(componentDefinition)
-                ? getArrayWithWrappedObjectElements(arrayNode, componentDefinition)
+        return formComponent.mustBeWrapped()
+                ? getArrayWithWrappedObjectElements(arrayNode, formComponent)
                 : arrayNode;
     }
 
-    private ArrayNode getArrayWithWrappedObjectElements(ArrayNode arrayNode, JsonNode componentDefinition) {
-        String objectWrapperName = componentDefinition.at("/components/0/key").asText();
+    private ArrayNode getArrayWithWrappedObjectElements(ArrayNode arrayNode, FormComponent formComponent) {
+        String objectWrapperName = formComponent.getComponents().get(0).getKey();
         ArrayNode arrayNodeWithWrappedObjects = JsonNodeFactory.instance.arrayNode();
         arrayNode.forEach(element -> {
             ObjectNode objectWrapperNode = JsonNodeFactory.instance.objectNode();
@@ -537,9 +546,9 @@ public class FormioClient implements FormClient {
                         .collect(Collectors.toList()));
     }
 
-    private Optional<JsonNode> findComponentByKey(String key, List<JsonNode> components) {
+    private Optional<FormComponent> findComponentByKey(String key, List<FormComponent> components) {
         return components.stream()
-                .filter(component -> component.get("key").asText().equals(key))
+                .filter(component -> component.getKey().equals(key))
                 .findFirst();
     }
 
@@ -619,6 +628,22 @@ public class FormioClient implements FormClient {
 
     private boolean isObjectVariable(Object variableValue) {
         return variableValue instanceof Map;
+    }
+
+    @Override
+    public List<String> getFormVariableNames(String formPath) {
+        return Optional.ofNullable(getFormDefinition(formPath).getComponents())
+                .map(Collection::stream)
+                .orElse(Stream.empty())
+                .filter(FormComponent::isInput)
+                .filter(FormComponent::hasKey)
+                .map(FormComponent::getKey)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public String getFormId(String formPath) {
+        return getFormDefinition(formPath).getId();
     }
 
 }

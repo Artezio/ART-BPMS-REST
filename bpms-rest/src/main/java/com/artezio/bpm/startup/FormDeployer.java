@@ -93,7 +93,8 @@ public class FormDeployer {
 
     protected JsonNode setNestedFormFields(JsonNode referenceDefinition) throws IOException {
         ObjectNode modifiedNode = referenceDefinition.deepCopy();
-        String id = formioClient.getFormDefinition(referenceDefinition.get("path").asText()).get("_id").asText();
+        String formPath = referenceDefinition.get("path").asText();
+        String id = formioClient.getFormId(formPath);
         modifiedNode.put("form", id);
         modifiedNode.put("reference", false);
         modifiedNode.put("path", "");

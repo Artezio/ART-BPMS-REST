@@ -1,14 +1,15 @@
 package com.artezio.forms;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import java.util.List;
 import java.util.Map;
 
 public interface FormClient {
 
-    String getFormWithData(String formPath, Map<String, Object> variables);
+    String getFormWithData(String formKey, Map<String, Object> formVariables);
     void uploadForm(String formDefinition);
-    String dryValidationAndCleanup(String formPath, Map<String, Object> variables);
-    JsonNode getFormDefinition(String formPath);
-    boolean shouldProcessSubmittedData(String formPath, String submissionState);
+    boolean shouldProcessSubmittedData(String formKey, String submissionState);
+    String dryValidationAndCleanup(String formKey, Map<String, Object> submittedData, Map<String, Object> currentData);    
+    List<String> getFormVariableNames(String formKey);
+    String getFormId(String formKey);
 
 }
