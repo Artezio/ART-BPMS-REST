@@ -69,40 +69,8 @@ public class FormioClientTest extends ServiceTest {
     }
 
     @Test
-    public void testGetFormDefinition_ThereIsNoFormsCacheHit() {
-        JsonNode formDefinition = new ObjectNode(JsonNodeFactory.instance);
-        String formPath = "formKey";
-
-        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
-
-        JsonNode actual = formioClient.getFormDefinition(formPath);
-
-        assertNotNull(actual);
-
-        verify(formioService, times(1)).getForm(formPath, true);
-    }
-
-    @Test
-    public void testGetFormDefinition_ThereIsFormsCacheHit() throws NoSuchFieldException, IllegalAccessException {
-        JsonNode formDefinition = new ObjectNode(JsonNodeFactory.instance);
-        String formKey = "formKey";
-        Field formsCacheField = FormioClient.class.getDeclaredField("FORMS_CACHE");
-        formsCacheField.setAccessible(true);
-        ((Map<String, JsonNode>) formsCacheField.get(FormioClient.class)).put(formKey, formDefinition);
-
-        JsonNode actual = formioClient.getFormDefinition(formKey);
-
-        assertNotNull(actual);
-
-        verify(formioService, never()).getForm(eq(formKey), eq(true));
-    }
-
-    @Test
     public void testUploadForm() {
-        String lastDeploymentId = "lastDeploymentId";
         String formDefinition = "{\"formKey\":\"keeey\", \"path\":\"formPath\"}";
-
-        when(deploymentSvc.getLatestDeploymentId()).thenReturn(lastDeploymentId);
 
         formioClient.uploadForm(formDefinition);
     }
@@ -110,10 +78,7 @@ public class FormioClientTest extends ServiceTest {
     @Test
     public void testUploadForm_formAlreadyExists() {
         String formPath = "/form1";
-        String lastDeploymentId = "lastDeploymentId";
         String formDefinition = "{\"formKey\":\"keeey\", \"path\":\"" + formPath + "\"}";
-
-        when(deploymentSvc.getLatestDeploymentId()).thenReturn(lastDeploymentId);
 
         formioClient.uploadForm(formDefinition);
     }
@@ -121,12 +86,9 @@ public class FormioClientTest extends ServiceTest {
     @Test
     public void testUploadForm_formDefinitionIsInvalid() {
         String formPath = "/form1";
-        String lastDeploymentId = "lastDeploymentId";
         String formDefinition = "{\"formKey\":\"keeey\",\"path\":\"" + formPath + "\"}";
-        String expectedFormDefinition = "{\"formKey\":\"keeey\",\"path\":\"" + formPath + "-" + lastDeploymentId + "\"}";
 
-        when(deploymentSvc.getLatestDeploymentId()).thenReturn(lastDeploymentId);
-        when(formioService.createForm(expectedFormDefinition)).thenThrow(BadRequestException.class);
+        when(formioService.createForm(formDefinition)).thenThrow(BadRequestException.class);
 
         formioClient.uploadForm(formDefinition);
     }

@@ -2,7 +2,6 @@ package com.artezio.bpm.services;
 
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
 import com.artezio.bpm.services.exceptions.NoDeploymentException;
-import com.artezio.bpm.startup.FormDeployer;
 import org.apache.commons.lang3.StringUtils;
 import org.camunda.bpm.application.ProcessApplicationInterface;
 import org.camunda.bpm.application.ProcessApplicationReference;
@@ -36,8 +35,6 @@ import static org.mockito.internal.util.reflection.FieldSetter.setField;
 @RunWith(MockitoJUnitRunner.class)
 public class DeploymentSvcTest extends ServiceTest {
 
-    @Mock
-    private FormDeployer formDeployer;
     @Mock
     private ProcessApplicationInterface processApplication;
     @InjectMocks
@@ -81,7 +78,6 @@ public class DeploymentSvcTest extends ServiceTest {
                 .thenReturn(new FileInputStream(textFile));
         when(inputBpmProcessFile.getBody(InputStream.class, null))
                 .thenReturn(new FileInputStream(bpmProcessFile));
-        doNothing().when(formDeployer).uploadForms();
 
         DeploymentRepresentation actualRepresentation = deploymentSvc.create(deploymentName, formData);
 

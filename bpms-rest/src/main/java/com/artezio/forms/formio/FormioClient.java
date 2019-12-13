@@ -80,7 +80,7 @@ public class FormioClient implements FormClient {
     public void uploadForm(String formDefinition) {
         String path = null;
         FormioService formioService = getFormioService();
-        formDefinition = IS_FORM_VERSIONING_ENABLED ? addVersion(formDefinition) : formDefinition;
+//        formDefinition = IS_FORM_VERSIONING_ENABLED ? addVersion(formDefinition) : formDefinition;
         uploadNestedForms(formDefinition);
         try {
             path = MAPPER.readTree(formDefinition).get("path").asText();
@@ -104,11 +104,6 @@ public class FormioClient implements FormClient {
         } catch (BadRequestException bre) {
             throw new FormValidationException(getExceptionDetails(bre.getResponse()));
         }
-    }
-
-    @Log(level = CONFIG, beforeExecuteMessage = "Getting definition of a form '{0}'")
-    public JsonNode getFormDefinition(String formPath) {
-        return FORMS_CACHE.computeIfAbsent(formPath, path -> getFormioService().getForm(path, true));
     }
 
     public boolean shouldProcessSubmittedData(String formPath, String submissionState) {
@@ -169,11 +164,11 @@ public class FormioClient implements FormClient {
         String formPath = referenceDefinition.get("path").asText().substring(1);
         JsonNode formDefinition = MAPPER.readTree(referenceDefinition.toString());
         String latestDeploymentFormDefinition = deploymentSvc.getLatestDeploymentForm(formPath);
-        if (IS_FORM_VERSIONING_ENABLED) {
-            uploadForm(uploadNestedForms(addVersion(latestDeploymentFormDefinition)));
-        } else {
-            uploadForm(uploadNestedForms(latestDeploymentFormDefinition));
-        }
+//        if (IS_FORM_VERSIONING_ENABLED) {
+//            uploadForm(uploadNestedForms(addVersion(latestDeploymentFormDefinition)));
+//        } else {
+        uploadForm(uploadNestedForms(latestDeploymentFormDefinition));
+//        }
         return setNestedFormFields(formDefinition);
     }
 
@@ -223,6 +218,10 @@ public class FormioClient implements FormClient {
                 && node.has("form")
                 && node.has("type")
                 && node.get("type").asText().equals("form");
+    }
+
+    private JsonNode getFormDefinition(String formPath) {
+        return FORMS_CACHE.computeIfAbsent(formPath, path -> getFormioService().getForm(path, true));
     }
 
     private String addVersion(String formDefinition) {

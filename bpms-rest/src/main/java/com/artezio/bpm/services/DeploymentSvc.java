@@ -3,7 +3,6 @@ package com.artezio.bpm.services;
 import com.artezio.bpm.localization.BpmResourceBundleControl;
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
 import com.artezio.bpm.services.exceptions.NoDeploymentException;
-import com.artezio.bpm.startup.FormDeployer;
 import com.artezio.logging.Log;
 import com.google.common.base.Charsets;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
@@ -53,8 +52,6 @@ public class DeploymentSvc {
     @Inject
     private RepositoryService repositoryService;
     @Inject
-    private FormDeployer formDeployer;
-    @Inject
     private ManagementService managementService;
     @Inject
     private ProcessApplicationInterface processApplication;
@@ -97,7 +94,6 @@ public class DeploymentSvc {
                 .forEach(deploymentBuilder::addInputStream);
         Deployment deployment = deploymentBuilder.deploy();
         registerInProcessApplication(deployment);
-        formDeployer.uploadForms();
         return DeploymentRepresentation.fromDeployment(deployment);
     }
 

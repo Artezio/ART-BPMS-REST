@@ -14,8 +14,6 @@ import java.util.Map;
 @Named
 public class FormSvc {
 
-    private final static boolean IS_FORM_VERSIONING_ENABLED = Boolean.parseBoolean(System.getProperty("FORM_VERSIONING", "true"));
-
     @Inject
     private FormClient formioClient;
     @Inject
@@ -57,7 +55,7 @@ public class FormSvc {
         String formKey = task.getProcessDefinitionId() != null
                 ? getProcessTaskFormKey(task)
                 : getCaseTaskFormKey(task);
-        return getFormKey(withoutDeploymentPrefix(formKey));
+        return formKey;
     }
 
     private String getProcessTaskFormKey(Task task) {
@@ -70,8 +68,7 @@ public class FormSvc {
     }
 
     private String getStartFormKey(String processDefinitionId) {
-        String formKey = formService.getStartFormKey(processDefinitionId);
-        return getFormKey(withoutDeploymentPrefix(formKey));
+        return formService.getStartFormKey(processDefinitionId);
     }
 
     private String getLatestDeploymentId() {
@@ -81,14 +78,6 @@ public class FormSvc {
                 .list()
                 .get(0)
                 .getId();
-    }
-
-    private String getFormKey(String formKey) {
-        if (!IS_FORM_VERSIONING_ENABLED) {
-            return formKey;
-        }
-        String deploymentId = getLatestDeploymentId();
-        return formKey + "-" + deploymentId;
     }
 
     private String withoutDeploymentPrefix(String formKey) {

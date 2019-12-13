@@ -106,25 +106,14 @@ public class FormSvcTest extends ServiceTest {
     }
 
     @Test
-    //TODO Replace 'when' part of scenario for repositoryService with method chain invocations.
-    // Problem description: 'when' part of scenario for repositoryService, which is RETURN_DEEP_STUBS, is split into
-    // several steps instead of using a chain method invocations because method 'desc()' returns generic type, hence
-    // mockito has problem with class cast.
     public void testShouldProcessSubmittedData_DecisionWithValidation() throws IOException {
-        Deployment deployment = createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
+        createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
         getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
-        JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithState.json"));
 
-        String deploymentId = deployment.getId();
         String taskId = getTaskService().createTaskQuery().taskDefinitionKey("Task_1").singleResult().getId();
         String decision = "submitted";
-        String formKey = "Form_1-" + deploymentId;
+        String formKey = "Form_1";
 
-        DeploymentQuery deploymentQuery = mock(DeploymentQuery.class);
-        when(repositoryService.createDeploymentQuery()).thenReturn(deploymentQuery);
-        when(deploymentQuery.orderByDeploymentTime()).thenReturn(deploymentQuery);
-        when(deploymentQuery.desc()).thenReturn(deploymentQuery);
-        when(deploymentQuery.list()).thenReturn(asList(deployment));
         when(formioClient.shouldProcessSubmittedData(formKey, decision)).thenReturn(true);
 
         boolean shouldSkipValidation = formSvc.shouldProcessSubmittedData(taskId, decision);
@@ -133,25 +122,14 @@ public class FormSvcTest extends ServiceTest {
     }
 
     @Test
-    //TODO Replace 'when' part of scenario for repositoryService with method chain invocations.
-    // Problem description: 'when' part of scenario for repositoryService, which is RETURN_DEEP_STUBS, is split into
-    // several steps instead of using a chain method invocations because method 'desc()' returns generic type, hence
-    // mockito has problem with class cast.
     public void testShouldProcessSubmittedData_DecisionWithoutValidation() throws IOException {
-        Deployment deployment = createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
+        createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
         getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
-        JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithState.json"));
 
-        String deploymentId = deployment.getId();
         String taskId = getTaskService().createTaskQuery().taskDefinitionKey("Task_1").singleResult().getId();
         String decision = "canceled";
-        String formKey = "Form_1-" + deploymentId;
+        String formKey = "Form_1";
 
-        DeploymentQuery deploymentQuery = mock(DeploymentQuery.class);
-        when(repositoryService.createDeploymentQuery()).thenReturn(deploymentQuery);
-        when(deploymentQuery.orderByDeploymentTime()).thenReturn(deploymentQuery);
-        when(deploymentQuery.desc()).thenReturn(deploymentQuery);
-        when(deploymentQuery.list()).thenReturn(asList(deployment));
         when(formioClient.shouldProcessSubmittedData(formKey, decision)).thenReturn(false);
 
         boolean actual = formSvc.shouldProcessSubmittedData(taskId, decision);
