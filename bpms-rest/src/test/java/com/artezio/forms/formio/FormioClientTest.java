@@ -1,5 +1,6 @@
 package com.artezio.forms.formio;
 
+import com.artezio.bpm.services.DeploymentSvc;
 import com.artezio.bpm.services.ServiceTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,13 +40,10 @@ public class FormioClientTest extends ServiceTest {
     private FormioService formioService;
     @Mock
     private ResteasyWebTarget restEasyWebTarget;
+    @Mock
+    private DeploymentSvc deploymentSvc;
     @InjectMocks
     private FormioClient formioClient = new FormioClient();
-
-    private JsonNode formDefinitionNode = new ObjectMapper().readTree(new String(Files.readAllBytes(Paths.get("./src/test/resources/testForm.json"))));
-
-    public FormioClientTest() throws IOException {
-    }
 
     @BeforeClass
     public static void initClass() throws NoSuchFieldException {
@@ -101,9 +99,10 @@ public class FormioClientTest extends ServiceTest {
 
     @Test
     public void testUploadForm() {
+        String lastDeploymentId = "lastDeploymentId";
         String formDefinition = "{\"formKey\":\"keeey\", \"path\":\"formPath\"}";
 
-        when(formioService.createForm(formDefinition)).thenReturn(formDefinitionNode);
+        when(deploymentSvc.getLatestDeploymentId()).thenReturn(lastDeploymentId);
 
         formioClient.uploadForm(formDefinition);
     }
@@ -111,21 +110,23 @@ public class FormioClientTest extends ServiceTest {
     @Test
     public void testUploadForm_formAlreadyExists() {
         String formPath = "/form1";
+        String lastDeploymentId = "lastDeploymentId";
         String formDefinition = "{\"formKey\":\"keeey\", \"path\":\"" + formPath + "\"}";
 
-        when(formioService.createForm(formDefinition)).thenThrow(BadRequestException.class);
-        when(formioService.getForm(formPath, true)).thenReturn(formDefinitionNode);
+        when(deploymentSvc.getLatestDeploymentId()).thenReturn(lastDeploymentId);
 
         formioClient.uploadForm(formDefinition);
     }
 
-    @Test(expected = BadRequestException.class)
+    @Test
     public void testUploadForm_formDefinitionIsInvalid() {
         String formPath = "/form1";
-        String formDefinition = "{\"formKey\":\"keeey\", \"path\":\"" + formPath +"\"}";
+        String lastDeploymentId = "lastDeploymentId";
+        String formDefinition = "{\"formKey\":\"keeey\",\"path\":\"" + formPath + "\"}";
+        String expectedFormDefinition = "{\"formKey\":\"keeey\",\"path\":\"" + formPath + "-" + lastDeploymentId + "\"}";
 
-        when(formioService.createForm(formDefinition)).thenThrow(BadRequestException.class);
-        when(formioService.getForm("/form1", true)).thenThrow(BadRequestException.class);
+        when(deploymentSvc.getLatestDeploymentId()).thenReturn(lastDeploymentId);
+        when(formioService.createForm(expectedFormDefinition)).thenThrow(BadRequestException.class);
 
         formioClient.uploadForm(formDefinition);
     }
