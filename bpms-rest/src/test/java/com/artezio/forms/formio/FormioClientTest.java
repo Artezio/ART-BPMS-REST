@@ -37,8 +37,6 @@ public class FormioClientTest extends ServiceTest {
     private static ResteasyClient resteasyClient = mock(ResteasyClient.class);
 
     @Mock
-    private FormioService formioService;
-    @Mock
     private ResteasyWebTarget restEasyWebTarget;
     @Mock
     private DeploymentSvc deploymentSvc;
@@ -54,7 +52,6 @@ public class FormioClientTest extends ServiceTest {
     @Before
     public void init() {
         when(resteasyClient.target(any(UriBuilder.class))).thenReturn(restEasyWebTarget);
-        when(restEasyWebTarget.proxy(FormioService.class)).thenReturn(formioService);
     }
 
     @After
@@ -88,7 +85,7 @@ public class FormioClientTest extends ServiceTest {
         String formPath = "/form1";
         String formDefinition = "{\"formKey\":\"keeey\",\"path\":\"" + formPath + "\"}";
 
-        when(formioService.createForm(formDefinition)).thenThrow(BadRequestException.class);
+//        when(formioService.createForm(formDefinition)).thenThrow(BadRequestException.class);
 
         formioClient.uploadForm(formDefinition);
     }
@@ -163,7 +160,7 @@ public class FormioClientTest extends ServiceTest {
         String formPath = "forms/form-with-state";
         String submissionState = "submitted";
 
-        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
+//        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
 
         boolean actual = formioClient.shouldProcessSubmittedData(formPath, submissionState);
 
@@ -176,7 +173,7 @@ public class FormioClientTest extends ServiceTest {
         String formPath = "forms/form-with-state";
         String submissionState = "canceled";
 
-        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
+//        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
 
         boolean actual = formioClient.shouldProcessSubmittedData(formPath, submissionState);
 
@@ -189,86 +186,11 @@ public class FormioClientTest extends ServiceTest {
         String formPath = "forms/form-with-state";
         String submissionState = "submittedWithoutProperty";
 
-        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
+//        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
 
         boolean actual = formioClient.shouldProcessSubmittedData(formPath, submissionState);
 
         assertTrue(actual);
-    }
-
-    @Test
-    public void removeReadOnlyFieldsTest_SimpleFieldIsDisabled() throws IOException {
-        JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithDisabledFields.json"));
-        Map<String, Object> variables = new HashMap<>();
-        variables.put("enabledField", "1");
-        variables.put("disabledField", "1");
-        variables.put("submit", true);
-        Map<String, Object> expected = new HashMap<>();
-        expected.put("enabledField", "1");
-        expected.put("submit", true);
-        String formPath = "forms/formWithDisabledFields";
-
-        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
-
-        Map<String, Object> actual = formioClient.removeReadOnlyVariables(variables, formPath);
-
-        assertEquals(expected, actual);
-    }
-
-    @Test
-    public void removeReadOnlyFieldsTest_ContainerFieldIsDisabled() throws IOException {
-        JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithDisabledFields.json"));
-        Map<String, Object> variables = new HashMap<>();
-        variables.put("disabledDataGrid", asList(new HashMap<String, Object>() {{ put("enabledField", "1"); }}));
-        variables.put("submit", true);
-        Map<String, Object> expected = new HashMap<>();
-        expected.put("submit", true);
-        String formPath = "forms/formWithDisabledFields";
-
-        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
-
-        Map<String, Object> actual = formioClient.removeReadOnlyVariables(variables, formPath);
-
-        assertEquals(expected, actual);
-    }
-
-    @Test
-    public void removeReadOnlyFieldsTest_ContainerFieldHasDisabledComponents() throws IOException {
-        JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithDisabledFields.json"));
-        Map<String, Object> variables = new HashMap<>();
-        variables.put("fieldContainer", new HashMap<String, Object>() {{ put("disabledField", "1"); put("enabledField", "1"); }});
-        variables.put("submit", true);
-        Map<String, Object> expected = new HashMap<>();
-        expected.put("fieldContainer", new HashMap<String, Object>() {{ put("enabledField", "1"); }});
-        expected.put("submit", true);
-        String formPath = "forms/formWithDisabledFields";
-
-        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
-
-        Map<String, Object> actual = formioClient.removeReadOnlyVariables(variables, formPath);
-
-        assertEquals(expected, actual);
-    }
-
-    @Test
-    public void removeReadOnlyFieldsTest_ArrayFieldsHaveDisabledComponents() throws IOException {
-        JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithDisabledFields.json"));
-        Map<String, Object> variables = new HashMap<>();
-        variables.put("disabledDataGrid", asList(new HashMap<String, Object>() {{ put("enabledField", "1"); }}));
-        variables.put("fieldDataGrid", asList(new HashMap<String, Object>() {{ put("disabledField", "1"); put("enabledField", "1"); }}));
-        variables.put("fieldEditGrid", asList(new HashMap<String, Object>() {{ put("disabledField", "1"); put("enabledField", "1"); }}));
-        variables.put("submit", true);
-        Map<String, Object> expected = new HashMap<>();
-        expected.put("fieldDataGrid", asList(new HashMap<String, Object>() {{ put("enabledField", "1"); }}));
-        expected.put("fieldEditGrid", asList(new HashMap<String, Object>() {{ put("enabledField", "1"); }}));
-        expected.put("submit", true);
-        String formPath = "forms/formWithDisabledFields";
-
-        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
-
-        Map<String, Object> actual = formioClient.removeReadOnlyVariables(variables, formPath);
-
-        assertEquals(expected, actual);
     }
 
 }

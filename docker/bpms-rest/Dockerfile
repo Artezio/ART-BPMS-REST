@@ -6,6 +6,8 @@ ARG KEYCLOAK_ADAPTER_VERSION=7.0.0
 ARG KEYCLOAK_ADAPTER_DOWNLOAD_URL=https://downloads.jboss.org/keycloak/${KEYCLOAK_ADAPTER_VERSION}/adapters/keycloak-oidc/keycloak-wildfly-adapter-dist-${KEYCLOAK_ADAPTER_VERSION}.tar.gz
 ARG JBOSS_CLI=/opt/jboss/wildfly/bin/jboss-cli.sh
 
+ARG NODEJS_VERSION=13.x
+
 #Possible values are: h2 (embedded db), postgres, mysql, mariadb
 ENV BPMS_REST_DB_VENDOR h2
 #The following DB settings are only applied when DB vendor is not h2
@@ -52,10 +54,21 @@ RUN chmod +x /opt/jboss/tools/bpms-rest/*.sh && \
 # Configure Wildfly	
 RUN /opt/jboss/tools/bpms-rest/configure-wildfly.sh
 
-# Setup demo database
 USER root
+
+# Setup demo database
 RUN mkdir -p /opt/bpms-rest-h2-db && chown jboss:0 /opt/bpms-rest-h2-db
 RUN yum -y install postgresql.x86_64
+
+# Install NodeJS server
+RUN cd /opt && \
+    curl -sL https://rpm.nodesource.com/setup_$NODEJS_VERSION | bash -
+RUN yum -y install nodejs
+
+# Setup formio settings
+RUN npm install -g jsdom-global jsdom formiojs
+COPY --chown=jboss:jboss tools/cleanUpSubmissionData.js /opt/jboss/tools/
+RUN cp /opt/jboss/tools/cleanUpSubmissionData.js "$(npm list -g | head -1)"
 
 USER jboss
 

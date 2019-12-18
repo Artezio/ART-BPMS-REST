@@ -3,9 +3,6 @@ package com.artezio.forms.formio;
 import com.artezio.bpm.services.DeploymentSvc;
 import com.artezio.bpm.services.VariablesMapper;
 import com.artezio.forms.FormClient;
-import com.artezio.forms.formio.auth.AddJwtTokenRequestFilter;
-import com.artezio.forms.formio.exceptions.FormNotFoundException;
-import com.artezio.forms.formio.exceptions.FormValidationException;
 import com.artezio.forms.formio.jackson.ObjectMapperProvider;
 import com.artezio.logging.Log;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -21,16 +18,11 @@ import com.jayway.jsonpath.JsonPath;
 import net.minidev.json.JSONArray;
 import org.apache.commons.text.CaseUtils;
 import org.camunda.bpm.engine.variable.value.FileValue;
-import org.jboss.resteasy.client.jaxrs.ResteasyClient;
-import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
-import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 
 import javax.inject.Inject;
 import javax.inject.Named;
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriBuilder;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -43,12 +35,12 @@ import static com.artezio.logging.Log.Level.CONFIG;
 @Named
 public class FormioClient implements FormClient {
 
-    private final static String FORMIO_SERVICE_PATH = System.getProperty("FORMIO_URL", "http://localhost:3001");
     private final static Map<String, JsonNode> FORMS_CACHE = new ConcurrentHashMap<>();
     private final static Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private final static Map<Integer, Boolean> SUBMITTED_DATA_PROCESSING_PROPERTY_CACHE = new ConcurrentHashMap<>();
+    private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "dryValidationAndCleanUp.js";
+    private final static String CLEAN_UP_SCRIPT_NAME = "cleanUp.js";
     private final static boolean IS_FORM_VERSIONING_ENABLED = Boolean.parseBoolean(System.getProperty("FORM_VERSIONING", "true"));
-    private static ResteasyClient client;
 
     private final static ObjectMapper MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
@@ -56,37 +48,33 @@ public class FormioClient implements FormClient {
 
     static {
         ObjectMapperProvider.registerFileValueSerializers(MAPPER);
-        client = new ResteasyClientBuilder()
-                .connectionPoolSize(10)
-                .register(new AddJwtTokenRequestFilter())
-                .register(new ObjectMapperProvider())
-                .build();
     }
 
     @Inject
     private VariablesMapper variablesMapper;
     @Inject
     private DeploymentSvc deploymentSvc;
+    @Inject
+    private NodeJsProcessor nodeJsProcessor;
 
+    //TODO implement getting parent form with its subform in a flat form
     @Log(level = CONFIG, beforeExecuteMessage = "Getting definition with data for a form '{0}'")
     public String getFormWithData(String formPath, Map<String, Object> variables) {
-        JsonNode form = getForm(formPath);
-        JsonNode data = cleanUnusedData(formPath, variables);
-        ((ObjectNode) form).set("data", wrapSubformData(data, form));
-        return form.toString();
+        try {
+            JsonNode form = MAPPER.readTree(deploymentSvc.getLatestDeploymentForm(formPath));
+            JsonNode data = cleanUnusedData(formPath, variables);
+            ((ObjectNode) form).set("data", wrapSubformData(data, form));
+            return form.toString();
+        } catch (IOException e) {
+            throw new RuntimeException("Could not get a form.", e);
+        }
     }
 
-    @Log(level = CONFIG, beforeExecuteMessage = "Uploading a form")
     public void uploadForm(String formDefinition) {
-        String path = null;
-        FormioService formioService = getFormioService();
 //        formDefinition = IS_FORM_VERSIONING_ENABLED ? addVersion(formDefinition) : formDefinition;
-        uploadNestedForms(formDefinition);
         try {
-            path = MAPPER.readTree(formDefinition).get("path").asText();
-            formioService.createForm(formDefinition);
-        } catch (BadRequestException bre) {
-            formioService.getForm(path, true);
+            uploadNestedForms(formDefinition);
+            String path = MAPPER.readTree(formDefinition).get("path").asText();
         } catch (IOException e) {
             throw new RuntimeException("Error while uploading a form", e);
         }
@@ -95,28 +83,23 @@ public class FormioClient implements FormClient {
     @Log(level = CONFIG, beforeExecuteMessage = "Performing dry validation and cleanup of a form '{0}'")
     public String dryValidationAndCleanup(String formPath, Map<String, Object> variables) {
         try {
-            variables = convertVariablesToFileRepresentations(variables, getFormDefinition(formPath).toString());
-//            variables = removeReadOnlyVariables(variables, formPath);
-            JsonNode data = getFormioService()
-                    .submission(formPath, toFormIoSubmissionData(variables))
-                    .get("data");
-            return unwrapSubformData(data, formPath).toString();
-        } catch (BadRequestException bre) {
-            throw new FormValidationException(getExceptionDetails(bre.getResponse()));
+            String formDefinition = deploymentSvc.getLatestDeploymentForm(formPath);
+            variables = convertVariablesToFileRepresentations(variables, formDefinition);
+            String submissionData = MAPPER.writeValueAsString(toFormIoSubmissionData(variables));
+            InputStream validationResult = nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition, submissionData);
+            JsonNode cleanedUpData = MAPPER.readTree(validationResult).get("data");
+            return unwrapSubformData(cleanedUpData, formPath).toString();
+        } catch (IOException e) {
+            throw new RuntimeException("Error while dry validation and cleanup", e);
         }
     }
 
     public boolean shouldProcessSubmittedData(String formPath, String submissionState) {
-        String formDefinitionJson = getFormDefinition(formPath).toString();
+        String formDefinitionJson = deploymentSvc.getLatestDeploymentForm(formPath);
         Filter saveStateComponentsFilter = Filter.filter((Criteria.where("action").eq("saveState").and("state").eq(submissionState)));
         return SUBMITTED_DATA_PROCESSING_PROPERTY_CACHE.computeIfAbsent(
                 Objects.hash(formDefinitionJson, submissionState),
                 key -> shouldProcessSubmittedData(formDefinitionJson, saveStateComponentsFilter));
-    }
-    
-    protected Map<String, Object> removeReadOnlyVariables(Map<String, Object> variables, String formPath) {
-        JsonNode formDefinition = getFormDefinition(formPath);
-        return removeReadOnlyVariables(variables, formDefinition);
     }
 
     protected String uploadNestedForms(String formDefinition) {
@@ -174,7 +157,8 @@ public class FormioClient implements FormClient {
 
     protected JsonNode setNestedFormFields(JsonNode referenceDefinition) throws IOException {
         ObjectNode modifiedNode = referenceDefinition.deepCopy();
-        String id = getFormDefinition(referenceDefinition.get("path").asText()).get("_id").asText();
+        JsonNode formDefinition = MAPPER.readTree(deploymentSvc.getLatestDeploymentForm(referenceDefinition.get("path").asText()));
+        String id = formDefinition.get("_id").asText();
         modifiedNode.put("form", id);
         modifiedNode.put("reference", false);
         modifiedNode.put("path", "");
@@ -220,10 +204,6 @@ public class FormioClient implements FormClient {
                 && node.get("type").asText().equals("form");
     }
 
-    private JsonNode getFormDefinition(String formPath) {
-        return FORMS_CACHE.computeIfAbsent(formPath, path -> getFormioService().getForm(path, true));
-    }
-
     private String addVersion(String formDefinition) {
         String version = deploymentSvc.getLatestDeploymentId();
         try {
@@ -241,48 +221,6 @@ public class FormioClient implements FormClient {
         }
     }
 
-    private Map<String, Object> removeReadOnlyVariables(Map<String, Object> variables, JsonNode containerDefinition) {
-        JsonNode containerComponents = containerDefinition.get("components");
-        getStream(containerComponents)
-                .filter(component -> variables.containsKey(component.get("key").asText()))
-                .forEach(component -> {
-                    String componentName = component.get("key").asText();
-                    if (isContainerComponent(component) && isComponentEnabled(component)) {
-                        Map<String, Object> nestedVariables = (Map<String, Object>) variables.get(componentName);
-                        removeReadOnlyVariables(nestedVariables, component);
-                    } else if (isArrayComponent(component) && isComponentEnabled(component)) {
-                        List<Map<String, Object>> nestedVariables = (List<Map<String, Object>>) variables.get(componentName);
-                        removeReadOnlyVariables(nestedVariables, component);
-                    } else if (!isComponentEnabled(component)) {
-                        variables.remove(componentName);
-                    }
-        });
-        return variables;
-    }
-
-    private List<Map<String, Object>> removeReadOnlyVariables(List<Map<String, Object>> variables, JsonNode arrayDefinition) {
-        ArrayNode arrayComponents = (ArrayNode) arrayDefinition.get("components");
-        return variables.stream()
-                .peek(wrappedVariables -> {
-                    ArrayList<Map.Entry<String, Object>> wrappedVariableList = new ArrayList<>(wrappedVariables.entrySet());
-                    for (int i = 0; i < arrayComponents.size(); i++) {
-                        JsonNode component = arrayComponents.get(i);
-                        Map.Entry<String, Object> variable = wrappedVariableList.get(i);
-                        if (isContainerComponent(component) && isComponentEnabled(component)) {
-                            Map<String, Object> nestedVariables = (Map<String, Object>) variable.getValue();
-                            removeReadOnlyVariables(nestedVariables, component);
-                        } else if (isArrayComponent(component) && isComponentEnabled(component)) {
-                            List<Map<String, Object>> nestedVariables = (List<Map<String, Object>>) variable.getValue();
-                            removeReadOnlyVariables(nestedVariables, component);
-                        } else if (!isComponentEnabled(component)) {
-                            wrappedVariables.remove(variable.getKey());
-                        }
-                    }
-                })
-                .filter(wrappedVariables -> !wrappedVariables.isEmpty())
-                .collect(Collectors.toList());
-    }
-
     private boolean isComponentEnabled(JsonNode component) {
         return component.get("disabled") == null || component.get("disabled").asText().equals("false");
     }
@@ -298,40 +236,8 @@ public class FormioClient implements FormClient {
                 .orElse(true);
     }
 
-    protected String getExceptionDetails(Response response) {
-        if (!response.hasEntity()) {
-            return "";
-        }
-        try {
-            String rawResponseBody = response.readEntity(String.class);
-            JsonNode responseBody = new ObjectMapper().readTree(rawResponseBody);
-            if (!responseBody.at("/details").isMissingNode()) {
-                return getStream(responseBody.get("details"))
-                        .map(detail -> detail.get("message").asText())
-                        .collect(Collectors.joining(", "));
-            } else {
-                return rawResponseBody;
-            }
-        } catch (IOException ignored) {
-        }
-        return "";
-    }
-
-    protected JsonNode getForm(String formPath) throws FormNotFoundException {
-        try {
-            return getFormioService().getForm(formPath, true);
-        } catch (BadRequestException bre) {
-            throw new FormNotFoundException(formPath);
-        }
-    }
-
-    protected static FormioService getFormioService() {
-        ResteasyWebTarget target = client.target(UriBuilder.fromPath(FORMIO_SERVICE_PATH));
-        return target.proxy(FormioService.class);
-    }
-
-    protected JsonNode unwrapSubformData(JsonNode data, String formPath) {
-        JsonNode formDefinition = getFormDefinition(formPath);
+    protected JsonNode unwrapSubformData(JsonNode data, String formPath) throws IOException {
+        JsonNode formDefinition = MAPPER.readTree(deploymentSvc.getLatestDeploymentForm(formPath));
         return unwrapSubformData(data, formDefinition);
     }
 
@@ -432,17 +338,14 @@ public class FormioClient implements FormClient {
         }
     }
 
-    private JsonNode cleanUnusedData(String formPath, Map<String, Object> variables) {
+    private JsonNode cleanUnusedData(String formPath, Map<String, Object> variables) throws IOException {
         Map<String, Object> convertedVariables = variablesMapper.convertEntitiesToMaps(variables);
-        List<JsonNode> childComponentDefinitions = getChildComponentDefinitions(getFormDefinition(formPath));
+        String latestDeploymentForm = deploymentSvc.getLatestDeploymentForm(formPath);
+        JsonNode formDefinition = MAPPER.readTree(latestDeploymentForm);
+        List<JsonNode> childComponentDefinitions = getChildComponentDefinitions(formDefinition);
         Map<String, Object> wrappedObjects = getWrappedVariables(convertedVariables, childComponentDefinitions);
-        try {
-            return getFormioService()
-                    .cleanUp(formPath, toFormIoSubmissionData(wrappedObjects))
-                    .get("data");
-        } catch (BadRequestException bre) {
-            throw new FormNotFoundException(formPath);
-        }
+        String submissionData = MAPPER.writeValueAsString(toFormIoSubmissionData(wrappedObjects));
+        return MAPPER.readTree(nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, latestDeploymentForm, submissionData)).get("data");
     }
 
     @SuppressWarnings("serial")
