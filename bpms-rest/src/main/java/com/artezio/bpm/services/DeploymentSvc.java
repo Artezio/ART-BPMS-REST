@@ -2,9 +2,7 @@ package com.artezio.bpm.services;
 
 import com.artezio.bpm.localization.BpmResourceBundleControl;
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
-import com.artezio.bpm.services.exceptions.NoDeploymentException;
 import com.artezio.logging.Log;
-import com.google.common.base.Charsets;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -12,7 +10,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.io.IOUtils;
 import org.camunda.bpm.application.ProcessApplicationInterface;
 import org.camunda.bpm.engine.ManagementService;
 import org.camunda.bpm.engine.RepositoryService;
@@ -97,40 +94,6 @@ public class DeploymentSvc {
         return DeploymentRepresentation.fromDeployment(deployment);
     }
 
-    @PermitAll
-    @Log(level = CONFIG, beforeExecuteMessage = "Getting list of form ids from deployment resources")
-    public List<String> listLatestDeploymentFormIds() {
-        Deployment latestDeployment = getLatestDeployment();
-        return repositoryService.getDeploymentResources(latestDeployment.getId()).stream()
-                .filter(resource -> resource.getName().startsWith(FORMS_FOLDER))
-                .map(Resource::getName)
-                .collect(Collectors.toList());
-    }
-
-    @PermitAll
-    @Log(level = CONFIG, beforeExecuteMessage = "Getting form '{0}' from deployment resources")
-    public String getLatestDeploymentForm(String formId) {
-        Deployment latestDeployment = getLatestDeployment();
-        formId = !formId.endsWith(".json") ? formId.concat(".json") : formId;
-        try (InputStream in = repositoryService.getResourceAsStream(latestDeployment.getId(), formId)) {
-            return IOUtils.toString(in, Charsets.UTF_8);
-        } catch (IOException e) {
-            throw new RuntimeException("Error on load form " + formId, e);
-        }
-    }
-
-    @PermitAll
-    public boolean deploymentsExist() {
-        return !repositoryService.createDeploymentQuery()
-                .list()
-                .isEmpty();
-    }
-
-    @PermitAll
-    public String getLatestDeploymentId() {
-        return getLatestDeployment().getId();
-    }
-
     @RolesAllowed("BPMSAdmin")
     @GET
     @Path("/")
@@ -148,13 +111,12 @@ public class DeploymentSvc {
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of deployments")
     public List<DeploymentRepresentation> list() {
-        List<DeploymentRepresentation> result = repositoryService
+        return repositoryService
                 .createDeploymentQuery()
                 .list()
                 .stream()
                 .map(DeploymentRepresentation::fromDeployment)
                 .collect(Collectors.toList());
-        return result;
     }
 
     @PermitAll
@@ -207,18 +169,14 @@ public class DeploymentSvc {
         repositoryService.deleteDeployment(deploymentId, true);
     }
 
-    private void registerInProcessApplication(Deployment deployment) {
-        managementService.registerProcessApplication(deployment.getId(), processApplication.getReference());
+    @PermitAll
+    @Log(level = CONFIG, beforeExecuteMessage = "Getting form '{0}' from deployment resources")
+    public InputStream getResource(String deploymentId, String resourceName) {
+        return repositoryService.getResourceAsStream(deploymentId, resourceName);
     }
 
-    private Deployment getLatestDeployment() {
-        return repositoryService.createDeploymentQuery()
-                .orderByDeploymentTime()
-                .desc()
-                .list()
-                .stream()
-                .findFirst()
-                .orElseThrow(NoDeploymentException::new);
+    private void registerInProcessApplication(Deployment deployment) {
+        managementService.registerProcessApplication(deployment.getId(), processApplication.getReference());
     }
 
     private Map<String, InputStream> getFormParts(MultipartFormDataInput input) {

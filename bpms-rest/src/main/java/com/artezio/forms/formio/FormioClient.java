@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.BooleanNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.Criteria;
@@ -35,12 +34,11 @@ import static com.artezio.logging.Log.Level.CONFIG;
 @Named
 public class FormioClient implements FormClient {
 
-    private final static Map<String, JsonNode> FORMS_CACHE = new ConcurrentHashMap<>();
+    private final static Map<String, JsonNode> FORM_CACHE = new ConcurrentHashMap<>();
     private final static Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private final static Map<Integer, Boolean> SUBMITTED_DATA_PROCESSING_PROPERTY_CACHE = new ConcurrentHashMap<>();
     private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "dryValidationAndCleanUp.js";
     private final static String CLEAN_UP_SCRIPT_NAME = "cleanUp.js";
-    private final static boolean IS_FORM_VERSIONING_ENABLED = Boolean.parseBoolean(System.getProperty("FORM_VERSIONING", "true"));
 
     private final static ObjectMapper MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
@@ -59,170 +57,51 @@ public class FormioClient implements FormClient {
 
     //TODO implement getting parent form with its subform in a flat form
     @Log(level = CONFIG, beforeExecuteMessage = "Getting definition with data for a form '{0}'")
-    public String getFormWithData(String formPath, Map<String, Object> variables) {
+    public String getFormWithData(String deploymentId, String formPath, Map<String, Object> variables) {
         try {
-            JsonNode form = MAPPER.readTree(deploymentSvc.getLatestDeploymentForm(formPath));
-            JsonNode data = cleanUnusedData(formPath, variables);
+            JsonNode form = getForm(deploymentId, formPath);
+            JsonNode data = cleanUnusedData(deploymentId, formPath, variables);
             ((ObjectNode) form).set("data", wrapSubformData(data, form));
             return form.toString();
         } catch (IOException e) {
-            throw new RuntimeException("Could not get a form.", e);
-        }
-    }
-
-    public void uploadForm(String formDefinition) {
-//        formDefinition = IS_FORM_VERSIONING_ENABLED ? addVersion(formDefinition) : formDefinition;
-        try {
-            uploadNestedForms(formDefinition);
-            String path = MAPPER.readTree(formDefinition).get("path").asText();
-        } catch (IOException e) {
-            throw new RuntimeException("Error while uploading a form", e);
+            throw new RuntimeException("Failed to get a form.", e);
         }
     }
 
     @Log(level = CONFIG, beforeExecuteMessage = "Performing dry validation and cleanup of a form '{0}'")
-    public String dryValidationAndCleanup(String formPath, Map<String, Object> variables) {
+    public String dryValidationAndCleanup(String deploymentId, String formPath, Map<String, Object> variables) {
         try {
-            String formDefinition = deploymentSvc.getLatestDeploymentForm(formPath);
+            String formDefinition = getForm(deploymentId, formPath).toString();
             variables = convertVariablesToFileRepresentations(variables, formDefinition);
             String submissionData = MAPPER.writeValueAsString(toFormIoSubmissionData(variables));
-            InputStream validationResult = nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition, submissionData);
-            JsonNode cleanedUpData = MAPPER.readTree(validationResult).get("data");
-            return unwrapSubformData(cleanedUpData, formPath).toString();
+            try (InputStream validationResult = nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition, submissionData)) {
+                JsonNode cleanData = MAPPER.readTree(validationResult).get("data");
+                return unwrapSubformData(cleanData, deploymentId, formPath).toString();
+            }
         } catch (IOException e) {
             throw new RuntimeException("Error while dry validation and cleanup", e);
         }
     }
 
-    public boolean shouldProcessSubmittedData(String formPath, String submissionState) {
-        String formDefinitionJson = deploymentSvc.getLatestDeploymentForm(formPath);
+    public boolean shouldProcessSubmittedData(String deploymentId, String formPath, String submissionState) {
+        String formDefinition = getForm(deploymentId, formPath).toString();
         Filter saveStateComponentsFilter = Filter.filter((Criteria.where("action").eq("saveState").and("state").eq(submissionState)));
         return SUBMITTED_DATA_PROCESSING_PROPERTY_CACHE.computeIfAbsent(
-                Objects.hash(formDefinitionJson, submissionState),
-                key -> shouldProcessSubmittedData(formDefinitionJson, saveStateComponentsFilter));
+                Objects.hash(formDefinition, submissionState),
+                key -> shouldProcessSubmittedData(formDefinition, saveStateComponentsFilter));
     }
 
-    protected String uploadNestedForms(String formDefinition) {
-        try {
-            return uploadNestedForms(MAPPER.readTree(formDefinition)).toString();
-        } catch (IOException e) {
-            throw new RuntimeException("Unable to read form.", e);
-        }
-    }
-
-    protected JsonNode uploadNestedForms(JsonNode definition) throws IOException {
-        if (isNestedForm(definition) && !definition.get("path").asText().isEmpty()) {
-            return uploadNestedForm(definition);
-        }
-        if (definition.isArray()) {
-            return uploadNestedForms((ArrayNode) definition);
-        }
-        if (definition.isObject()) {
-            return uploadNestedForms((ObjectNode) definition);
-        }
-        return definition;
-    }
-
-    protected JsonNode uploadNestedForms(ObjectNode node) throws IOException {
-        node = node.deepCopy();
-        List<String> fieldNames = new ArrayList<>();
-        node.fieldNames().forEachRemaining(fieldNames::add);
-        for (String fieldName : fieldNames) {
-            JsonNode nodeWithReplacedIds = uploadNestedForms(node.get(fieldName));
-            node.set(fieldName, nodeWithReplacedIds);
-        }
-        return node;
-    }
-
-    protected JsonNode uploadNestedForms(ArrayNode node) throws IOException {
-        node = node.deepCopy();
-        for (int i = 0; i < node.size(); i++) {
-            JsonNode nodeWithReplacedIds = uploadNestedForms(node.get(i));
-            node.set(i, nodeWithReplacedIds);
-        }
-        return node;
-    }
-
-    protected JsonNode uploadNestedForm(JsonNode referenceDefinition) throws IOException {
-        String formPath = referenceDefinition.get("path").asText().substring(1);
-        JsonNode formDefinition = MAPPER.readTree(referenceDefinition.toString());
-        String latestDeploymentFormDefinition = deploymentSvc.getLatestDeploymentForm(formPath);
-//        if (IS_FORM_VERSIONING_ENABLED) {
-//            uploadForm(uploadNestedForms(addVersion(latestDeploymentFormDefinition)));
-//        } else {
-        uploadForm(uploadNestedForms(latestDeploymentFormDefinition));
-//        }
-        return setNestedFormFields(formDefinition);
-    }
-
-    protected JsonNode setNestedFormFields(JsonNode referenceDefinition) throws IOException {
-        ObjectNode modifiedNode = referenceDefinition.deepCopy();
-        JsonNode formDefinition = MAPPER.readTree(deploymentSvc.getLatestDeploymentForm(referenceDefinition.get("path").asText()));
-        String id = formDefinition.get("_id").asText();
-        modifiedNode.put("form", id);
-        modifiedNode.put("reference", false);
-        modifiedNode.put("path", "");
-        if (referenceDefinition.has("protected") && referenceDefinition.get("protected").asBoolean()) {
-            modifiedNode.remove("protected");
-            referenceDefinition = disableAllFields(modifiedNode);
-            return uploadNestedForms(referenceDefinition);
-        } else {
-            return uploadNestedForms(modifiedNode);
-        }
-    }
-
-    protected JsonNode disableAllFields(JsonNode node) {
-        if (node.isArray()) {
-            ArrayNode arrayNode = node.deepCopy();
-            for (int index = 0; index < node.size(); index++) {
-                arrayNode.set(index, disableAllFields(node.get(index)));
-            }
-            return arrayNode;
-        }
-        if (node.isObject()) {
-            ObjectNode objectNode = node.deepCopy();
-            if (objectNode.has("type")) {
-                objectNode.set("disabled", BooleanNode.TRUE);
-            }
-            if (objectNode.isContainerNode()) {
-                List<String> fieldNames = new ArrayList<>();
-                node.fieldNames().forEachRemaining(fieldNames::add);
-                for (String fieldName : fieldNames) {
-                    JsonNode nodeWithDisabledFields = disableAllFields(node.get(fieldName));
-                    objectNode.set(fieldName, nodeWithDisabledFields);
-                }
-            }
-            return objectNode;
-        }
-        return node;
-    }
-
-    protected boolean isNestedForm(JsonNode node) {
-        return node.isContainerNode()
-                && node.has("form")
-                && node.has("type")
-                && node.get("type").asText().equals("form");
-    }
-
-    private String addVersion(String formDefinition) {
-        String version = deploymentSvc.getLatestDeploymentId();
-        try {
-            ObjectNode form = (ObjectNode) MAPPER.readTree(formDefinition);
-            form.put("path", form.get("path").asText() + "-" + version);
-            if (form.has("name")) {
-                form.put("name", form.get("name").asText() + "-" + version);
-            }
-            if (form.has("machineName")) {
-                form.put("machineName", form.get("machineName").asText() + "-" + version);
-            }
-            return form.toString();
-        } catch (IOException e) {
-            throw new RuntimeException("Error while parsing json form definition", e);
-        }
-    }
-
-    private boolean isComponentEnabled(JsonNode component) {
-        return component.get("disabled") == null || component.get("disabled").asText().equals("false");
+    private JsonNode getForm(String deploymentId, String formPath) {
+        String formPathWithExt = !formPath.endsWith(".json") ? formPath.concat(".json") : formPath;
+        return FORM_CACHE.computeIfAbsent(
+                String.valueOf(Objects.hash(deploymentId + formPath)),
+                cacheKey -> {
+                    try {
+                        return MAPPER.readTree(deploymentSvc.getResource(deploymentId, formPathWithExt));
+                    } catch (IOException e) {
+                        throw new RuntimeException("Failed to get a form into the cache.", e);
+                    }
+                });
     }
 
     private boolean shouldProcessSubmittedData(String formDefinitionJson, Filter saveStateComponentsFilter) {
@@ -236,8 +115,8 @@ public class FormioClient implements FormClient {
                 .orElse(true);
     }
 
-    protected JsonNode unwrapSubformData(JsonNode data, String formPath) throws IOException {
-        JsonNode formDefinition = MAPPER.readTree(deploymentSvc.getLatestDeploymentForm(formPath));
+    protected JsonNode unwrapSubformData(JsonNode data, String deploymentId, String formPath) {
+        JsonNode formDefinition = getForm(deploymentId, formPath);
         return unwrapSubformData(data, formDefinition);
     }
 
@@ -338,14 +217,16 @@ public class FormioClient implements FormClient {
         }
     }
 
-    private JsonNode cleanUnusedData(String formPath, Map<String, Object> variables) throws IOException {
+    private JsonNode cleanUnusedData(String deploymentId, String formPath, Map<String, Object> variables) throws IOException {
         Map<String, Object> convertedVariables = variablesMapper.convertEntitiesToMaps(variables);
-        String latestDeploymentForm = deploymentSvc.getLatestDeploymentForm(formPath);
-        JsonNode formDefinition = MAPPER.readTree(latestDeploymentForm);
+        JsonNode formDefinition = getForm(deploymentId, formPath);
         List<JsonNode> childComponentDefinitions = getChildComponentDefinitions(formDefinition);
         Map<String, Object> wrappedObjects = getWrappedVariables(convertedVariables, childComponentDefinitions);
         String submissionData = MAPPER.writeValueAsString(toFormIoSubmissionData(wrappedObjects));
-        return MAPPER.readTree(nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, latestDeploymentForm, submissionData)).get("data");
+        try (InputStream cleanUpResult = nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), submissionData)) {
+            return MAPPER.readTree(cleanUpResult)
+                    .get("data");
+        }
     }
 
     @SuppressWarnings("serial")

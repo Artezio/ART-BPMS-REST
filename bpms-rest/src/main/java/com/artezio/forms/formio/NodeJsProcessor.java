@@ -45,10 +45,12 @@ public class NodeJsProcessor {
                 .start();
     }
 
-    private void checkErrors(Process nodeJs) throws IOException {
-        String stderrContent = IOUtils.toString(readFromStderr(nodeJs), StandardCharsets.UTF_8);
-        if (!stderrContent.isEmpty()) {
-            throw new FormioProcessorException(stderrContent);
+    private void checkErrors(Process process) throws IOException {
+        try (InputStream stderr = readFromStderr(process)) {
+            String stderrContent = IOUtils.toString(stderr, StandardCharsets.UTF_8);
+            if (!stderrContent.isEmpty()) {
+                throw new FormioProcessorException(stderrContent);
+            }
         }
     }
 

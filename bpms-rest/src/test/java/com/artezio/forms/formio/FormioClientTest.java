@@ -4,90 +4,39 @@ import com.artezio.bpm.services.DeploymentSvc;
 import com.artezio.bpm.services.ServiceTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.jboss.resteasy.client.jaxrs.ResteasyClient;
-import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.core.UriBuilder;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.Map;
 
-import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-import static org.mockito.internal.util.reflection.FieldSetter.setField;
+import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class FormioClientTest extends ServiceTest {
 
-    private static ResteasyClient resteasyClient = mock(ResteasyClient.class);
-
-    @Mock
-    private ResteasyWebTarget restEasyWebTarget;
     @Mock
     private DeploymentSvc deploymentSvc;
     @InjectMocks
     private FormioClient formioClient = new FormioClient();
 
-    @BeforeClass
-    public static void initClass() throws NoSuchFieldException {
-        Field restEasyClientField = FormioClient.class.getDeclaredField("client");
-        setField(FormioClient.class, restEasyClientField, resteasyClient);
-    }
-
-    @Before
-    public void init() {
-        when(resteasyClient.target(any(UriBuilder.class))).thenReturn(restEasyWebTarget);
-    }
-
     @After
     public void tearDown() throws NoSuchFieldException, IllegalAccessException {
-        reset(resteasyClient);
-        Field formsCacheField = FormioClient.class.getDeclaredField("FORMS_CACHE");
+        Field formsCacheField = FormioClient.class.getDeclaredField("FORM_CACHE");
         Field submitButtonsCacheField = FormioClient.class.getDeclaredField("SUBMITTED_DATA_PROCESSING_PROPERTY_CACHE");
         formsCacheField.setAccessible(true);
         submitButtonsCacheField.setAccessible(true);
         ((Map<String, JsonNode>) formsCacheField.get(FormioClient.class)).clear();
         ((Map<String, JsonNode>) submitButtonsCacheField.get(FormioClient.class)).clear();
-    }
-
-    @Test
-    public void testUploadForm() {
-        String formDefinition = "{\"formKey\":\"keeey\", \"path\":\"formPath\"}";
-
-        formioClient.uploadForm(formDefinition);
-    }
-
-    @Test
-    public void testUploadForm_formAlreadyExists() {
-        String formPath = "/form1";
-        String formDefinition = "{\"formKey\":\"keeey\", \"path\":\"" + formPath + "\"}";
-
-        formioClient.uploadForm(formDefinition);
-    }
-
-    @Test
-    public void testUploadForm_formDefinitionIsInvalid() {
-        String formPath = "/form1";
-        String formDefinition = "{\"formKey\":\"keeey\",\"path\":\"" + formPath + "\"}";
-
-//        when(formioService.createForm(formDefinition)).thenThrow(BadRequestException.class);
-
-        formioClient.uploadForm(formDefinition);
     }
 
     @Test
@@ -156,39 +105,39 @@ public class FormioClientTest extends ServiceTest {
 
     @Test
     public void shouldProcessSubmittedData_SubmissionStateIsSubmitted() throws IOException {
-        JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithState.json"));
+        String deploymentId = "deploymentId";
         String formPath = "forms/form-with-state";
         String submissionState = "submitted";
 
-//        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
+        when(deploymentSvc.getResource(deploymentId, formPath + ".json")).thenReturn(new FileInputStream(getFile("forms/formWithState.json")));
 
-        boolean actual = formioClient.shouldProcessSubmittedData(formPath, submissionState);
+        boolean actual = formioClient.shouldProcessSubmittedData(deploymentId, formPath, submissionState);
 
         assertTrue(actual);
     }
 
     @Test
     public void shouldProcessSubmittedData_SubmissionStateIsCanceled() throws IOException {
-        JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithState.json"));
+        String deploymentId = "deploymentId";
         String formPath = "forms/form-with-state";
         String submissionState = "canceled";
 
-//        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
+        when(deploymentSvc.getResource(deploymentId, formPath + ".json")).thenReturn(new FileInputStream(getFile("forms/formWithState.json")));
 
-        boolean actual = formioClient.shouldProcessSubmittedData(formPath, submissionState);
+        boolean actual = formioClient.shouldProcessSubmittedData(deploymentId, formPath, submissionState);
 
         assertFalse(actual);
     }
 
     @Test
     public void shouldProcessSubmittedData_SkipDataProcessingPropertyNotSet() throws IOException {
-        JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithState.json"));
+        String deploymentId = "deploymentId";
         String formPath = "forms/form-with-state";
         String submissionState = "submittedWithoutProperty";
 
-//        when(formioService.getForm(formPath, true)).thenReturn(formDefinition);
+        when(deploymentSvc.getResource(deploymentId, formPath + ".json")).thenReturn(new FileInputStream(getFile("forms/formWithState.json")));
 
-        boolean actual = formioClient.shouldProcessSubmittedData(formPath, submissionState);
+        boolean actual = formioClient.shouldProcessSubmittedData(deploymentId, formPath, submissionState);
 
         assertTrue(actual);
     }
