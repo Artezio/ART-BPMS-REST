@@ -67,8 +67,6 @@ RUN yum -y install nodejs
 
 # Setup formio settings
 RUN npm install -g jsdom-global jsdom formiojs
-COPY --chown=jboss:jboss tools/cleanUpSubmissionData.js /opt/jboss/tools/
-RUN cp /opt/jboss/tools/cleanUpSubmissionData.js "$(npm list -g | head -1)"
 
 USER jboss
 
