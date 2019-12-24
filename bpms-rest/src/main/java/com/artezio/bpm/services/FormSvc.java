@@ -36,9 +36,9 @@ public class FormSvc {
     public String dryValidationAndCleanupTaskForm(String taskId, Map<String, Object> formVariables) {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
-        Collection<String> taskVariableNames = formClient.getFormVariableNames(deploymentId, formKey);
-        Map<String, Object> taskVariables = taskService.getVariables(taskId, taskVariableNames);
-        return formClient.dryValidationAndCleanup(deploymentId, formKey, formVariables, taskVariables);
+        Collection<String> formVariableNames = formClient.getFormVariableNames(deploymentId, formKey);
+        Map<String, Object> processVariables = taskService.getVariables(taskId, formVariableNames);
+        return formClient.dryValidationAndCleanup(deploymentId, formKey, formVariables, processVariables);
     }
     
     public String dryValidationAndCleanupStartForm(String processDefinitionId, Map<String, Object> formVariables) {
@@ -50,7 +50,7 @@ public class FormSvc {
     public boolean shouldProcessSubmittedData(String taskId, String decision) {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
-        return formClient.shouldProcessSubmittedData(deploymentId, formKey, decision);
+        return formClient.shouldProcessSubmission(deploymentId, formKey, decision);
     }
 
     private String getTaskFormKey(String taskId) {

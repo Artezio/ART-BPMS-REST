@@ -135,7 +135,7 @@ public class FormComponent {
     public boolean isSubform() {
         return "form".equals(type) && src != null;
     }
-    
+    //FIXME check all components
     public boolean containsFileComponent(String componentKey) {
         return getChildComponents().stream()
             .filter(component -> componentKey.equals(component.getKey()))

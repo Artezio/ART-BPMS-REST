@@ -106,7 +106,7 @@ public class FormSvcTest extends ServiceTest {
         String decision = "submitted";
         String formKey = "Form_1";
 
-        when(formioClient.shouldProcessSubmittedData(deployment.getId(), formKey, decision)).thenReturn(true);
+        when(formioClient.shouldProcessSubmission(deployment.getId(), formKey, decision)).thenReturn(true);
 
         boolean shouldSkipValidation = formSvc.shouldProcessSubmittedData(taskId, decision);
 
@@ -122,7 +122,7 @@ public class FormSvcTest extends ServiceTest {
         String decision = "canceled";
         String formKey = "Form_1";
 
-        when(formioClient.shouldProcessSubmittedData(deployment.getId(), formKey, decision)).thenReturn(false);
+        when(formioClient.shouldProcessSubmission(deployment.getId(), formKey, decision)).thenReturn(false);
 
         boolean actual = formSvc.shouldProcessSubmittedData(taskId, decision);
 
