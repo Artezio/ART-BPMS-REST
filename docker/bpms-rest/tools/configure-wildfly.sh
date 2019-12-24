@@ -11,8 +11,8 @@ $JBOSS_CLI --commands="embed-server --server-config=standalone.xml"\
 ,"/subsystem=keycloak/secure-deployment=bpms-rest.war:add( \
 	realm=\${env.KEYCLOAK_REALM}, \
 	resource=\${env.KEYCLOAK_CLIENT_ID}, \
-  enable-basic-auth=true, \
-  enable-cors=true, \
+  	enable-basic-auth=true, \
+  	enable-cors=true, \
 	public-client=true, \
 	auth-server-url=\${env.KEYCLOAK_SERVER_URL}, \
 	principal-attribute=\${env.KEYCLOAK_USERNAME_ATTRIBUTE})"\

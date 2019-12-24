@@ -1,9 +1,6 @@
 package com.artezio.bpm.services;
 
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
-import com.artezio.bpm.services.exceptions.NoDeploymentException;
-import com.artezio.bpm.startup.FormDeployer;
-import org.apache.commons.lang3.StringUtils;
 import org.camunda.bpm.application.ProcessApplicationInterface;
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.impl.persistence.entity.ResourceEntity;
@@ -30,14 +27,13 @@ import java.util.ResourceBundle;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.mockito.internal.util.reflection.FieldSetter.setField;
 
 @RunWith(MockitoJUnitRunner.class)
 public class DeploymentSvcTest extends ServiceTest {
 
-    @Mock
-    private FormDeployer formDeployer;
     @Mock
     private ProcessApplicationInterface processApplication;
     @InjectMocks
@@ -81,7 +77,6 @@ public class DeploymentSvcTest extends ServiceTest {
                 .thenReturn(new FileInputStream(textFile));
         when(inputBpmProcessFile.getBody(InputStream.class, null))
                 .thenReturn(new FileInputStream(bpmProcessFile));
-        doNothing().when(formDeployer).uploadForms();
 
         DeploymentRepresentation actualRepresentation = deploymentSvc.create(deploymentName, formData);
 
@@ -290,63 +285,6 @@ public class DeploymentSvcTest extends ServiceTest {
         Map<String, String> actualLocalizationResource = deploymentSvc.getLocalizationResource(processDefinitionId, caseDefinitionId, languageRangePreferences);
 
         assertEquals(expectedLocalizationResource, actualLocalizationResource);
-    }
-
-    @Test
-    public void testGetLatestDeploymentForm_DeploymentExists() throws IOException {
-        String deploymentName = "TestDeploymentName";
-        String formFilename = "forms/testForm.json";
-        String bpmProcessFilename = "simple-test-process.bpmn";
-        String formId = "forms/testForm.json";
-
-        createDeployment(deploymentName, formFilename, bpmProcessFilename);
-
-        String latestDeploymentForm = deploymentSvc.getLatestDeploymentForm(formId);
-
-        assertFalse(StringUtils.isEmpty(latestDeploymentForm));
-    }
-
-    @Test(expected = NoDeploymentException.class)
-    public void testGetLatestDeploymentForm_DeploymentNotExists() {
-        String formId = "testForm";
-
-        deploymentSvc.getLatestDeploymentForm(formId);
-    }
-
-    @Test
-    public void testListLatestDeploymentFormIds_DeploymentExists() throws IOException {
-        String deploymentName = "TestDeploymentName";
-        String formFilename = "forms/testForm.json";
-        String bpmProcessFilename = "simple-test-process.bpmn";
-
-        createDeployment(deploymentName, formFilename, bpmProcessFilename);
-
-        List<String> formIds = deploymentSvc.listLatestDeploymentFormIds();
-
-        assertFalse(formIds.isEmpty());
-    }
-
-    @Test(expected = NoDeploymentException.class)
-    public void testListLatestDeploymentFormIds_DeploymentNotExists() {
-        List<String> formIds = deploymentSvc.listLatestDeploymentFormIds();
-    }
-
-    @Test
-    public void testGetLatestDeploymentId_DeploymentExists() throws IOException {
-        String deploymentName = "TestDeploymentName";
-        String formFilename = "testForm.json";
-        String bpmProcessFilename = "simple-test-process.bpmn";
-
-        createDeployment(deploymentName, formFilename, bpmProcessFilename);
-
-        String latestDeploymentId = deploymentSvc.getLatestDeploymentId();
-
-        assertFalse(StringUtils.isEmpty(latestDeploymentId));
-    }
-
-    @Test(expected = NoDeploymentException.class)
-    public void testGetLatestDeploymentId_DeploymentNotExists() {
-        deploymentSvc.getLatestDeploymentId();
     }
 
     private String getExistingDeploymentId() {

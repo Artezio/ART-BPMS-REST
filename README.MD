@@ -8,12 +8,11 @@ Features:
 * Simple integration of User tasks and forms: task form keys are direct references to Form.io forms
 * Robust Data validation using both Form.io and java validation
 * File uploading from Form.io to Camunda, which can be customized or externalized by providing custom FileStorage implementations 
-* Forms versioning
 * Logging 
 * Form cache
 * Default implementation of Message Correlation and Signal services
 
-ART-BPMS-REST uses Form.io node.js servers for storing and validating user forms. Two Form.io servers are required to use this module — Development server and Work server. The development server is used by forms designers for constructing forms. These forms are then downloaded using [formio-import-export-tool](https://github.com/artezio/) and deployed to Camunda along with BPMN diagrams. When the deployment is made, these forms are automatically versioned and uploaded to the work server. ART-BPMS-REST then uses the work server to load forms and validate submitted data.
+ART-BPMS-REST uses Form.io functionality for validating user forms and Form.io server for constructing forms. After creating, these forms are downloaded using [formio-import-export-tool](https://github.com/artezio/) and deployed to Camunda along with BPMN diagrams. ART-BPMS-REST then loads forms from a corresponding deployment. 
 
 ---
 * [Architecture Overview](#architecture-overview)
@@ -31,19 +30,20 @@ ART-BPMS-REST uses Form.io node.js servers for storing and validating user forms
 * [Configuration](#configuration)
 * [Usage](#usage)
     * [Working with forms](#working-with-forms)
-    * [Form versioning](#forms-versioning)
     * [Validation](#validation)
     * [Mapping submitted data to Java Classes](#mapping-submitted-data-to-java-classes)
     * [Internationalization and Localization](#internationalization-and-localization)
    * [Steps to create and use forms in BPMN](#steps-to-create-and-use-forms-in-bpmn)
    * [Corner cases](#formio-related-corner-cases)
+   * [Bpms-rest SPA example](#bpms-rest-spa-example)
 * [File storage](#file-storage)
 ---
 
 ## Architecture Overview
 
 ![](doc/architecture-overview.png)
-\* — ART-FORMIO-EXT is a plugin for form.io that allows to clean up forms (see [ART-FORMIO-EXT Github repository](https://github.com/Artezio/ART-FORMIO-EXT))
+* — ART-FORMIO-EXT is a plugin for form.io that allows to clean up forms (see [ART-FORMIO-EXT Github repository](https://github.com/Artezio/ART-FORMIO-EXT))
+
 ## Security
 
 Application REST API is based on JAX-RS with EJB technology. The application specifies that users having the given roles are allowed access to REST API in declarative way. Authentication must be implemented in an application server in a vendor specific way according to an identity management solution. REST endpoints are secured as follows:
@@ -71,7 +71,7 @@ ART-BPMS-REST ships with Camunda Cockpit tool. You can either install environmen
 #### Full installation
 
 1. Clone this repository `git clone http://github.com/Artezio/ART-BPMS-REST.git`
-2. Open console and go to `%ART_BPMS_REST_HOME_DIR%/docker`
+2. Open console and go to `ART_BPMS_REST_HOME_DIR/docker`
 3. To change default values of docker variables edit `.env` file. See [Docker variables](/doc/docker-variables.md) for full description of the variables
 4. Run `docker-compose up`
 
@@ -83,12 +83,13 @@ The following resources are available according to the default values of docker 
 |WildFly application server|http://localhost:8080||
 |WildFly management console|http://localhost:9990/console/index.html|admin:admin|
 |WildFly remote socket debugging|http://localhost:8787||
-|Cockpit|http://localhost:8380/camunda/app/cockpit/default/#/dashboard|demo:demo|
+|Cockpit|http://localhost:8280/camunda/app/cockpit/default/#/dashboard|demo:demo|
 |Form.io server|http://localhost:3001||
 |Form.io client application|http://localhost:3001/#/|root<span></span>@root.root:root|
 |Keycloak server|http://localhost:8180||
 |Keycloak administration console|http://localhost:8180/auth/admin/|admin:password|
 |ART-BPMS-REST application*|http://localhost:8080/bpms-rest||
+|ART-BPMS-REST SPA application|http://localhost:8080/bpms-rest-spa||
 |ART-BPMS-REST API documentation*|http://localhost:8080/bpms-rest/swagger-ui.html|bpmsadmin:1|
 
 \* — it will be available after the ART-BPMS-REST deploy (see [Deploy section](#application-deploy))
@@ -97,7 +98,7 @@ The following resources are available according to the default values of docker 
 
 Each component of the environment  (`bpms-rest`, `formio`, `keycloak`, `cockpit`) has its own `Dockerfile`, therefore you can run the components separately:
 
-1. Open console and go to `%ART_BPMS_REST_HOME_DIR%/docker/%COMPONENT_DIR%`
+1. Open console and go to `ART_BPMS_REST_HOME_DIR/docker/COMPONENT_DIR`
 2. Run 
     ```
     docker build .
@@ -128,10 +129,14 @@ For more information about `build` and `run` commands see [Docker CLI Run] and [
 
 1. Keycloak Server. Keycloak is used for authentication. Download Keycloak Server from the [download page](https://www.keycloak.org/downloads.html) and install according to the [Getting Started Guide](https://www.keycloak.org/docs/latest/getting_started/index.html). Keycloak has to contain realm and client for ART-BPMS-REST application, role `BPMSAdmin` and at lest one user with current role. Also you can use our Docker image with predefined settings (TBD).
 
+1. NodeJs with preinstalled user modules. It is used to run Form.io designing server and to execute Form.io features' scripts.
+    - Download [NodeJs] and install it. To make sure you have installed nodejs correctly run in console `node -v && npm -v`
+    - Run `npm install -g jsdom-global jsdom formiojs` to install obligatory modules for ART-BPMS-REST
+    
 1. Form.io Server. The simplest way of running Form.io server is to run our Form.io Docker image from `/formio` subdirectory. See [Form.io Docker readme](docker/formio/README.MD) to use our Form.io Docker image. To run Form.io without Docker, you would have to:
-      - Clone Form.io `v1.59.0` sources from [Form.io Github repository](https://github.com/formio) and install required dependencies listed on their github page
-      - Install ART-FORMIO-EXT according to [the install instruction](https://github.com/Artezio/ART-FORMIO-EXT#install-instruction)
-      - Configure MongoDB connection settings, install Form.io application with npm and run with nodejs
+    - Clone Form.io `v1.59.0` sources from [Form.io Github repository](https://github.com/formio) and install required dependencies listed on their github page
+    - Install ART-FORMIO-EXT according to [the install instruction](https://github.com/Artezio/ART-FORMIO-EXT#install-instruction)
+    - Configure MongoDB connection settings, install Form.io application with npm and run with nodejs
 
 #### Installation
 
@@ -225,7 +230,7 @@ ART-BPMS-REST application can be used as standalone web application.
       mvn package
       ```
 
-1.	Deploy `%ART_BPMS_REST_HOME_DIR%\bpms-rest\target\bpms-rest.war` on WildFly.
+1.	Deploy `ART_BPMS_REST_HOME_DIR\bpms-rest\target\bpms-rest.war` on WildFly.
 
 1.	Pass configuration options to the server as described in [Configuration](#configuration) section. Restart WildFly and follow the link [bpms-rest app] for REST API description.
 
@@ -278,42 +283,38 @@ ART-BPMS-REST application can be included into another application as a part of 
 
 ## Configuration
 
-ART-BPMS-REST is configured by passing the following properties to the server on startup (as -Dxxx flags, i.e. `-DFORM_VERSIONING=true`):
-* `FORM_VERSIONING`: Switches on and off [form versioning](#forms-versioning). `true` by default
-* `FORMIO_URL`: Form.io Work Server url. By default `http://localhost:3001`
-* `FORMIO_LOGIN`: Login to Form.io Work Server. It's used in communication between ART-BPMS-REST and Form.io server. By default `root@root.root`
-* `FORMIO_PASSWORD`: Password to Form.io Work Server. Used in communication between ART-BPMS-REST and Form.io server. By default `root`
-* `FORMIO_JWT_EXPIRATION_TIME`: Form.io JWT token expiration time in seconds. By default `240`. This is related to Form.io own authentication mechanism and not to ART-BPMS-REST security configuration
+ART-BPMS-REST is configured by passing the following properties to the server on startup (as -Dxxx flags, i.e. `-DFILE_STORAGE_URL=http://localhost:1000`):
+* `NODE_MODULES_PATH`: path to the global directory of nodejs modules. This variable is required. By default it is not set, hence you have to do it manually.
+`NODE_MODULES_PATH` refers to a directory which includes nodejs global modules. You can get the location of this directory through the following commands:
+    Windows (PowerShell):
+    ```shell script
+    npm prefix -g | select -first 1
+    ```
+    
+    Linux/Unix:
+    ```shell script
+    npm prefix -g | head -1
+    ```
+
 * `FILE_STORAGE_URL`: file storage URL for custom file storage implementations. By default, files are stored inside Base64 Data Urls
 
 ## Usage
 
 ### Working with forms
 
-ART-BPMS-REST uses two Form.io servers, Development and Working. 
+ART-BPMS-REST uses Form.io server for designing forms. 
 
-Development server is used by form designers for creating forms. 
-Forms are then downloaded from Development server to local filesystem before creating a deployment. By adding downloaded forms into Process Application Archive under resources folder, these forms become visible to ART-BPMS-REST so they will be automatically deployed with Camunda resources such as BPMN diagrams.
-
-Work server is used by ART-BPMS-REST for uploading and storing versioned copies of forms. When a deployment is created and uploaded using ART-BPMS-REST endpoints, all forms' identifiers are modified prior to uploading in such way that they become unique across different deployments. Any forms which were removed from work server will be re-uploaded upon next ART-BPMS-REST statup.
+Forms are designed and then downloaded from Form.io server to local filesystem before creating a deployment. By adding downloaded forms into Process Application Archive under resources folder, these forms become visible to ART-BPMS-REST so they will be automatically deployed with Camunda resources such as BPMN diagrams.
 
 Overall, the workflow looks like this:
-1. Construct forms using Development Form.io server
-1. Download forms from Development Form.io server using formio-import-export-tool and put forms into Camunda deployment along with other resources, such as BPMN diagrams
+1. Construct forms using Form.io server
+1. Download forms from Form.io server using formio-import-export-tool and put forms into Camunda deployment along with other resources, such as BPMN diagrams
 1. Set process start form key if necessary
 1. Add BPMN User Tasks with form keys pointing to constructed forms
 1. Deploy process with forms into Camunda
 1. Start the process using the BPMS-REST by either submitting a start form or starting the process without the start form
 1. Request and submit task forms using BPMS-REST
-1. If a form requires updating and the form versioning is enabled, make changes to the form, download the form with formio-import-export-tool and make a deployment with the updated form. Processes started from this point will use the updated version of the form.
-
-### Forms versioning
-
-Form versioning is controlled by property `FORM_VERSIONING`, which accepts values `true` and `false` and is enabled by default
-
-When a deployment is made with form versioning enabled, its forms are given unique deployment-specific suffixes to keep them unique across different deployment versions. In this case, if the form was updated and deployed, its new version is uploaded to Work server, so older versions of this form aren't affected and running processes which use the old version of the form will continue to function without errors.
-
-If form versioning is disabled then forms are uploaded to Work server as is, without identifier modifications. In this case, a form will only be uploaded once and will never be updated, and all deployments will be referencing the same form. If there are multiple forms with the same path, then there's no guarantees on which of them will be deployed and used by the rest of deployments. In this case, processes which use newer versions of the form might function with errors.
+1. If a form requires updating, make changes to the form, download the form with formio-import-export-tool and make a deployment with the updated form. Processes started from this point will use the updated version of the form.
 
 ### Validation
 
@@ -387,17 +388,17 @@ a resource, `java.util.ResourceBundle` with info from this resource will be retu
 
 ### Steps to create and use forms in BPMN
 
-1. Log in to Form.io Development server and build a form. Set form path to something meaningful, e.g. `forms/user/personal-information`
+1. Log in to Form.io server and build a form. Set form path to something meaningful, e.g. `forms/user/personal-information`
 
     ![](doc/create-form.png)
 
-1. In a BPMN, create User task and set form key to path you just set, prepended by `deployment:`, e.g. `deployment:forms/user/personal-information`. Add candidate users or groups, so the task becomes startable
+1. In a BPMN, create User task and set form key to path you just set, e.g. `forms/user/personal-information`. Add candidate users or groups, so the task becomes startable
 
     ![](doc/user-task-form-key.png)
     
     ![](doc/user-task-candidate-groups.png)
 
-1. You can also use forms for starting the process. To do this, specify form key with deployment prefix in a Start Event, e.g. `deployment:forms/user/personal-information`
+1. You can also use forms for starting the process. To do this, specify form key with deployment prefix in a Start Event, e.g. `forms/user/personal-information`
 
 1. Run formio-import-export-tool. Set connection params, credentials and output directory for forms. If you specify any tags, only forms with those tags will be downloaded.   
    > formio-import-export-tool can be executed in GUI mode or as command-line utility. Start it with -h argument to get command-line mode help
@@ -490,6 +491,16 @@ basing on `state` and `isSubmittedDataProcessed` properties.
 set to point to file id in the file storage. Default file storage is base64 url. See [File Storage](#file-storage) 
 for more information about the storage 
 
+### Bpms-rest SPA example
+
+As bpms-rest consists of REST services it is often convenient to use front-end applications to communicate with bpms-rest services. ART-BPMS-REST
+module contains such an application in the form of SPA application. To deploy the application:
+1. Go to `ART_BPMS_REST_HOME_DIR/bpms-rest-spa-example`
+2. Run `mvn package`
+3. Deploy `target/bpms-rest-spa.war` to your web server
+
+To check that it works see [ART-BPMS-REST environment resources](#art-bpms-rest-environment-resources) for an url to the application.
+
 ## File Storage
 By default all files are encoded in Base64 and stored in Camunda database as base64 data urls ([RFC 2397](https://tools.ietf.org/html/rfc2397)). 
 It's possible to add a custom FileStorage implementation to store files anywhere else, including filesystem, external FTP server, etc. It could be done by implementing 
@@ -506,6 +517,7 @@ When a file gets serialized from Camunda's engine, FileStorage implementation wi
 [Maven]: https://maven.apache.org/
 [Git]: https://git-scm.com/
 [Keycloak]: https://www.keycloak.org/
+[NodeJs]: https://nodejs.org
 [Wildfly 15]: https://wildfly.org/downloads/
 [Docker CLI Run]: https://docs.docker.com/engine/reference/commandline/run/
 [Docker CLI Build]: https://docs.docker.com/engine/reference/commandline/build/

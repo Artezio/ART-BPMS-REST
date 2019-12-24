@@ -58,6 +58,10 @@ echo ""
 
 /bin/sh /opt/jboss/tools/bpms-rest/databases/change-database.sh $BPMS_REST_DB_VENDOR
 
+# Setup env for NodeJs
+
+export NODE_MODULES_PATH
+NODE_MODULES_PATH="$(npm list -g | head -1)"
 
 ###################
 # Start BPMS-REST #
@@ -70,7 +74,8 @@ echo "========================================================================="
 echo "Starting BPMS-REST"
 export JAVA_OPTS="-server -Xms256m -Xmx${MAX_HEAP_SIZE_MB}m -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=${MAX_METASPACE_SIZE_MB}m
 -Djava.net.preferIPv4Stack=true -Djboss.modules.system.pkgs=org.jboss.byteman -Djava.awt.headless=true -Djboss.as.management.blocking.timeout=1200
--DFORMIO_URL=${FORMIO_URL} -DFORMIO_LOGIN=${FORMIO_LOGIN} -DFORMIO_PASSWORD=${FORMIO_PASSWORD} -DFORM_VERSIONING=${FORM_VERSIONING}
+-DFORMIO_URL=${FORMIO_URL} -DFORMIO_LOGIN=${FORMIO_LOGIN} -DFORMIO_PASSWORD=${FORMIO_PASSWORD} -DFORM_VERSIONING=${FORM_VERSIONING} -DKEYCLOAK_SERVER_URL=${KEYCLOAK_SERVER_URL}
+-DKEYCLOAK_REALM=${KEYCLOAK_REALM} -DKEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID} -DFILE_STORAGE_URL=${FILE_STORAGE_URL} -DNODE_MODULES_PATH=${NODE_MODULES_PATH}
 -agentlib:jdwp=transport=dt_socket,address=0.0.0.0:8787,server=y,suspend=n"
 exec /opt/jboss/wildfly/bin/standalone.sh "-c" "standalone.xml" "-b" "0.0.0.0" "-bmanagement" "0.0.0.0"
 exit $?

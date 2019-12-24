@@ -5,11 +5,11 @@ import java.util.Map;
 
 public interface FormClient {
 
-    String getFormWithData(String formKey, Map<String, Object> formVariables);
-    void uploadForm(String formDefinition);
-    boolean shouldProcessSubmittedData(String formKey, String submissionState);
-    String dryValidationAndCleanup(String formKey, Map<String, Object> submittedData, Map<String, Object> currentData);    
-    List<String> getFormVariableNames(String formKey);
-    String getFormId(String formKey);
+    String getFormWithData(String deploymentId, String formPath, Map<String, Object> variables);
+    String dryValidationAndCleanup(String deploymentId, String formPath, Map<String, Object> variables);
+    boolean shouldProcessSubmittedData(String deploymentId, String formPath, String submissionState);
+
+    String dryValidationAndCleanup(String deploymentId, String formKey, Map<String, Object> submittedData, Map<String, Object> currentData);
+    List<String> getFormVariableNames(String deploymentId, String formKey);
 
 }

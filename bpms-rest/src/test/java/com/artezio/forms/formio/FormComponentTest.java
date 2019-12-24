@@ -311,6 +311,40 @@ public class FormComponentTest {
         assertFalse(formComponent.isSubform());
     }
     
+    @Test
+    public void testContainsFileComponent() {
+        String fileComponentKey = "file_component_key";
+        FormComponent fileComponent = new FormComponent();
+        fileComponent.setType("file");
+        fileComponent.setKey(fileComponentKey);
+        formComponent.setComponents(Arrays.asList(fileComponent));
+        
+        assertTrue(formComponent.containsFileComponent(fileComponentKey));
+    }
+    
+    @Test
+    public void testtContainsFileComponent_notFileType() {
+        String fileComponentKey = "file_component_key";
+        FormComponent fileComponent = new FormComponent();
+        fileComponent.setType("any_type");
+        fileComponent.setKey(fileComponentKey);
+        formComponent.setComponents(Arrays.asList(fileComponent));
+        
+        assertFalse(formComponent.containsFileComponent(fileComponentKey));
+    }
+    
+    
+    @Test
+    public void testtContainsFileComponent_noComponent() {
+        String fileComponentKey = "file_component_key";
+        FormComponent fileComponent = new FormComponent();
+        fileComponent.setType("file");
+        fileComponent.setKey(fileComponentKey);
+        formComponent.setComponents(Arrays.asList(fileComponent));
+        
+        assertFalse(formComponent.containsFileComponent("other_file_component_key"));
+    }
+    
     
 
 

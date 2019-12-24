@@ -92,6 +92,9 @@ services:
     hostname: keycloak
     build:
       context: ./keycloak
+      args:
+        KEYCLOAK_ADMIN_LOGIN: ${KEYCLOAK_ADMIN_LOGIN}
+        KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
     environment:
       KEYCLOAK_PORT: ${KEYCLOAK_PORT}
     ports:

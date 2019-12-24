@@ -1,12 +1,8 @@
 package com.artezio.bpm.services;
 
 import com.artezio.forms.formio.FormioClient;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.TaskService;
 import org.camunda.bpm.engine.repository.Deployment;
-import org.camunda.bpm.engine.repository.DeploymentQuery;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.task.Task;
 import org.junit.After;
@@ -14,7 +10,6 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Answers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -27,7 +22,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static junit.framework.TestCase.assertTrue;
-import static org.codehaus.groovy.runtime.InvokerHelper.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.*;
@@ -40,8 +34,6 @@ public class FormSvcTest extends ServiceTest {
     private FormSvc formSvc = new FormSvc();
     @Mock
     private FormioClient formioClient;
-    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
-    private RepositoryService repositoryService;
 
     @Before
     public void init() throws NoSuchFieldException {
@@ -78,12 +70,12 @@ public class FormSvcTest extends ServiceTest {
     @Ignore
     public void testGetTaskFormWithData() throws IOException {
         Deployment deployment = createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
-        ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
+        getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
         Task task = getTaskService().createTaskQuery().taskUnassigned().singleResult();
         String expectedFormPath = "Form_1";
         String expectedResult = "{someFormWithData}";
 
-        when(formioClient.getFormWithData(eq(expectedFormPath), any())).thenReturn(expectedResult);
+        when(formioClient.getFormWithData(eq(deployment.getId()), eq(expectedFormPath), any())).thenReturn(expectedResult);
 
         String actual = formSvc.getTaskFormWithData(task.getId(), Collections.emptyMap());
 
@@ -98,7 +90,7 @@ public class FormSvcTest extends ServiceTest {
         String expectedResult = "{someFormWithData}";
         String expectedFormPath = "";
 
-        when(formioClient.getFormWithData(eq(expectedFormPath), any())).thenReturn(expectedResult);
+        when(formioClient.getFormWithData(eq(deployment.getId()), eq(expectedFormPath), any())).thenReturn(expectedResult);
 
         String actual = formSvc.getStartFormWithData(processInstance.getProcessDefinitionId(), Collections.emptyMap());
 
@@ -106,26 +98,15 @@ public class FormSvcTest extends ServiceTest {
     }
 
     @Test
-    //TODO Replace 'when' part of scenario for repositoryService with method chain invocations.
-    // Problem description: 'when' part of scenario for repositoryService, which is RETURN_DEEP_STUBS, is split into
-    // several steps instead of using a chain method invocations because method 'desc()' returns generic type, hence
-    // mockito has problem with class cast.
     public void testShouldProcessSubmittedData_DecisionWithValidation() throws IOException {
         Deployment deployment = createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
         getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
-        JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithState.json"));
 
-        String deploymentId = deployment.getId();
         String taskId = getTaskService().createTaskQuery().taskDefinitionKey("Task_1").singleResult().getId();
         String decision = "submitted";
-        String formKey = "Form_1-" + deploymentId;
+        String formKey = "Form_1";
 
-        DeploymentQuery deploymentQuery = mock(DeploymentQuery.class);
-        when(repositoryService.createDeploymentQuery()).thenReturn(deploymentQuery);
-        when(deploymentQuery.orderByDeploymentTime()).thenReturn(deploymentQuery);
-        when(deploymentQuery.desc()).thenReturn(deploymentQuery);
-        when(deploymentQuery.list()).thenReturn(asList(deployment));
-        when(formioClient.shouldProcessSubmittedData(formKey, decision)).thenReturn(true);
+        when(formioClient.shouldProcessSubmittedData(deployment.getId(), formKey, decision)).thenReturn(true);
 
         boolean shouldSkipValidation = formSvc.shouldProcessSubmittedData(taskId, decision);
 
@@ -133,26 +114,15 @@ public class FormSvcTest extends ServiceTest {
     }
 
     @Test
-    //TODO Replace 'when' part of scenario for repositoryService with method chain invocations.
-    // Problem description: 'when' part of scenario for repositoryService, which is RETURN_DEEP_STUBS, is split into
-    // several steps instead of using a chain method invocations because method 'desc()' returns generic type, hence
-    // mockito has problem with class cast.
     public void testShouldProcessSubmittedData_DecisionWithoutValidation() throws IOException {
         Deployment deployment = createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
         getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
-        JsonNode formDefinition = new ObjectMapper().readTree(getFile("forms/formWithState.json"));
 
-        String deploymentId = deployment.getId();
         String taskId = getTaskService().createTaskQuery().taskDefinitionKey("Task_1").singleResult().getId();
         String decision = "canceled";
-        String formKey = "Form_1-" + deploymentId;
+        String formKey = "Form_1";
 
-        DeploymentQuery deploymentQuery = mock(DeploymentQuery.class);
-        when(repositoryService.createDeploymentQuery()).thenReturn(deploymentQuery);
-        when(deploymentQuery.orderByDeploymentTime()).thenReturn(deploymentQuery);
-        when(deploymentQuery.desc()).thenReturn(deploymentQuery);
-        when(deploymentQuery.list()).thenReturn(asList(deployment));
-        when(formioClient.shouldProcessSubmittedData(formKey, decision)).thenReturn(false);
+        when(formioClient.shouldProcessSubmittedData(deployment.getId(), formKey, decision)).thenReturn(false);
 
         boolean actual = formSvc.shouldProcessSubmittedData(taskId, decision);
 

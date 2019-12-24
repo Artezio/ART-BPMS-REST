@@ -18,6 +18,7 @@
     <modules>
         <module>bpms-rest</module>
         <module>logger</module>
+        <module>bpms-rest-spa-example</module>
     </modules>
 
     <build>

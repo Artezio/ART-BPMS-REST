@@ -136,6 +136,12 @@ public class FormComponent {
         return "form".equals(type) && src != null;
     }
     
+    public boolean containsFileComponent(String componentKey) {
+        return getChildComponents().stream()
+            .filter(component -> componentKey.equals(component.getKey()))
+            .anyMatch(component -> "file".equals(component.getType()));
+    }
+    
     public String getId() {
         return id;
     }
