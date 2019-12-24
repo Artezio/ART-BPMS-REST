@@ -25,27 +25,30 @@ import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static com.artezio.logging.Log.Level.CONFIG;
+import static java.util.Arrays.asList;
 
 @Named
 public class FormioClient implements FormClient {
 
     private final static Map<String, JsonNode> FORM_CACHE = new ConcurrentHashMap<>();
     private final static Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
-    private final static Map<Integer, Boolean> SUBMITTED_DATA_PROCESSING_PROPERTY_CACHE = new ConcurrentHashMap<>();
+    private final static Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS_CACHE = new ConcurrentHashMap<>();
     private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "dryValidationAndCleanUp.js";
     private final static String CLEAN_UP_SCRIPT_NAME = "cleanUp.js";
 
-    private final static ObjectMapper MAPPER = new ObjectMapper()
+    private final static ObjectMapper JSON_MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             .setDefaultMergeable(false);
 
     static {
-        ObjectMapperProvider.registerFileValueSerializers(MAPPER);
+        ObjectMapperProvider.registerFileValueSerializers(JSON_MAPPER);
     }
 
     @Inject
@@ -55,7 +58,6 @@ public class FormioClient implements FormClient {
     @Inject
     private NodeJsProcessor nodeJsProcessor;
 
-    //TODO implement getting parent form with its subform in a flat form
     @Log(level = CONFIG, beforeExecuteMessage = "Getting definition with data for a form '{0}'")
     public String getFormWithData(String deploymentId, String formPath, Map<String, Object> variables) {
         try {
@@ -73,9 +75,9 @@ public class FormioClient implements FormClient {
         try {
             String formDefinition = getForm(deploymentId, formPath).toString();
             variables = convertVariablesToFileRepresentations(variables, formDefinition);
-            String submissionData = MAPPER.writeValueAsString(toFormIoSubmissionData(variables));
+            String submissionData = JSON_MAPPER.writeValueAsString(toFormIoSubmissionData(variables));
             try (InputStream validationResult = nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition, submissionData)) {
-                JsonNode cleanData = MAPPER.readTree(validationResult).get("data");
+                JsonNode cleanData = JSON_MAPPER.readTree(validationResult).get("data");
                 return unwrapSubformData(cleanData, deploymentId, formPath).toString();
             }
         } catch (IOException e) {
@@ -83,28 +85,71 @@ public class FormioClient implements FormClient {
         }
     }
 
-    public boolean shouldProcessSubmittedData(String deploymentId, String formPath, String submissionState) {
+    public boolean shouldProcessSubmission(String deploymentId, String formPath, String submissionState) {
         String formDefinition = getForm(deploymentId, formPath).toString();
-        Filter saveStateComponentsFilter = Filter.filter((Criteria.where("action").eq("saveState").and("state").eq(submissionState)));
-        return SUBMITTED_DATA_PROCESSING_PROPERTY_CACHE.computeIfAbsent(
-                Objects.hash(formDefinition, submissionState),
-                key -> shouldProcessSubmittedData(formDefinition, saveStateComponentsFilter));
+        String cacheKey = deploymentId + "-" + formPath + "-" + submissionState;
+        return SUBMISSION_PROCESSING_DECISIONS_CACHE.computeIfAbsent(
+                cacheKey,
+                key -> shouldProcessSubmission(formDefinition, submissionState));
     }
 
     private JsonNode getForm(String deploymentId, String formPath) {
         String formPathWithExt = !formPath.endsWith(".json") ? formPath.concat(".json") : formPath;
+        String cacheKey = deploymentId + "-" + formPath;
         return FORM_CACHE.computeIfAbsent(
-                String.valueOf(Objects.hash(deploymentId + formPath)),
-                cacheKey -> {
+                cacheKey,
+                key -> {
                     try {
-                        return MAPPER.readTree(deploymentSvc.getResource(deploymentId, formPathWithExt));
+                        JsonNode form = JSON_MAPPER.readTree(deploymentSvc.getResource(deploymentId, formPathWithExt));
+                        return expandSubforms(deploymentId, form);
                     } catch (IOException e) {
-                        throw new RuntimeException("Failed to get a form into the cache.", e);
+                        throw new RuntimeException("Failed to get the form into the cache.", e);
                     }
                 });
     }
 
-    private boolean shouldProcessSubmittedData(String formDefinitionJson, Filter saveStateComponentsFilter) {
+    protected JsonNode expandSubforms(String deploymentId, JsonNode form) {
+        Collector<JsonNode, ArrayNode, ArrayNode> arrayNodeCollector = Collector
+                .of(JSON_MAPPER::createArrayNode, ArrayNode::add, ArrayNode::addAll);
+        JsonNode components = toStream(form.get("components"))
+                .map(expandSubforms(deploymentId))
+                .collect(arrayNodeCollector);
+        return ((ObjectNode) form).set("components", components);
+    }
+
+    private Function<JsonNode, JsonNode> expandSubforms(String deploymentId) {
+        return component -> {
+            if (isTypeOf(component, "container") || isArrayComponent(component)) {
+                return expandSubforms(deploymentId, component);
+            } else if (isFormComponent(component)) {
+                return convertToContainer(deploymentId, component);
+            } else {
+                return component;
+            }
+        };
+    }
+
+    private JsonNode convertToContainer(String deploymentId, JsonNode form) {
+        String formResourceName = form.get("key").asText() + ".json";
+        JsonNode container = convertToContainer(form);
+        JsonNode components = getForm(deploymentId, formResourceName).get("components").deepCopy();
+        ((ObjectNode) container).replace("components", components);
+        return container;
+    }
+
+    private JsonNode convertToContainer(JsonNode formDefinition) {
+        List<String> formAttributes = asList("src", "reference", "form", "unique", "project", "path");
+        Predicate<Map.Entry<String, JsonNode>> nonFormAttributesPredicate = field -> !formAttributes.contains(field.getKey());
+        JsonNode container = JSON_MAPPER.valueToTree(toFieldStream(formDefinition)
+                .filter(nonFormAttributesPredicate)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+        ((ObjectNode) container).put("type", "container");
+        ((ObjectNode) container).put("tree", true);
+        return container;
+    }
+
+    private boolean shouldProcessSubmission(String formDefinitionJson, String submissionState) {
+        Filter saveStateComponentsFilter = Filter.filter((Criteria.where("action").eq("saveState").and("state").eq(submissionState)));
         return (boolean) ((JSONArray) JsonPath.read(formDefinitionJson, "$..components[?]", saveStateComponentsFilter))
                 .stream()
                 .map(stateComponent -> (Map<String, Object>) stateComponent)
@@ -181,34 +226,34 @@ public class FormioClient implements FormClient {
     }
 
     protected List<JsonNode> getChildComponentDefinitions(JsonNode definition) {
-        final Set<String> layoutComponentTypes = new HashSet<>(Arrays.asList("well", "table", "columns", "fieldset", "panel"));
-        final Set<String> containerComponentTypes = new HashSet<>(Arrays.asList("well", "fieldset", "panel"));
+        final Set<String> layoutComponentTypes = new HashSet<>(asList("well", "table", "columns", "fieldset", "panel"));
+        final Set<String> containerComponentTypes = new HashSet<>(asList("well", "fieldset", "panel"));
         List<JsonNode> nodes = new ArrayList<>();
-        getStream(definition.get("components"))
+        toStream(definition.get("components"))
                 .filter(component -> !layoutComponentTypes.contains(component.get("type").asText()))
                 .forEach(nodes::add);
-        getStream(definition.get("components"))
+        toStream(definition.get("components"))
                 .filter(component -> containerComponentTypes.contains(component.get("type").asText()))
-                .flatMap(component -> getStream(component.get("components")))
+                .flatMap(component -> toStream(component.get("components")))
                 .forEach(nodes::add);
-        getStream(definition.get("components"))
+        toStream(definition.get("components"))
                 .filter(component -> "columns".equals(component.get("type").asText()))
-                .flatMap(component -> getStream(component.get("columns")))
-                .flatMap(component -> getStream(component.get("components")))
+                .flatMap(component -> toStream(component.get("columns")))
+                .flatMap(component -> toStream(component.get("components")))
                 .forEach(nodes::add);
-        getStream(definition.get("components"))
+        toStream(definition.get("components"))
                 .filter(component -> "table".equals(component.get("type").asText()))
-                .flatMap(component -> getStream(component.get("rows")))
-                .flatMap(this::getStream)
-                .flatMap(component -> getStream(component.get("components")))
+                .flatMap(component -> toStream(component.get("rows")))
+                .flatMap(this::toStream)
+                .flatMap(component -> toStream(component.get("components")))
                 .forEach(nodes::add);
         return nodes;
     }
 
-    protected ArrayNode getArrayWithRemovedRedundantObjectElementWrappers(ArrayNode arrayNode, JsonNode formDefinition) {
+    protected ArrayNode getArrayWithoutRedundantObjectElementWrappers(ArrayNode arrayNode, JsonNode formDefinition) {
         ArrayNode resultArrayNode = JsonNodeFactory.instance.arrayNode();
-        getStream(arrayNode)
-                .flatMap(this::getStream)
+        toStream(arrayNode)
+                .flatMap(this::toStream)
                 .forEach(resultArrayNode::add);
         if (isArrayComponent(formDefinition)) {
             return transformElementsToFlatIfNecessary(resultArrayNode);
@@ -222,15 +267,15 @@ public class FormioClient implements FormClient {
         JsonNode formDefinition = getForm(deploymentId, formPath);
         List<JsonNode> childComponentDefinitions = getChildComponentDefinitions(formDefinition);
         Map<String, Object> wrappedObjects = getWrappedVariables(convertedVariables, childComponentDefinitions);
-        String submissionData = MAPPER.writeValueAsString(toFormIoSubmissionData(wrappedObjects));
+        String submissionData = JSON_MAPPER.writeValueAsString(toFormIoSubmissionData(wrappedObjects));
         try (InputStream cleanUpResult = nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), submissionData)) {
-            return MAPPER.readTree(cleanUpResult)
+            return JSON_MAPPER.readTree(cleanUpResult)
                     .get("data");
         }
     }
 
     @SuppressWarnings("serial")
-    private Map<String, Object> toFormIoSubmissionData(Map<String, Object> variables) {
+    protected Map<String, Object> toFormIoSubmissionData(Map<String, Object> variables) {
         return variables.containsKey("data")
                 ? variables
                 : new HashMap<String, Object>() {{
@@ -261,7 +306,7 @@ public class FormioClient implements FormClient {
             }
             unwrappedArray.set(index, currentNode);
         }
-        return getArrayWithRemovedRedundantObjectElementWrappers(unwrappedArray, formDefinition);
+        return getArrayWithoutRedundantObjectElementWrappers(unwrappedArray, formDefinition);
     }
 
     private JsonNode unwrapSubformData(JsonNode data, JsonNode childDefinition, String key) {
@@ -276,16 +321,25 @@ public class FormioClient implements FormClient {
         return unwrapSubformData(data, childDefinition);
     }
 
+    private boolean isFormComponent(JsonNode componentDefinition) {
+        return isTypeOf(componentDefinition, "form");
+    }
+
     private boolean isContainerComponent(JsonNode componentDefinition) {
-        JsonNode type = componentDefinition.get("type");
-        String componentType = type != null ? type.asText() : "";
-        return componentType.equals("form") || componentType.equals("container") || componentType.equals("survey");
+        return isTypeOf(componentDefinition, "form")
+                || isTypeOf(componentDefinition, "container")
+                || isTypeOf(componentDefinition, "survey");
     }
 
     private boolean isArrayComponent(JsonNode componentDefinition) {
-        JsonNode type = componentDefinition.get("type");
-        String componentType = type != null ? type.asText() : "";
-        return componentType.equals("datagrid") || componentType.equals("editgrid");
+        return isTypeOf(componentDefinition, "datagrid")
+                || isTypeOf(componentDefinition, "editgrid");
+    }
+
+    private boolean isTypeOf(JsonNode componentDefinition, String type) {
+        JsonNode typeField = componentDefinition.get("type");
+        String componentType = typeField != null ? typeField.asText() : "";
+        return componentType.equals(type);
     }
 
     private Map<String, Object> getWrappedVariables(Map<String, Object> variables, List<JsonNode> components) {
@@ -343,7 +397,7 @@ public class FormioClient implements FormClient {
     }
 
     private Map<String, Object> wrapIfNecessary(Map<String, Object> variableValue, JsonNode component) {
-        if (isMustBeWrapped(component)) {
+        if (shouldBeWrapped(component)) {
             Map<String, Object> wrappedVariableValue = new HashMap<>();
             getChildComponentDefinitions(component)
                     .forEach(childComponent -> {
@@ -361,7 +415,7 @@ public class FormioClient implements FormClient {
         }
     }
 
-    private boolean isMustBeWrapped(JsonNode componentDefinition) {
+    private boolean shouldBeWrapped(JsonNode componentDefinition) {
         try {
             return getChildComponentDefinitions(componentDefinition).stream()
                     .anyMatch(childComponent -> childComponent.get("key").asText().equals("flat"));
@@ -378,7 +432,7 @@ public class FormioClient implements FormClient {
         if (isArrayComponent(componentDefinition)) {
             arrayNode = getArrayWithWrappedByTypeElements(arrayNode);
         }
-        return isMustBeWrapped(componentDefinition)
+        return shouldBeWrapped(componentDefinition)
                 ? getArrayWithWrappedObjectElements(arrayNode, componentDefinition)
                 : arrayNode;
     }
@@ -400,7 +454,7 @@ public class FormioClient implements FormClient {
         ArrayNode resultArrayNode = JsonNodeFactory.instance.arrayNode();
         arrayNode.forEach(element -> {
             if (element.has("flat")) {
-                Optional<Map.Entry<String, JsonNode>> searchResult = getFieldsStream(element)
+                Optional<Map.Entry<String, JsonNode>> searchResult = toFieldStream(element)
                         .filter(entry -> entry.getValue().isObject())
                         .findFirst();
                 if (searchResult.isPresent()) {
@@ -419,10 +473,10 @@ public class FormioClient implements FormClient {
 
     private ArrayNode getArrayWithWrappedByTypeElements(ArrayNode arrayNode) {
         return JsonNodeFactory.instance.arrayNode().addAll(
-                getStream(arrayNode)
+                toStream(arrayNode)
                         .filter(element -> element.has("flat"))
                         .map(element -> {
-                            List<Map.Entry<String, JsonNode>> fields = getFieldsStream(element)
+                            List<Map.Entry<String, JsonNode>> fields = toFieldStream(element)
                                     .filter(field -> !field.getKey().equals("type"))
                                     .collect(Collectors.toList());
                             String documentWrapperName = element.get("type").asText();
@@ -440,13 +494,13 @@ public class FormioClient implements FormClient {
                 .findFirst();
     }
 
-    private Stream<JsonNode> getStream(JsonNode node) {
+    private Stream<JsonNode> toStream(JsonNode node) {
         return StreamSupport.stream(node.spliterator(), false);
     }
 
-    private Stream<Map.Entry<String, JsonNode>> getFieldsStream(JsonNode element) {
+    private Stream<Map.Entry<String, JsonNode>> toFieldStream(JsonNode node) {
         return StreamSupport.stream(Spliterators
-                .spliteratorUnknownSize(element.fields(), Spliterator.ORDERED), false);
+                .spliteratorUnknownSize(node.fields(), Spliterator.ORDERED), false);
     }
 
     private Map<String, Object> convertVariablesToFileRepresentations(Map<String, Object> taskVariables, String formDefinition) {
@@ -497,8 +551,8 @@ public class FormioClient implements FormClient {
 
     private FileValue toFileValue(Map<String, Object> attributes) {
         try {
-            String attributesJson = MAPPER.writeValueAsString(attributes);
-            return MAPPER.readValue(attributesJson, FileValue.class);
+            String attributesJson = JSON_MAPPER.writeValueAsString(attributes);
+            return JSON_MAPPER.readValue(attributesJson, FileValue.class);
         } catch (IOException e) {
             throw new RuntimeException("Could not deserialize FileValue", e);
         }

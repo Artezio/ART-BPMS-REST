@@ -5,6 +5,7 @@ import com.artezio.bpm.services.ServiceTest;
 import com.artezio.bpm.services.VariablesMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.io.IOUtils;
 import org.junit.After;
@@ -21,8 +22,9 @@ import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.when;
@@ -32,6 +34,9 @@ public class FormioClientTest extends ServiceTest {
 
     private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "dryValidationAndCleanUp.js";
     private final static String CLEAN_UP_SCRIPT_NAME = "cleanUp.js";
+    static {
+        System.setProperty("NODE_MODULES_PATH", System.getProperty("java.io.tmpdir"));
+    }
 
     @Mock
     private DeploymentSvc deploymentSvc;
@@ -42,14 +47,11 @@ public class FormioClientTest extends ServiceTest {
     @InjectMocks
     private FormioClient formioClient = new FormioClient();
     private ObjectMapper objectMapper = new ObjectMapper();
-    {
-        System.setProperty("NODE_MODULES_PATH", System.getProperty("java.io.tmpdir"));
-    }
 
     @After
     public void tearDown() throws NoSuchFieldException, IllegalAccessException {
         Field formsCacheField = FormioClient.class.getDeclaredField("FORM_CACHE");
-        Field submitButtonsCacheField = FormioClient.class.getDeclaredField("SUBMITTED_DATA_PROCESSING_PROPERTY_CACHE");
+        Field submitButtonsCacheField = FormioClient.class.getDeclaredField("SUBMISSION_PROCESSING_DECISIONS_CACHE");
         formsCacheField.setAccessible(true);
         submitButtonsCacheField.setAccessible(true);
         ((Map<String, JsonNode>) formsCacheField.get(FormioClient.class)).clear();
@@ -282,7 +284,7 @@ public class FormioClientTest extends ServiceTest {
 
         when(deploymentSvc.getResource(deploymentId, formPath + ".json")).thenReturn(new FileInputStream(getFile("forms/formWithState.json")));
 
-        boolean actual = formioClient.shouldProcessSubmittedData(deploymentId, formPath, submissionState);
+        boolean actual = formioClient.shouldProcessSubmission(deploymentId, formPath, submissionState);
 
         assertTrue(actual);
     }
@@ -295,7 +297,7 @@ public class FormioClientTest extends ServiceTest {
 
         when(deploymentSvc.getResource(deploymentId, formPath + ".json")).thenReturn(new FileInputStream(getFile("forms/formWithState.json")));
 
-        boolean actual = formioClient.shouldProcessSubmittedData(deploymentId, formPath, submissionState);
+        boolean actual = formioClient.shouldProcessSubmission(deploymentId, formPath, submissionState);
 
         assertFalse(actual);
     }
@@ -308,9 +310,109 @@ public class FormioClientTest extends ServiceTest {
 
         when(deploymentSvc.getResource(deploymentId, formPath + ".json")).thenReturn(new FileInputStream(getFile("forms/formWithState.json")));
 
-        boolean actual = formioClient.shouldProcessSubmittedData(deploymentId, formPath, submissionState);
+        boolean actual = formioClient.shouldProcessSubmission(deploymentId, formPath, submissionState);
 
         assertTrue(actual);
+    }
+
+    @Test
+    public void testFlatten_FormHasSubform() throws IOException {
+        String formPath = "forms/formWithSubform.json";
+        String childFormPath = "subform.json";
+        String deploymentId = "1";
+        JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
+        JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubform.json"));
+
+        when(deploymentSvc.getResource("1", childFormPath)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath)));
+
+        JsonNode actual = formioClient.expandSubforms(deploymentId, formDefinition);
+
+        assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
+    }
+
+    @Test
+    public void testFlatten_FormHasSubformInContainer() throws IOException {
+        String formPath = "forms/formWithSubformInContainer.json";
+        String childFormPath = "subform.json";
+        String deploymentId = "1";
+        JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
+        JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubformInContainer.json"));
+
+        when(deploymentSvc.getResource("1", childFormPath)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath)));
+
+        JsonNode actual = formioClient.expandSubforms(deploymentId, formDefinition);
+
+        assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
+    }
+
+    @Test
+    public void testFlatten_FormHasSubformsInArrays() throws IOException {
+        String formPath = "forms/formWithSubformsInArrays.json";
+        String childFormPath = "subform.json";
+        String deploymentId = "1";
+        JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
+        JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubformsInArrays.json"));
+
+        when(deploymentSvc.getResource("1", childFormPath)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath)));
+
+        JsonNode actual = formioClient.expandSubforms(deploymentId, formDefinition);
+
+        assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
+    }
+
+    @Test
+    public void testFlatten_FormHasSubformInOtherSubform() throws IOException {
+        String formPath = "forms/formWithSubformInAnotherSubform.json";
+        String childFormPath1 = "formWithSubform.json";
+        String childFormPath2 = "subform.json";
+        String deploymentId = "1";
+        JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
+        JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubformInAnotherTransformedSubform.json"));
+
+        when(deploymentSvc.getResource("1", childFormPath1)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath1)));
+        when(deploymentSvc.getResource("1", childFormPath2)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath2)));
+
+        JsonNode actual = formioClient.expandSubforms(deploymentId, formDefinition);
+
+        assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
+    }
+
+    private JsonNode sortArray(JsonNode arrayNode) {
+        return objectMapper.valueToTree(getArrayElementStream((ArrayNode) arrayNode)
+                .sorted(Comparator.comparing(objectNode -> objectNode.get("key").asText()))
+                .map(this::sortObject)
+                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll));
+    }
+
+    private JsonNode sortObject(JsonNode component) {
+        return objectMapper.valueToTree(getFieldStream(component)
+                .sorted(Map.Entry.comparingByKey())
+                .map(field -> {
+                    JsonNode fieldValue = field.getValue();
+                    if (fieldValue instanceof ObjectNode) {
+                        return new AbstractMap.SimpleEntry<>(field.getKey(), sortObject(fieldValue));
+                    } else if (fieldValue instanceof ArrayNode) {
+                        return new AbstractMap.SimpleEntry<>(field.getKey(), sortArray(fieldValue));
+                    } else {
+                        return field;
+                    }
+                })
+                .collect(
+                        LinkedHashMap::new,
+                        (map, entry) -> map.put(entry.getKey(), entry.getValue()),
+                        LinkedHashMap::putAll
+                )
+        );
+    }
+
+    private Stream<Map.Entry<String, JsonNode>> getFieldStream(JsonNode element) {
+        return StreamSupport.stream(Spliterators
+                .spliteratorUnknownSize(element.fields(), Spliterator.ORDERED), false);
+    }
+
+    private Stream<JsonNode> getArrayElementStream(ArrayNode arrayNode) {
+        return StreamSupport.stream(Spliterators
+                .spliteratorUnknownSize(arrayNode.elements(), Spliterator.ORDERED), false);
     }
 
 }

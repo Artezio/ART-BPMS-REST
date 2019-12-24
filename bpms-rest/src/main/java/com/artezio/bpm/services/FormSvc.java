@@ -46,7 +46,7 @@ public class FormSvc {
     public boolean shouldProcessSubmittedData(String taskId, String decision) {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
-        return formClient.shouldProcessSubmittedData(deploymentId, formKey, decision);
+        return formClient.shouldProcessSubmission(deploymentId, formKey, decision);
     }
 
     private String getTaskFormKey(String taskId) {
