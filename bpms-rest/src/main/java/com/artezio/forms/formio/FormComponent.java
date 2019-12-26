@@ -8,7 +8,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -104,11 +103,11 @@ public class FormComponent {
     }
     
     public boolean isContainer() {
-        return StringUtils.equalsAny(type, CONTAINER_TYPES.toArray(ArrayUtils.EMPTY_STRING_ARRAY));
+        return CONTAINER_TYPES.contains(type);
     }
     
     public boolean isArray() {
-        return StringUtils.equalsAny(type, ARRAY_TYPES.toArray(ArrayUtils.EMPTY_STRING_ARRAY));
+        return ARRAY_TYPES.contains(type);
     }
     
     public boolean isEditable() {
