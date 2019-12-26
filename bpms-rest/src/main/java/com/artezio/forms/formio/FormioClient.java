@@ -43,7 +43,6 @@ import static java.util.Arrays.asList;
 @Named
 public class FormioClient implements FormClient {
 
-    private final static Map<String, JsonNode> FORM_SOURCE_CACHE = new ConcurrentHashMap<>();
     private final static Map<String, FormComponent> FORM_DEFINITION_CACHE = new ConcurrentHashMap<>();
     private final static Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private final static Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS_CACHE = new ConcurrentHashMap<>();
@@ -106,17 +105,13 @@ public class FormioClient implements FormClient {
 
     private JsonNode getFormSource(String deploymentId, String formPath) {
         String formPathWithExt = !formPath.endsWith(".json") ? formPath.concat(".json") : formPath;
-        String cacheKey = deploymentId + "-" + formPath;
-        return FORM_SOURCE_CACHE.computeIfAbsent(
-                cacheKey,
-                key -> {
-                    try {
-                        JsonNode form = JSON_MAPPER.readTree(deploymentSvc.getResource(deploymentId, formPathWithExt));
-                        return expandSubforms(deploymentId, form);
-                    } catch (IOException e) {
-                        throw new RuntimeException("Failed to get the form into the cache.", e);
-                    }
-                });
+        try {
+            JsonNode form = JSON_MAPPER.readTree(deploymentSvc.getResource(deploymentId, formPathWithExt));
+            return expandSubforms(deploymentId, form); 
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to get the form into the cache.", e);
+        }
+       
     }
 
     protected JsonNode expandSubforms(String deploymentId, JsonNode form) {
