@@ -245,8 +245,9 @@ public class FormioClientTest extends ServiceTest {
                         "           \"nested-2-text\": \"text2\"" +
                         "       }" +
                         "   }," +
-                        "   \"multipleForms\": [{}]" +
-                        "}");
+                        "   \"multipleForms\": [" +
+                        "   {\"nested-array-form\": {}" +
+                        "}]}");
         JsonNode actual = formioClient.unwrapSubformData(submittedData, definition);
         assertEquals(expectedData, actual);
     }

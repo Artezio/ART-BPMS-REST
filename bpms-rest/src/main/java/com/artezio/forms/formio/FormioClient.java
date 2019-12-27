@@ -15,7 +15,6 @@ import com.jayway.jsonpath.Criteria;
 import com.jayway.jsonpath.Filter;
 import com.jayway.jsonpath.JsonPath;
 import net.minidev.json.JSONArray;
-import org.apache.commons.text.CaseUtils;
 import org.camunda.bpm.engine.variable.value.FileValue;
 
 import javax.inject.Inject;
@@ -172,7 +171,7 @@ public class FormioClient implements FormClient {
                 return unwrapSubformDataFromObject(data, childComponents);
             }
             if (data.isArray()) {
-                return unwrapSubformDataFromArray(data, childComponents, definition);
+                return unwrapSubformDataFromArray(data, childComponents);
             }
         }
         return data;
@@ -213,7 +212,7 @@ public class FormioClient implements FormClient {
             JsonNode wrappedElement = wrapSubformData(data.get(index), definition);
             data.set(index, wrappedElement);
         }
-        return getWrappedComponents(data, definition);
+        return data;
     }
 
     protected boolean isSubform(JsonNode definition) {
@@ -250,24 +249,10 @@ public class FormioClient implements FormClient {
         return nodes;
     }
 
-    protected ArrayNode getArrayWithoutRedundantObjectElementWrappers(ArrayNode arrayNode, JsonNode formDefinition) {
-        ArrayNode resultArrayNode = JsonNodeFactory.instance.arrayNode();
-        toStream(arrayNode)
-                .flatMap(this::toStream)
-                .forEach(resultArrayNode::add);
-        if (isArrayComponent(formDefinition)) {
-            return transformElementsToFlatIfNecessary(resultArrayNode);
-        } else {
-            return resultArrayNode;
-        }
-    }
-
     private JsonNode cleanUnusedData(String deploymentId, String formPath, Map<String, Object> variables) throws IOException {
         Map<String, Object> convertedVariables = variablesMapper.convertEntitiesToMaps(variables);
         JsonNode formDefinition = getForm(deploymentId, formPath);
-        List<JsonNode> childComponentDefinitions = getChildComponentDefinitions(formDefinition);
-        Map<String, Object> wrappedObjects = getWrappedVariables(convertedVariables, childComponentDefinitions);
-        String submissionData = JSON_MAPPER.writeValueAsString(toFormIoSubmissionData(wrappedObjects));
+        String submissionData = JSON_MAPPER.writeValueAsString(toFormIoSubmissionData(convertedVariables));
         try (InputStream cleanUpResult = nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), submissionData)) {
             return JSON_MAPPER.readTree(cleanUpResult)
                     .get("data");
@@ -295,7 +280,7 @@ public class FormioClient implements FormClient {
         return result;
     }
 
-    private JsonNode unwrapSubformDataFromArray(JsonNode data, List<JsonNode> childComponents, JsonNode formDefinition) {
+    private JsonNode unwrapSubformDataFromArray(JsonNode data, List<JsonNode> childComponents) {
         ArrayNode unwrappedArray = data.deepCopy();
         for (int index = 0; index < data.size(); index++) {
             ObjectNode currentNode = JsonNodeFactory.instance.objectNode();
@@ -306,7 +291,7 @@ public class FormioClient implements FormClient {
             }
             unwrappedArray.set(index, currentNode);
         }
-        return getArrayWithoutRedundantObjectElementWrappers(unwrappedArray, formDefinition);
+        return unwrappedArray;
     }
 
     private JsonNode unwrapSubformData(JsonNode data, JsonNode childDefinition, String key) {
@@ -340,158 +325,6 @@ public class FormioClient implements FormClient {
         JsonNode typeField = componentDefinition.get("type");
         String componentType = typeField != null ? typeField.asText() : "";
         return componentType.equals(type);
-    }
-
-    private Map<String, Object> getWrappedVariables(Map<String, Object> variables, List<JsonNode> components) {
-        return variables.entrySet().stream()
-                .map(variable -> {
-                    String variableName = variable.getKey();
-                    Object variableValue = variable.getValue();
-                    Optional<JsonNode> component = findComponentByKey(variableName, components);
-                    if (component.isPresent()) {
-                        if (isContainerComponent(component.get()) && variableValue != null) {
-                            variableValue = getContainerWithWrappedElements((Map<String, Object>) variableValue, component.get());
-                        } else if (isArrayComponent(component.get()) && ((List<Object>) variableValue).size() != 0) {
-                            variableValue = getArrayWithWrappedElements((List<Object>) variableValue, component.get());
-                        }
-                    }
-                    return new AbstractMap.SimpleEntry<>(variable.getKey(), variableValue);
-                }).collect(HashMap::new, (m, e) -> m.put(e.getKey(), e.getValue()), HashMap::putAll);
-    }
-
-    private List<Object> getArrayWithWrappedElements(List<Object> variableValue, JsonNode component) {
-        List<Object> arrayVariableWithWrappedElements = new ArrayList<>();
-        List<JsonNode> arrayComponentElems = getChildComponentDefinitions(component);
-        for (int i = 0; i < arrayComponentElems.size(); i++) {
-            JsonNode arrayComponentElem = arrayComponentElems.get(i);
-            String arrayComponentElemKey = arrayComponentElem.get("key").asText();
-            if (isContainerComponent(arrayComponentElem)) {
-                Map<String, Object> wrappedContainer = new HashMap<>();
-                Map<String, Object> value = getContainerWithWrappedElements((Map<String, Object>) variableValue.get(i), arrayComponentElem);
-                wrappedContainer.put(arrayComponentElemKey, value);
-                arrayVariableWithWrappedElements.add(wrappedContainer);
-            } else if (isArrayComponent(arrayComponentElem)) {
-                Map<String, Object> wrappedArray = new HashMap<>();
-                List<Object> value = getArrayWithWrappedElements((List<Object>) variableValue.get(i), arrayComponentElem);
-                wrappedArray.put(arrayComponentElemKey, value);
-                arrayVariableWithWrappedElements.add(wrappedArray);
-            } else {
-                arrayVariableWithWrappedElements.add(variableValue.get(i));
-            }
-        }
-        return arrayVariableWithWrappedElements;
-    }
-
-    private Map<String, Object> getContainerWithWrappedElements(Map<String, Object> variableValue, JsonNode component) {
-        Map<String, Object> wrappedElements = getWrappedVariables(variableValue, getChildComponentDefinitions(component));
-        return wrapIfNecessary(wrappedElements, component);
-    }
-
-    private Map<String, Object> getFieldsForWrappedComponents(Map<String, Object> variableFields, JsonNode component) {
-        List<String> componentElementNames = getChildComponentDefinitions(component).stream()
-                .map(componentField -> componentField.get("key").asText())
-                .collect(Collectors.toList());
-        return variableFields.entrySet().stream()
-                .filter(entry -> !componentElementNames.contains(entry.getKey()))
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-    }
-
-    private Map<String, Object> wrapIfNecessary(Map<String, Object> variableValue, JsonNode component) {
-        if (shouldBeWrapped(component)) {
-            Map<String, Object> wrappedVariableValue = new HashMap<>();
-            getChildComponentDefinitions(component)
-                    .forEach(childComponent -> {
-                        String childComponentKey = childComponent.get("key").asText();
-                        if (variableValue.containsKey(childComponentKey)) {
-                            wrappedVariableValue.put(childComponentKey, variableValue.get(childComponentKey));
-                        }
-                    });
-            String wrapperName = getWrapperName(variableValue);
-            Map<String, Object> wrappedComponentFields = getFieldsForWrappedComponents(variableValue, component);
-            wrappedVariableValue.put(wrapperName, wrappedComponentFields);
-            return wrappedVariableValue;
-        } else {
-            return variableValue;
-        }
-    }
-
-    private boolean shouldBeWrapped(JsonNode componentDefinition) {
-        try {
-            return getChildComponentDefinitions(componentDefinition).stream()
-                    .anyMatch(childComponent -> childComponent.get("key").asText().equals("flat"));
-        } catch (RuntimeException ignored) {
-            return false;
-        }
-    }
-
-    private String getWrapperName(Map<String, Object> variable) {
-        return CaseUtils.toCamelCase((String) variable.get("type"), false, '_');
-    }
-
-    private ArrayNode getWrappedComponents(ArrayNode arrayNode, JsonNode componentDefinition) {
-        if (isArrayComponent(componentDefinition)) {
-            arrayNode = getArrayWithWrappedByTypeElements(arrayNode);
-        }
-        return shouldBeWrapped(componentDefinition)
-                ? getArrayWithWrappedObjectElements(arrayNode, componentDefinition)
-                : arrayNode;
-    }
-
-    private ArrayNode getArrayWithWrappedObjectElements(ArrayNode arrayNode, JsonNode componentDefinition) {
-        String objectWrapperName = componentDefinition.at("/components/0/key").asText();
-        ArrayNode arrayNodeWithWrappedObjects = JsonNodeFactory.instance.arrayNode();
-        arrayNode.forEach(element -> {
-            ObjectNode objectWrapperNode = JsonNodeFactory.instance.objectNode();
-            ObjectNode objectNode = objectWrapperNode.putObject(objectWrapperName);
-            element.fields().forEachRemaining(elementField ->
-                    objectNode.put(elementField.getKey(), elementField.getValue()));
-            arrayNodeWithWrappedObjects.add(objectWrapperNode);
-        });
-        return arrayNodeWithWrappedObjects;
-    }
-
-    private ArrayNode transformElementsToFlatIfNecessary(ArrayNode arrayNode) {
-        ArrayNode resultArrayNode = JsonNodeFactory.instance.arrayNode();
-        arrayNode.forEach(element -> {
-            if (element.has("flat")) {
-                Optional<Map.Entry<String, JsonNode>> searchResult = toFieldStream(element)
-                        .filter(entry -> entry.getValue().isObject())
-                        .findFirst();
-                if (searchResult.isPresent()) {
-                    Map.Entry<String, JsonNode> documentField = searchResult.get();
-                    ((ObjectNode) element).remove(documentField.getKey());
-                    documentField.getValue().fields()
-                            .forEachRemaining(field -> ((ObjectNode) element).put(field.getKey(), field.getValue()));
-                    resultArrayNode.add(element);
-                }
-            }
-        });
-        return resultArrayNode.size() != 0
-                ? resultArrayNode
-                : arrayNode;
-    }
-
-    private ArrayNode getArrayWithWrappedByTypeElements(ArrayNode arrayNode) {
-        return JsonNodeFactory.instance.arrayNode().addAll(
-                toStream(arrayNode)
-                        .filter(element -> element.has("flat"))
-                        .map(element -> {
-                            List<Map.Entry<String, JsonNode>> fields = toFieldStream(element)
-                                    .filter(field -> !field.getKey().equals("type"))
-                                    .collect(Collectors.toList());
-                            String documentWrapperName = element.get("type").asText();
-                            element = ((ObjectNode) element).retain("type");
-                            ObjectNode documentWrapper = ((ObjectNode) element).putObject(documentWrapperName);
-                            fields.forEach(field -> documentWrapper.put(field.getKey(), field.getValue()));
-                            return element;
-                        })
-                        .collect(Collectors.toList()));
-    }
-
-    private Optional<JsonNode> findComponentByKey(String key, List<JsonNode> components) {
-        return components.stream()
-                .filter(component -> component.get("key").asText().equals(key))
-                .findFirst();
     }
 
     private Stream<JsonNode> toStream(JsonNode node) {
