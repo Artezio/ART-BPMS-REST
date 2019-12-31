@@ -215,66 +215,19 @@ public class FormioClientTest extends ServiceTest {
     @Test
     public void testUnwrapData() throws IOException {
         JsonNode definition = new ObjectMapper().readTree(new String(Files.readAllBytes(Paths.get("./src/test/resources/full-form-with-nested-forms.json"))));
-        JsonNode submittedData = new ObjectMapper().readTree(
-                "{" +
-                        "\"text\": \"text\", " +
-                        "\"nested-1\": {" +
-                        "   \"metadata\": {}, " +
-                        "   \"data\": {" +
-                        "       \"nested-1-text\": \"text1\"," +
-                        "       \"nested-2\": {" +
-                        "           \"metadata\": {}," +
-                        "           \"data\": {" +
-                        "               \"nested-2-text\": \"text2\"" +
-                        "           }" +
-                        "       }" +
-                        "   }" +
-                        "}," +
-                        "\"multipleForms\": [" +
-                        "   {\"nested-array-form\": {" +
-                        "       \"metadata\": \"\"," +
-                        "       \"data\": {}" +
-                        "   }" +
-                        "}]}");
-        JsonNode expectedData = new ObjectMapper().readTree(
-                "{" +
-                        "   \"text\": \"text\", " +
-                        "   \"nested-1\": {" +
-                        "       \"nested-1-text\": \"text1\"," +
-                        "       \"nested-2\": {" +
-                        "           \"nested-2-text\": \"text2\"" +
-                        "       }" +
-                        "   }," +
-                        "   \"multipleForms\": [" +
-                        "   {\"nested-array-form\": {}" +
-                        "}]}");
-        JsonNode actual = formioClient.unwrapSubformData(submittedData, definition);
+        JsonNode submittedData = new ObjectMapper().readTree(new String(Files.readAllBytes(Paths.get("./src/test/resources/full-form-with-nested-forms-data-submitted-unwrap.json"))));
+        JsonNode expectedData = new ObjectMapper().readTree(new String(Files.readAllBytes(Paths.get("./src/test/resources/full-form-with-nested-forms-data-expected-unwrap.json"))));
+        JsonNode actual = formioClient.unwrapGridData(submittedData, definition);
         assertEquals(expectedData, actual);
     }
 
     @Test
     public void testWrapData() throws IOException {
         JsonNode definition = new ObjectMapper().readTree(new String(Files.readAllBytes(Paths.get("./src/test/resources/full-form-with-nested-forms.json"))));
-        JsonNode sourceData = new ObjectMapper().readTree(
-                "{" +
-                        "   \"text\": \"text\", " +
-                        "   \"nested-1\": {" +
-                        "       \"nested-1-text\": \"text1\"," +
-                        "       \"nested-2\": {" +
-                        "           \"nested-2-text\": \"text2\"" +
-                        "       }" +
-                        "   }," +
-                        "   \"multipleForms\": [" +
-                        "       {" +
-                        "           \"nested-array-form\": {}" +
-                        "       }" +
-                        "   ]" +
-                        "}");
-        JsonNode actual = formioClient.wrapSubformData(sourceData, definition);
-        assertFalse(actual.at("/data").isMissingNode());
-        assertFalse(actual.at("/data/nested-1/data").isMissingNode());
-        assertFalse(actual.at("/data/nested-1/data/nested-2/data").isMissingNode());
-        assertEquals("text2", actual.at("/data/nested-1/data/nested-2/data/nested-2-text").asText());
+        JsonNode sourceData = new ObjectMapper().readTree(new String(Files.readAllBytes(Paths.get("./src/test/resources/full-form-with-nested-forms-data-submitted-wrap.json"))));
+        JsonNode actual = formioClient.wrapGridData(sourceData, definition);
+        assertFalse(actual.at("/nested-1/nested-3-datagrid/0/container").isMissingNode());
+        assertEquals("text2", actual.at("/nested-1/nested-2/nested-2-text").asText());
     }
 
     @Test

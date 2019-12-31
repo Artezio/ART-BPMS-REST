@@ -37,6 +37,58 @@
               "type": "text"
             }
           ]
+        },
+        {
+          "components":[
+            {
+              "components":[
+                {
+                  "type":"textfield",
+                  "key":"text",
+                  "input":true,
+                  "spellcheck":true,
+                  "unique":false
+                },
+                {
+                  "type": "datagrid",
+                  "key": "datagrid-without-unwrapping",
+                  "components": [
+                    {
+                      "components":[
+                        {
+                          "type":"textfield",
+                          "key":"text1",
+                          "input":true,
+                          "spellcheck":true,
+                          "unique":false
+                        }
+                      ],
+                      "inDataGrid":true,
+                      "type":"container",
+                      "input":true,
+                      "key":"container"
+                    },
+                    {
+                      "type":"textfield",
+                      "key":"text2",
+                      "input":true,
+                      "spellcheck":true,
+                      "unique":false
+                    }
+                  ]
+                }
+              ],
+              "inDataGrid":true,
+              "type":"container",
+              "input":true,
+              "key":"container"
+            }
+          ],
+          "properties": {
+            "noRowWrapping": true
+          },
+          "type":"datagrid",
+          "key":"nested-3-datagrid"
         }
       ]
     },

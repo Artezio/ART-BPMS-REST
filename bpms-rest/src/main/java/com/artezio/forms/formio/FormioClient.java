@@ -31,6 +31,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static com.artezio.logging.Log.Level.CONFIG;
+import static java.lang.Boolean.TRUE;
 import static java.util.Arrays.asList;
 
 @Named
@@ -41,6 +42,7 @@ public class FormioClient implements FormClient {
     private final static Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS_CACHE = new ConcurrentHashMap<>();
     private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "dryValidationAndCleanUp.js";
     private final static String CLEAN_UP_SCRIPT_NAME = "cleanUp.js";
+    private final static String GRID_NO_ROW_WRAPPING_PROPERTY = "noRowWrapping";
 
     private final static ObjectMapper JSON_MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
@@ -62,7 +64,7 @@ public class FormioClient implements FormClient {
         try {
             JsonNode form = getForm(deploymentId, formPath);
             JsonNode data = cleanUnusedData(deploymentId, formPath, variables);
-            ((ObjectNode) form).set("data", wrapSubformData(data, form));
+            ((ObjectNode) form).set("data", wrapGridData(data, form));
             return form.toString();
         } catch (IOException e) {
             throw new RuntimeException("Failed to get a form.", e);
@@ -77,7 +79,7 @@ public class FormioClient implements FormClient {
             String submissionData = JSON_MAPPER.writeValueAsString(toFormIoSubmissionData(variables));
             try (InputStream validationResult = nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition, submissionData)) {
                 JsonNode cleanData = JSON_MAPPER.readTree(validationResult).get("data");
-                return unwrapSubformData(cleanData, deploymentId, formPath).toString();
+                return unwrapGridData(cleanData, deploymentId, formPath).toString();
             }
         } catch (IOException e) {
             throw new RuntimeException("Error while dry validation and cleanup", e);
@@ -105,6 +107,16 @@ public class FormioClient implements FormClient {
                         throw new RuntimeException("Failed to get the form into the cache.", e);
                     }
                 });
+    }
+
+    private JsonNode cleanUnusedData(String deploymentId, String formPath, Map<String, Object> variables) throws IOException {
+        Map<String, Object> convertedVariables = variablesMapper.convertEntitiesToMaps(variables);
+        JsonNode formDefinition = getForm(deploymentId, formPath);
+        String submissionData = JSON_MAPPER.writeValueAsString(toFormIoSubmissionData(convertedVariables));
+        try (InputStream cleanUpResult = nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), submissionData)) {
+            return JSON_MAPPER.readTree(cleanUpResult)
+                    .get("data");
+        }
     }
 
     protected JsonNode expandSubforms(String deploymentId, JsonNode form) {
@@ -159,65 +171,53 @@ public class FormioClient implements FormClient {
                 .orElse(true);
     }
 
-    protected JsonNode unwrapSubformData(JsonNode data, String deploymentId, String formPath) {
-        JsonNode formDefinition = getForm(deploymentId, formPath);
-        return unwrapSubformData(data, formDefinition);
-    }
-
-    protected JsonNode unwrapSubformData(JsonNode data, JsonNode definition) {
-        if (hasChildComponents(definition)) {
-            List<JsonNode> childComponents = getChildComponentDefinitions(definition);
-            if (data.isObject()) {
-                return unwrapSubformDataFromObject(data, childComponents);
-            }
-            if (data.isArray()) {
-                return unwrapSubformDataFromArray(data, childComponents);
-            }
-        }
-        return data;
-    }
-
-    protected JsonNode wrapSubformData(JsonNode data, JsonNode definition) {
+    protected JsonNode wrapGridData(JsonNode data, JsonNode definition) {
         if (data.isObject()) {
-            return wrapSubformDataInObject(data, definition);
+            return wrapGridDataInObject(data, definition);
         }
         if (data.isArray()) {
-            return wrapSubformDataInArray((ArrayNode) data, definition);
+            return wrapGridDataInArray((ArrayNode) data, definition);
         }
         return data;
     }
 
-    protected JsonNode wrapSubformDataInObject(JsonNode data, JsonNode definition) {
+    protected JsonNode wrapGridDataInObject(JsonNode data, JsonNode definition) {
         ObjectNode dataWithWrappedChildren = data.deepCopy();
         if (hasChildComponents(definition)) {
             List<JsonNode> childComponents = getChildComponentDefinitions(definition);
             for (JsonNode child : childComponents) {
                 String key = child.get("key").asText();
                 if (dataWithWrappedChildren.has(key)) {
-                    dataWithWrappedChildren.set(key, wrapSubformData(dataWithWrappedChildren.get(key), child));
+                    dataWithWrappedChildren.set(key, wrapGridData(dataWithWrappedChildren.get(key), child));
                 }
             }
-        }
-        if (isSubform(definition)) {
-            ObjectNode wrappedData = JsonNodeFactory.instance.objectNode();
-            wrappedData.set("data", dataWithWrappedChildren);
-            return wrappedData;
         }
         return dataWithWrappedChildren;
     }
 
-    protected JsonNode wrapSubformDataInArray(ArrayNode data, JsonNode definition) {
-        data = data.deepCopy();
-        for (int index = 0; index < data.size(); index++) {
-            JsonNode wrappedElement = wrapSubformData(data.get(index), definition);
-            data.set(index, wrappedElement);
+    protected JsonNode wrapGridDataInArray(ArrayNode data, JsonNode definition) {
+        ArrayNode wrappedData = data.deepCopy();
+        if (isGridUnwrapped(definition)) {
+            String wrapperName = definition.at("/components/0/key").asText();
+            for (int index = 0; index < data.size(); index++) {
+                JsonNode arrayElement = data.get(index);
+                ObjectNode wrapper = JsonNodeFactory.instance.objectNode();
+                wrapper.set(wrapperName, arrayElement);
+                wrappedData.set(index, wrapper);
+            }
         }
-        return data;
+        for (int index = 0; index < data.size(); index++) {
+            JsonNode wrappedElement = wrapGridData(wrappedData.get(index), definition);
+            wrappedData.set(index, wrappedElement);
+        }
+        return wrappedData;
     }
 
-    protected boolean isSubform(JsonNode definition) {
-        JsonNode nodeType = definition.at("/type");
-        return !nodeType.isMissingNode() && nodeType.asText().equals("form") && !definition.at("/src").isMissingNode();
+    protected boolean isGridUnwrapped(JsonNode definition) {
+        JsonNode noRowWrappingProperty = definition.at(String.format("/properties/%s", GRID_NO_ROW_WRAPPING_PROPERTY));
+        return isArrayComponent(definition)
+                && !noRowWrappingProperty.isMissingNode()
+                && TRUE.equals(noRowWrappingProperty.asBoolean());
     }
 
     protected boolean hasChildComponents(JsonNode definition) {
@@ -249,16 +249,6 @@ public class FormioClient implements FormClient {
         return nodes;
     }
 
-    private JsonNode cleanUnusedData(String deploymentId, String formPath, Map<String, Object> variables) throws IOException {
-        Map<String, Object> convertedVariables = variablesMapper.convertEntitiesToMaps(variables);
-        JsonNode formDefinition = getForm(deploymentId, formPath);
-        String submissionData = JSON_MAPPER.writeValueAsString(toFormIoSubmissionData(convertedVariables));
-        try (InputStream cleanUpResult = nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), submissionData)) {
-            return JSON_MAPPER.readTree(cleanUpResult)
-                    .get("data");
-        }
-    }
-
     @SuppressWarnings("serial")
     protected Map<String, Object> toFormIoSubmissionData(Map<String, Object> variables) {
         return variables.containsKey("data")
@@ -268,25 +258,42 @@ public class FormioClient implements FormClient {
         }};
     }
 
-    private JsonNode unwrapSubformDataFromObject(JsonNode data, List<JsonNode> childComponents) {
-        ObjectNode result = JsonNodeFactory.instance.objectNode();
+    protected JsonNode unwrapGridData(JsonNode data, String deploymentId, String formPath) {
+        JsonNode formDefinition = getForm(deploymentId, formPath);
+        return unwrapGridData(data, formDefinition);
+    }
+
+    protected JsonNode unwrapGridData(JsonNode data, JsonNode definition) {
+        if (hasChildComponents(definition)) {
+            List<JsonNode> childComponents = getChildComponentDefinitions(definition);
+            if (data.isObject()) {
+                return unwrapGridDataFromObject(data, childComponents);
+            }
+            if (data.isArray()) {
+                return unwrapGridDataFromArray(data, childComponents);
+            }
+        }
+        return data;
+    }
+
+    protected JsonNode unwrapGridDataFromObject(JsonNode data, List<JsonNode> childComponents) {
+        ObjectNode unwrappedData = JsonNodeFactory.instance.objectNode();
         for (JsonNode childDefinition : childComponents) {
             String key = childDefinition.get("key").asText();
             if (data.has(key)) {
-                JsonNode unwrappedData = unwrapSubformData(data, childDefinition, key);
-                result.set(key, unwrappedData);
+                unwrappedData.set(key, unwrapGridData(data, childDefinition, key));
             }
         }
-        return result;
+        return unwrappedData;
     }
 
-    private JsonNode unwrapSubformDataFromArray(JsonNode data, List<JsonNode> childComponents) {
+    protected JsonNode unwrapGridDataFromArray(JsonNode data, List<JsonNode> childComponents) {
         ArrayNode unwrappedArray = data.deepCopy();
         for (int index = 0; index < data.size(); index++) {
             ObjectNode currentNode = JsonNodeFactory.instance.objectNode();
             for (JsonNode childDefinition : childComponents) {
                 String key = childDefinition.get("key").asText();
-                JsonNode unwrappedData = unwrapSubformData(data.get(index), childDefinition, key);
+                JsonNode unwrappedData = unwrapGridData(data.get(index), childDefinition, key);
                 currentNode.set(key, unwrappedData);
             }
             unwrappedArray.set(index, currentNode);
@@ -294,53 +301,64 @@ public class FormioClient implements FormClient {
         return unwrappedArray;
     }
 
-    private JsonNode unwrapSubformData(JsonNode data, JsonNode childDefinition, String key) {
+    protected JsonNode unwrapGridData(JsonNode data, JsonNode childDefinition, String key) {
         if (!data.has(key)) {
             return data;
         }
-        if (isSubform(childDefinition)) {
-            data = data.get(key).get("data");
-        } else {
-            data = data.get(key);
+        data = unwrapGridData(data.get(key), childDefinition);
+        if (isArrayComponent(childDefinition)) {
+            data = unwrapGridData(childDefinition, (ArrayNode) data);
         }
-        return unwrapSubformData(data, childDefinition);
+        return data;
     }
 
-    private boolean isFormComponent(JsonNode componentDefinition) {
+    protected JsonNode unwrapGridData(JsonNode gridDefinition, ArrayNode data) {
+        ArrayNode components = (ArrayNode) gridDefinition.get("components");
+        ArrayNode unwrappedData = JsonNodeFactory.instance.arrayNode();
+        JsonNode noRowWrappingProperty = gridDefinition.at(String.format("/properties/%s", GRID_NO_ROW_WRAPPING_PROPERTY));
+        if (!noRowWrappingProperty.isMissingNode() && TRUE.equals(noRowWrappingProperty.asBoolean()) && (components.size() == 1)) {
+            data.forEach(node -> unwrappedData.add(node.elements().next()));
+        } else {
+            unwrappedData.addAll(data);
+        }
+        return unwrappedData;
+    }
+
+    protected boolean isFormComponent(JsonNode componentDefinition) {
         return isTypeOf(componentDefinition, "form");
     }
 
-    private boolean isContainerComponent(JsonNode componentDefinition) {
+    protected boolean isContainerComponent(JsonNode componentDefinition) {
         return isTypeOf(componentDefinition, "form")
                 || isTypeOf(componentDefinition, "container")
                 || isTypeOf(componentDefinition, "survey");
     }
 
-    private boolean isArrayComponent(JsonNode componentDefinition) {
+    protected boolean isArrayComponent(JsonNode componentDefinition) {
         return isTypeOf(componentDefinition, "datagrid")
                 || isTypeOf(componentDefinition, "editgrid");
     }
 
-    private boolean isTypeOf(JsonNode componentDefinition, String type) {
+    protected boolean isTypeOf(JsonNode componentDefinition, String type) {
         JsonNode typeField = componentDefinition.get("type");
         String componentType = typeField != null ? typeField.asText() : "";
         return componentType.equals(type);
     }
 
-    private Stream<JsonNode> toStream(JsonNode node) {
+    protected Stream<JsonNode> toStream(JsonNode node) {
         return StreamSupport.stream(node.spliterator(), false);
     }
 
-    private Stream<Map.Entry<String, JsonNode>> toFieldStream(JsonNode node) {
+    protected Stream<Map.Entry<String, JsonNode>> toFieldStream(JsonNode node) {
         return StreamSupport.stream(Spliterators
                 .spliteratorUnknownSize(node.fields(), Spliterator.ORDERED), false);
     }
 
-    private Map<String, Object> convertVariablesToFileRepresentations(Map<String, Object> taskVariables, String formDefinition) {
+    protected Map<String, Object> convertVariablesToFileRepresentations(Map<String, Object> taskVariables, String formDefinition) {
         return convertVariablesToFileRepresentations("", taskVariables, formDefinition);
     }
 
-    private Map<String, Object> convertVariablesToFileRepresentations(String objectVariableName, Map<String, Object> objectVariableAttributes, String formDefinition) {
+    protected Map<String, Object> convertVariablesToFileRepresentations(String objectVariableName, Map<String, Object> objectVariableAttributes, String formDefinition) {
         return objectVariableAttributes.entrySet().stream()
                 .peek(objectAttribute -> {
                     Object attributeValue = objectVariableAttributes.get(objectAttribute.getKey());
