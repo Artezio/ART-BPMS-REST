@@ -1,5 +1,5 @@
 # hub.docker.com/r/_/node/
-FROM node:lts-alpine
+FROM node:lts-alpine3.10
 
 ARG FORMIO_VERSION=v1.59.0
 ARG ART_FORMIO_EXT_VERSION=1.0
