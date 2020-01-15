@@ -21,6 +21,13 @@
         <module>bpms-rest-spa-example</module>
     </modules>
 
+    <distributionManagement>
+        <repository>
+            <id>art-mvn-repo</id>
+            <url>https://maven.pkg.github.com/Artezio/ART-MVN-REPO</url>
+        </repository>
+    </distributionManagement>
+
     <build>
         <pluginManagement>
             <plugins>
