@@ -1,4 +1,3 @@
-global.Option = global.window.Option;
 const arrayComponents = ['datagrid'];
 
 function saveToResult(key, result) {
