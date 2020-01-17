@@ -16,6 +16,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
@@ -68,7 +69,7 @@ public class FormSvcTest extends ServiceTest {
 
     @Test
     @Ignore
-    public void testGetTaskFormWithData() throws IOException {
+    public void testGetTaskFormWithData() throws IOException, URISyntaxException {
         Deployment deployment = createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
         getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
         Task task = getTaskService().createTaskQuery().taskUnassigned().singleResult();
@@ -84,7 +85,7 @@ public class FormSvcTest extends ServiceTest {
 
     @Test
     @Ignore
-    public void testGetStartFormWithData() throws IOException {
+    public void testGetStartFormWithData() throws IOException, URISyntaxException {
         Deployment deployment = createDeployment("test-deployment", "test-process-with-start-form.bpmn");
         ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("testProcessWithStartForm");
         String expectedResult = "{someFormWithData}";
@@ -98,7 +99,7 @@ public class FormSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testShouldProcessSubmittedData_DecisionWithValidation() throws IOException {
+    public void testShouldProcessSubmittedData_DecisionWithValidation() throws IOException, URISyntaxException {
         Deployment deployment = createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
         getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
 
@@ -114,7 +115,7 @@ public class FormSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testShouldProcessSubmittedData_DecisionWithoutValidation() throws IOException {
+    public void testShouldProcessSubmittedData_DecisionWithoutValidation() throws IOException, URISyntaxException {
         Deployment deployment = createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
         getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
 

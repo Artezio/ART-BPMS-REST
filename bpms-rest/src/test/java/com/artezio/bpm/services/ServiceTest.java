@@ -21,6 +21,7 @@ import javax.ws.rs.core.Response;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.*;
@@ -33,8 +34,8 @@ abstract public class ServiceTest {
     @Rule
     public ProcessEngineRule processEngineRule = new ProcessEngineRule();
 
-    static protected File getFile(String fileName) {
-        return new File(ServiceTest.class.getClassLoader().getResource(fileName).getFile());
+    static protected File getFile(String fileName) throws URISyntaxException {
+        return new File(ServiceTest.class.getClassLoader().getResource(fileName).toURI());
     }
 
     List<ResourceEntity> getDeploymentResources(String deploymentId) {
@@ -48,7 +49,7 @@ abstract public class ServiceTest {
         return getRepositoryService().createDeploymentQuery().list();
     }
 
-    protected Deployment createDeployment(String deploymentName, String... fileNames) throws IOException {
+    protected Deployment createDeployment(String deploymentName, String... fileNames) throws IOException, URISyntaxException {
         RepositoryService repositoryService = getRepositoryService();
         DeploymentBuilder deploymentBuilder = repositoryService.createDeployment().name(deploymentName);
         for (String fileName : fileNames) {
