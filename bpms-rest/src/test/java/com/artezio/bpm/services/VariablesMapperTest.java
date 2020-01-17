@@ -1,22 +1,16 @@
 package com.artezio.bpm.services;
 
 import junitx.framework.ListAssert;
-import org.apache.commons.io.IOUtils;
-import org.camunda.bpm.engine.variable.value.FileValue;
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.junit.MockitoJUnitRunner;
-import spinjar.com.fasterxml.jackson.databind.JsonNode;
 import spinjar.com.fasterxml.jackson.databind.ObjectMapper;
-import spinjar.com.fasterxml.jackson.databind.node.ArrayNode;
-import spinjar.com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import spinjar.com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Field;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Base64;
@@ -25,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -35,14 +28,12 @@ public class VariablesMapperTest {
     private VariablesMapper variablesMapper = new VariablesMapper();
 
     private String json = new String(Files.readAllBytes(Paths.get("./src/test/resources/testInput.json")));
-    private JsonNode formDefinitionNode = new ObjectMapper().readTree(new String(Files.readAllBytes(Paths.get("./src/test/resources/testForm.json"))));
 
     public VariablesMapperTest() throws IOException {
     }
 
     @After
-    public void tearDown() throws NoSuchFieldException, IllegalAccessException {
-    }
+    public void tearDown() {}
 
     @Test
     public void testUpdateVariables_PassedVariablesAreTheSameAsInputVariables() throws IOException {
@@ -136,7 +127,7 @@ public class VariablesMapperTest {
     }
 
     @Test
-    public void testUpdateVariables_PassedVariableIsFile_VariableIsNew() throws IOException {
+    public void testUpdateVariables_PassedVariableIsFile_VariableIsNew() throws IOException, URISyntaxException {
         Map<String, Object> variables = new HashMap<>();
         String fileVariableName = "testFile";
         String fileName = "testFile.png";
@@ -152,7 +143,7 @@ public class VariablesMapperTest {
     }
 
     @Test
-    public void testUpdateVariables_PassedVariableIsFile_VariableExists() throws IOException {
+    public void testUpdateVariables_PassedVariableIsFile_VariableExists() throws IOException, URISyntaxException {
         String fileVariableName = "testFile";
         String fileName = "testFile.png";
         List<Map<String, Object>> fileValues = asList(getFileValue(getFile(fileName)));
@@ -219,19 +210,8 @@ public class VariablesMapperTest {
         ListAssert.assertEquals(asList("one", "two"), (List<String>) target.get("stringArrayEntry"));
     }
 
-    private void assertFileValueEquals(FileValue expected, FileValue actual) throws IOException {
-        assertEquals(expected.getType(), actual.getType());
-        assertEquals(expected.getFilename(), actual.getFilename());
-        assertEquals(expected.getMimeType(), actual.getMimeType());
-        if (expected.getValue() != null && actual.getValue() != null) {
-            assertArrayEquals(IOUtils.toByteArray(expected.getValue()), IOUtils.toByteArray(actual.getValue()));
-        } else {
-            assertEquals(expected.getValue(), actual.getValue());
-        }
-    }
-
-    private File getFile(String fileName) {
-        return new File(getClass().getClassLoader().getResource(fileName).getFile());
+    private File getFile(String fileName) throws URISyntaxException {
+        return new File(getClass().getClassLoader().getResource(fileName).toURI());
     }
 
     private Map<String, Object> getFileValue(File file) throws IOException {
@@ -252,25 +232,6 @@ public class VariablesMapperTest {
     private String toJson(Object variable) throws IOException {
         ObjectMapper objectMapper = new ObjectMapper();
         return objectMapper.writeValueAsString(variable);
-    }
-
-    private ArrayNode getFileFieldValues(List<File> files) throws IOException {
-        ArrayNode filesNode = new ArrayNode(JsonNodeFactory.instance);
-        for (File file : files) {
-            filesNode.add(getBase64EncodedFileFieldValue(file));
-        }
-        return filesNode;
-    }
-
-    private JsonNode getBase64EncodedFileFieldValue(File file) throws IOException {
-        String base64EncodedFileContent = Base64.getEncoder().encodeToString(Files.readAllBytes(file.toPath()));
-        return new ObjectNode(JsonNodeFactory.instance)
-                .put("storage", "base64")
-                .put("name", "")
-                .put("originalName", file.getName())
-                .put("size", file.length())
-                .put("type", Files.probeContentType(file.toPath()))
-                .put("url", "data:image/png;base64," + base64EncodedFileContent);
     }
     
 }
