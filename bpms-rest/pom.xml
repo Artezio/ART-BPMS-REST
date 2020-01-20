@@ -315,31 +315,6 @@
 				</executions>
 			</plugin>
 			<plugin>
-				<groupId>com.google.code.maven-replacer-plugin</groupId>
-				<artifactId>replacer</artifactId>
-				<version>${replacer.version}</version>
-				<executions>
-					<execution>
-						<phase>prepare-package</phase>
-						<goals>
-							<goal>replace</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<file>
-						${project.build.directory}/swagger-ui/META-INF/resources/webjars/swagger-ui/${swagger-ui.version}/index.html
-					</file>
-					<replacements>
-						<replacement>
-							<token>http://petstore.swagger.io/v2/swagger.json</token>
-							<!--suppress UnresolvedMavenProperty -->
-							<value>${host}/api/openapi.json</value>
-						</replacement>
-					</replacements>
-				</configuration>
-			</plugin>
-			<plugin>
 				<groupId>com.coderplus.maven.plugins</groupId>
 				<artifactId>copy-rename-maven-plugin</artifactId>
 				<version>1.0</version>
@@ -360,6 +335,31 @@
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>com.google.code.maven-replacer-plugin</groupId>
+				<artifactId>replacer</artifactId>
+				<version>${replacer.version}</version>
+				<executions>
+					<execution>
+						<phase>prepare-package</phase>
+						<goals>
+							<goal>replace</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<file>
+						${project.build.directory}/swagger-ui/META-INF/resources/webjars/swagger-ui/${swagger-ui.version}/swagger-ui.html
+					</file>
+					<replacements>
+						<replacement>
+							<token>http://petstore.swagger.io/v2/swagger.json</token>
+							<!--suppress UnresolvedMavenProperty -->
+							<value>${host}/api/openapi.json</value>
+						</replacement>
+					</replacements>
+				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>ca.szc.maven</groupId>
