@@ -36,6 +36,7 @@ import javax.ws.rs.core.*;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.URISyntaxException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -710,7 +711,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testLoadForm_VariableHasMultipleFiles() throws IOException {
+    public void testLoadForm_VariableHasMultipleFiles() throws IOException, URISyntaxException {
         String taskId = "taskId";
         String callerId = "callerId";
         String taskFormDefinition = "taskFormDefinition";
@@ -789,7 +790,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testLoadForm_VariableDoesntExist_ExecutionVariableIsContainer_ContainerHasFileVariables() throws IOException {
+    public void testLoadForm_VariableDoesntExist_ExecutionVariableIsContainer_ContainerHasFileVariables() throws IOException, URISyntaxException {
         String taskId = "taskId";
         String callerId = "callerId";
         List<String> callerGroups = asList("callerGroup");
@@ -1018,7 +1019,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testDownloadFile() throws IOException {
+    public void testDownloadFile() throws IOException, URISyntaxException {
         String taskId = "taskId";
         String fileName = "testFile.png";
         String fileVariableName = "testVar";
@@ -1048,7 +1049,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testDownloadFile_FileIsInContainer() throws IOException {
+    public void testDownloadFile_FileIsInContainer() throws IOException, URISyntaxException {
         String taskId = "taskId";
         String candidateUserId = "candidateUserId";
         List<String> candidateGroups = asList("candidateGroup");
@@ -1080,7 +1081,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testDownloadFile_FileHasEmptyMimeType() throws IOException {
+    public void testDownloadFile_FileHasEmptyMimeType() throws IOException, URISyntaxException {
         String taskId = "taskId";
         String fileName = "testFile.png";
         String fileVariableName = "testVar";
@@ -1172,7 +1173,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testGetNextAssignedTask() throws IOException {
+    public void testGetNextAssignedTask() throws IOException, URISyntaxException {
         when(identityService.userId()).thenReturn("testUser");
         Deployment deployment = createDeployment("tasks", "process-with-assigned-task.bpmn");
         ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("Process_with_assigned_task");
@@ -1184,7 +1185,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testGetNextAssignedTask_multipleTasks() throws IOException {
+    public void testGetNextAssignedTask_multipleTasks() throws IOException, URISyntaxException {
         when(identityService.userId()).thenReturn("testUser");
         Deployment deployment = createDeployment("tasks", "process-with-two-simultaneous-assigned-tasks.bpmn");
         ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("Process_with_two_simultaneous_assigned_tasks");
@@ -1195,7 +1196,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testGetNextAssignedTask_noTasks() throws IOException {
+    public void testGetNextAssignedTask_noTasks() throws IOException, URISyntaxException {
         when(identityService.userId()).thenReturn("testUser");
         Deployment deployment = createDeployment("tasks", "test-process-startable-by-testUser.bpmn");
         ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("testProcessStartableByTestUser");

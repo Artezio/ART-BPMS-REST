@@ -25,9 +25,15 @@ public class NodeJsProcessor {
         commands.add(0, script);
 
         Process nodeJs = runNodeJs(commands);
-        checkErrors(nodeJs);
+        try {
+            checkErrors(nodeJs);
 
-        return readFromStdout(nodeJs);
+            return readFromStdout(nodeJs);
+        } finally {
+            if (nodeJs.isAlive()) {
+                nodeJs.destroy();
+            }
+        }
     }
 
     private String loadScript(String scriptName) throws IOException {

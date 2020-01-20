@@ -6,11 +6,10 @@
 	<parent>
 		<groupId>com.artezio.bpm</groupId>
 		<artifactId>bpm-bom</artifactId>
-		<version>1.1</version>
+		<version>0.5.1</version>
 	</parent>
 
 	<artifactId>bpms-rest</artifactId>
-	<version>1.1</version>
 	<packaging>war</packaging>
 
 	<properties>
@@ -249,12 +248,6 @@
 			<version>2.4.6.Final</version>
 			<scope>test</scope>
 		</dependency>
-		<!-- <dependency> <groupId>org.jboss.arquillian.junit</groupId> <artifactId>arquillian-junit-container</artifactId> 
-			<scope>test</scope> </dependency> <dependency> <groupId>org.jboss.arquillian.container</groupId> 
-			<artifactId>arquillian-weld-embedded</artifactId> <version>2.0.0.Final</version> 
-			<scope>test</scope> </dependency> <dependency> <groupId>org.jboss.weld</groupId> 
-			<artifactId>weld-core</artifactId> <version>2.4.6.Final</version> <scope>test</scope> 
-			</dependency> -->
 		<dependency>
 			<groupId>org.codehaus.groovy</groupId>
 			<artifactId>groovy-all</artifactId>
@@ -322,28 +315,6 @@
 				</executions>
 			</plugin>
 			<plugin>
-				<groupId>com.coderplus.maven.plugins</groupId>
-				<artifactId>copy-rename-maven-plugin</artifactId>
-				<version>1.0</version>
-				<executions>
-					<execution>
-						<id>rename</id>
-						<phase>prepare-package</phase>
-						<goals>
-							<goal>rename</goal>
-						</goals>
-						<configuration>
-							<sourceFile>
-								${project.build.directory}/swagger-ui/META-INF/resources/webjars/swagger-ui/${swagger-ui.version}/index.html
-							</sourceFile>
-							<destinationFile>
-								${project.build.directory}/swagger-ui/META-INF/resources/webjars/swagger-ui/${swagger-ui.version}/swagger-ui.html
-							</destinationFile>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
 				<groupId>com.google.code.maven-replacer-plugin</groupId>
 				<artifactId>replacer</artifactId>
 				<version>${replacer.version}</version>
@@ -367,6 +338,28 @@
 						</replacement>
 					</replacements>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>com.coderplus.maven.plugins</groupId>
+				<artifactId>copy-rename-maven-plugin</artifactId>
+				<version>1.0</version>
+				<executions>
+					<execution>
+						<id>rename</id>
+						<phase>prepare-package</phase>
+						<goals>
+							<goal>rename</goal>
+						</goals>
+						<configuration>
+							<sourceFile>
+								${project.build.directory}/swagger-ui/META-INF/resources/webjars/swagger-ui/${swagger-ui.version}/index.html
+							</sourceFile>
+							<destinationFile>
+								${project.build.directory}/swagger-ui/META-INF/resources/webjars/swagger-ui/${swagger-ui.version}/swagger-ui.html
+							</destinationFile>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 			<plugin>
 				<groupId>ca.szc.maven</groupId>

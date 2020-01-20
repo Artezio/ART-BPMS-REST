@@ -20,6 +20,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +56,7 @@ public class DeploymentSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testCreate() throws IOException {
+    public void testCreate() throws IOException, URISyntaxException {
         String deploymentName = "TestDeploymentName";
         String textFilename = "test-file-for-deployment-content.txt";
         String bpmProcessFilename = "simple-test-process.bpmn";
@@ -90,7 +91,7 @@ public class DeploymentSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testList_DeploymentsExist() throws IOException {
+    public void testList_DeploymentsExist() throws IOException, URISyntaxException {
         createDeployment("test-deployment-1", "test-file-for-deployment-content.txt");
         createDeployment("test-deployment-2", "simple-test-process.bpmn");
 
@@ -108,7 +109,7 @@ public class DeploymentSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testDelete_DeploymentWithGivenIdExists() throws IOException {
+    public void testDelete_DeploymentWithGivenIdExists() throws IOException, URISyntaxException {
         createDeployment("test-deployment-1", "test-file-for-deployment-content.txt");
         createDeployment("test-deployment-2", "simple-test-process.bpmn");
         String deploymentId = getExistingDeploymentId();
@@ -119,7 +120,7 @@ public class DeploymentSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testDelete_DeploymentWithGivenIdNotExist() throws IOException {
+    public void testDelete_DeploymentWithGivenIdNotExist() throws IOException, URISyntaxException {
         createDeployment("test-deployment-1", "test-file-for-deployment-content.txt");
         createDeployment("test-deployment-2", "simple-test-process.bpmn");
         String deploymentId = "notExistingId";
@@ -130,7 +131,7 @@ public class DeploymentSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testGetLocalizationResource_CaseDefinitionIdIsNull_OneLanguageRangeIsPassed() throws IOException {
+    public void testGetLocalizationResource_CaseDefinitionIdIsNull_OneLanguageRangeIsPassed() throws IOException, URISyntaxException {
         String baseName = "simple-test-process";
         String resourceName = "i18n/" + baseName + "_fl_Tscr_TR_testv.properties";
         createDeployment("test-deployment", "simple-test-process.bpmn", resourceName);
@@ -148,7 +149,7 @@ public class DeploymentSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testGetLocalizationResource_ProcessDefinitionIdIsNull_OneLanguageRangeIsPassed() throws IOException {
+    public void testGetLocalizationResource_ProcessDefinitionIdIsNull_OneLanguageRangeIsPassed() throws IOException, URISyntaxException {
         String baseName = "simple-case-plan";
         String resourceName = "i18n/" + baseName + "_fl_Tscr_TR_testv.properties";
         createDeployment("test-deployment", "simple-case-plan.cmmn", resourceName);
@@ -166,7 +167,7 @@ public class DeploymentSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testGetLocalizationResource_CaseDefinitionIdIsNull_OneLanguageRangeIsPassed_ThereIsNoExactlyMatchingResourceBundle() throws IOException {
+    public void testGetLocalizationResource_CaseDefinitionIdIsNull_OneLanguageRangeIsPassed_ThereIsNoExactlyMatchingResourceBundle() throws IOException, URISyntaxException {
         String baseName = "simple-test-process";
         String resourceName1 = "i18n/" + baseName + "_fl.properties";
         String resourceName2 = "i18n/" + baseName + "_fl_Tscr.properties";
@@ -187,7 +188,7 @@ public class DeploymentSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testGetLocalizationResource_ProcessDefinitionIdIsNull_OneLanguageRangeIsPassed_ThereIsNoExactlyMatchingResourceBundle() throws IOException {
+    public void testGetLocalizationResource_ProcessDefinitionIdIsNull_OneLanguageRangeIsPassed_ThereIsNoExactlyMatchingResourceBundle() throws IOException, URISyntaxException {
         String baseName = "simple-case-plan";
         String resourceName1 = "i18n/" + baseName + "_fl.properties";
         String resourceName2 = "i18n/" + baseName + "_fl_Tscr.properties";
@@ -208,7 +209,7 @@ public class DeploymentSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testGetLocalizationResource_CaseDefinitionIdIsNull_MultipleLanguageRangesArePassed_ThereAreBundlesForPassedLanguages() throws IOException {
+    public void testGetLocalizationResource_CaseDefinitionIdIsNull_MultipleLanguageRangesArePassed_ThereAreBundlesForPassedLanguages() throws IOException, URISyntaxException {
         String baseName = "simple-test-process";
         String resourceName1 = "i18n/" + baseName + "_fl_Tscr_TR_testv.properties";
         String resourceName2 = "i18n/" + baseName + "_sl.properties";
@@ -228,7 +229,7 @@ public class DeploymentSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testGetLocalizationResource_ProcessDefinitionIdIsNull_MultipleLanguageRangesArePassed_ThereAreBundlesForPassedLanguages() throws IOException {
+    public void testGetLocalizationResource_ProcessDefinitionIdIsNull_MultipleLanguageRangesArePassed_ThereAreBundlesForPassedLanguages() throws IOException, URISyntaxException {
         String baseName = "simple-case-plan";
         String resourceName1 = "i18n/" + baseName + "_fl_Tscr_TR_testv.properties";
         String resourceName2 = "i18n/" + baseName + "_sl.properties";
@@ -248,7 +249,7 @@ public class DeploymentSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testGetLocalizationResource_CaseDefinitionIdIsNull_MultipleLanguageRangesArePassed_ThereAreNotAllBundlesMatchingExactlyToPassedLanguages() throws IOException {
+    public void testGetLocalizationResource_CaseDefinitionIdIsNull_MultipleLanguageRangesArePassed_ThereAreNotAllBundlesMatchingExactlyToPassedLanguages() throws IOException, URISyntaxException {
         String baseName = "simple-test-process";
         String resourceName1 = "i18n/" + baseName + "_fl_Tscr_TR.properties";
         String resourceName2 = "i18n/" + baseName + "_sl.properties";
@@ -268,7 +269,7 @@ public class DeploymentSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testGetLocalizationResource_ProcessDefinitionIdIsNull_MultipleLanguageRangesArePassed_ThereAreNotAllBundlesMatchingExactlyToPassedLanguages() throws IOException {
+    public void testGetLocalizationResource_ProcessDefinitionIdIsNull_MultipleLanguageRangesArePassed_ThereAreNotAllBundlesMatchingExactlyToPassedLanguages() throws IOException, URISyntaxException {
         String baseName = "simple-case-plan";
         String resourceName1 = "i18n/" + baseName + "_fl_Tscr_TR.properties";
         String resourceName2 = "i18n/" + baseName + "_sl.properties";

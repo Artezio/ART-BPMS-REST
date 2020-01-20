@@ -19,6 +19,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -32,10 +33,10 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class FormioClientTest extends ServiceTest {
 
-    private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "formio-scripts/dryValidationAndCleanUp.js";
+    private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "dryValidationAndCleanUp.js";
     private final static String CLEAN_UP_SCRIPT_NAME = "cleanUp.js";
     static {
-        System.setProperty("NODE_MODULES_PATH", System.getProperty("java.io.tmpdir"));
+        System.setProperty("NODE_MODULES_PATH", ".");
     }
 
     @Mock
@@ -231,7 +232,7 @@ public class FormioClientTest extends ServiceTest {
     }
 
     @Test
-    public void shouldProcessSubmittedData_SubmissionStateIsSubmitted() throws IOException {
+    public void shouldProcessSubmittedData_SubmissionStateIsSubmitted() throws IOException, URISyntaxException {
         String deploymentId = "deploymentId";
         String formPath = "forms/form-with-state";
         String submissionState = "submitted";
@@ -244,7 +245,7 @@ public class FormioClientTest extends ServiceTest {
     }
 
     @Test
-    public void shouldProcessSubmittedData_SubmissionStateIsCanceled() throws IOException {
+    public void shouldProcessSubmittedData_SubmissionStateIsCanceled() throws IOException, URISyntaxException {
         String deploymentId = "deploymentId";
         String formPath = "forms/form-with-state";
         String submissionState = "canceled";
@@ -257,7 +258,7 @@ public class FormioClientTest extends ServiceTest {
     }
 
     @Test
-    public void shouldProcessSubmittedData_SkipDataProcessingPropertyNotSet() throws IOException {
+    public void shouldProcessSubmittedData_SkipDataProcessingPropertyNotSet() throws IOException, URISyntaxException {
         String deploymentId = "deploymentId";
         String formPath = "forms/form-with-state";
         String submissionState = "submittedWithoutProperty";
@@ -270,7 +271,7 @@ public class FormioClientTest extends ServiceTest {
     }
 
     @Test
-    public void testFlatten_FormHasSubform() throws IOException {
+    public void testFlatten_FormHasSubform() throws IOException, URISyntaxException {
         String formPath = "forms/formWithSubform.json";
         String childFormPath = "subform.json";
         String deploymentId = "1";
@@ -285,7 +286,7 @@ public class FormioClientTest extends ServiceTest {
     }
 
     @Test
-    public void testFlatten_FormHasSubformInContainer() throws IOException {
+    public void testFlatten_FormHasSubformInContainer() throws IOException, URISyntaxException {
         String formPath = "forms/formWithSubformInContainer.json";
         String childFormPath = "subform.json";
         String deploymentId = "1";
@@ -300,7 +301,7 @@ public class FormioClientTest extends ServiceTest {
     }
 
     @Test
-    public void testFlatten_FormHasSubformsInArrays() throws IOException {
+    public void testFlatten_FormHasSubformsInArrays() throws IOException, URISyntaxException {
         String formPath = "forms/formWithSubformsInArrays.json";
         String childFormPath = "subform.json";
         String deploymentId = "1";
@@ -315,7 +316,7 @@ public class FormioClientTest extends ServiceTest {
     }
 
     @Test
-    public void testFlatten_FormHasSubformInOtherSubform() throws IOException {
+    public void testFlatten_FormHasSubformInOtherSubform() throws IOException, URISyntaxException {
         String formPath = "forms/formWithSubformInAnotherSubform.json";
         String childFormPath1 = "formWithSubform.json";
         String childFormPath2 = "subform.json";
