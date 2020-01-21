@@ -63,7 +63,7 @@ The Identity Service provides user info including user roles. **NOTE! Current ve
 
 ![](doc/deployment-diagram.png)
 
-ART-BPMS-REST environment consists of Wildfly, Relational Database, Keycloak, Formio, Formio Database (MongoDB) and additionally to this
+ART-BPMS-REST environment consists of Wildfly, Relational Database, Keycloak and additionally to this
 ART-BPMS-REST ships with Camunda Cockpit tool. You can either install environment fully or partially selecting particular components you need.  
 
 ### Docker
@@ -84,8 +84,6 @@ The following resources are available according to the default values of docker 
 |WildFly management console|http://localhost:9990/console/index.html|admin:admin|
 |WildFly remote socket debugging|http://localhost:8787||
 |Cockpit|http://localhost:8280/camunda/app/cockpit/default/#/dashboard|demo:demo|
-|Form.io server|http://localhost:3001||
-|Form.io client application|http://localhost:3001/#/|root<span></span>@root.root:root|
 |Keycloak server|http://localhost:8180||
 |Keycloak administration console|http://localhost:8180/auth/admin/|admin:password|
 |ART-BPMS-REST application*|http://localhost:8080/bpms-rest||
@@ -96,7 +94,7 @@ The following resources are available according to the default values of docker 
 
 #### Partial installation
 
-Each component of the environment  (`bpms-rest`, `formio`, `keycloak`, `cockpit`) has its own `Dockerfile`, therefore you can run the components separately:
+Each component of the environment  (`bpms-rest`, `keycloak`, `cockpit`) has its own `Dockerfile`, therefore you can run the components separately:
 
 1. Open console and go to `ART_BPMS_REST_HOME_DIR/docker/COMPONENT_DIR`
 2. Run 
@@ -114,8 +112,6 @@ Urls of all containers described on [ART-BPMS-REST Environment Resources](#art-b
 **Note:** If you run `cockpit` for the first time, you are asked for creating a new admin user.
 
 For more information about `build` and `run` commands see [Docker CLI Run] and [Docker CLI Build]. <br/>
->Formio component has detached `docker-compose.yml`, so you can run `docker-compose up` under correspondent folder to run
-> only formio containers (Formio server and MongoDB). For more information see [Formio Docker].
 
 ### Manual
 
@@ -132,11 +128,6 @@ For more information about `build` and `run` commands see [Docker CLI Run] and [
 1. NodeJs with preinstalled user modules. It is used to run Form.io designing server and to execute Form.io features' scripts.
     - Download [NodeJs] and install it. To make sure you have installed nodejs correctly run in console `node -v && npm -v`
     - Run `npm install -g jsdom-global jsdom formiojs` to install obligatory modules for ART-BPMS-REST
-    
-1. Form.io Server. The simplest way of running Form.io server is to run our Form.io Docker image from `/formio` subdirectory. See [Form.io Docker readme](docker/formio/README.MD) to use our Form.io Docker image. To run Form.io without Docker, you would have to:
-    - Clone Form.io `v1.59.0` sources from [Form.io Github repository](https://github.com/formio) and install required dependencies listed on their github page
-    - Install ART-FORMIO-EXT according to [the install instruction](https://github.com/Artezio/ART-FORMIO-EXT#install-instruction)
-    - Configure MongoDB connection settings, install Form.io application with npm and run with nodejs
 
 #### Installation
 
@@ -523,7 +514,5 @@ When a file gets serialized from Camunda's engine, FileStorage implementation wi
 [Docker CLI Build]: https://docs.docker.com/engine/reference/commandline/build/
 [Camunda BPM Platform]: https://github.com/camunda/docker-camunda-bpm-platform#camunda-bpm-platform-docker-images
 [REST endpoints]: /doc/rest-api-docs.md
-[Formio Docker]: /docker/formio/README.MD
 [bpms-rest app]: http://localhost:8080/bpms-rest
 [keycloak app]: http://localhost:8180/auth
-[formio app]: http://localhost:3001

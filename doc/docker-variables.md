@@ -2,7 +2,6 @@
 
 ## Ports
 
-`FORMIO_PORT` - formio server port <br/>
 `BPMS_REST_APP_PORT` - wildfly server public port <br/>
 `BPMS_REST_MANAGEMENT_PORT` - wildfly server management port <br/>
 `COCKPIT_PORT` - camunda cockpit port <br/>
@@ -27,11 +26,8 @@ keycloak adapter from url different to official site url <br/>
 `BPMS_REST_DB_NAME` - name of the database <br/>
 `BPMS_REST_DB_LOGIN` - database username <br/>
 `BPMS_REST_DB_PASSWORD` - database password <br/>
-`FORMIO_HOST` - host of the Formio server <br/>
-`FORM_VERSIONING` - indicates if formio versioning is enabled or not <br/>
-`FORMIO_JWT_EXPIRATION_TIME` - Form.io JWT token expiration time in seconds. This is related to Form.io own authentication mechanism and not to ART-BPMS-REST security configuration
 `FILE_STORAGE_URL` - file storage URL for custom file storage implementations. By default, files are stored inside Base64 Data Urls
-`JBOSS_ARGUMENTS` - use this variable to override standard wildfly arguments <br/>
+`JBOSS_ARGS` - use this variable for additional custom wildfly arguments <br/>
 `KEYCLOAK_HOST` - host of the keycloak server <br/>
 `KEYCLOAK_CLIENT_ID` - keycloak client id to be used by bpms-rest <br/>
 `KEYCLOAK_REALM` - keycloak realm to be used by bpms-rest <br/>
@@ -40,9 +36,6 @@ keycloak adapter from url different to official site url <br/>
 `MAX_METASPACE_SIZE_MB` - max size of metaspace is guaranteed to the server <br/>
 `JDBC_POSTGRES_VERSION` - version of postgres jdbc driver <br/>
 `JDBC_MYSQL_VERSION` - version of mysql jdbc driver <br/>
-`JDBC_MSSQL_VERSION` - version of mssql jdbc driver <br/>
-`JDBC_MARIADB_VERSION` - version of mariadb jdbc driver <br/>
-`JDBC_ORACLE_VERSION` - version of oracle jdbc driver <br/>
 
 ## Camunda variables
 
@@ -64,9 +57,3 @@ keycloak adapter from url different to official site url <br/>
 
 `KEYCLOAK_ADMIN_LOGIN` - keycloak admin username <br/>
 `KEYCLOAK_ADMIN_PASSWORD` - keycloak admin password <br/>
-
-## Formio variables
-
-`FORMIO_ROOT_EMAIL` - formio admin email <br/>
-`FORMIO_ROOT_PASSWORD` - formio admin password <br/>
-`MONGODB_URL` - a url to mongo database <br/>
