@@ -284,16 +284,16 @@ ART-BPMS-REST application can be included into another application as a part of 
 ## Configuration
 
 ART-BPMS-REST is configured by passing the following properties to the server on startup (as -Dxxx flags, i.e. `-DFILE_STORAGE_URL=http://localhost:1000`):
-* `NODE_MODULES_PATH`: path to the global directory of nodejs modules. This variable is required. By default it is not set, hence you have to do it manually.
-`NODE_MODULES_PATH` refers to a directory which includes nodejs global modules. You can get the location of this directory through the following commands:
-    Windows (PowerShell):
-    ```shell script
-    npm prefix -g | select -first 1
+* `NODE_PATH`: ':'-separated list of directories prefixed to the module search path. This variable is required. By default it is not set, hence you have to do it manually.
+`NODE_PATH` refers to a directory which includes nodejs global modules. You can get the location of this directory through the following commands:
+    Windows:
+    ```cmd
+    npm root -g
     ```
     
     Linux/Unix:
     ```shell script
-    npm prefix -g | head -1
+    npm root -g
     ```
 
 * `FILE_STORAGE_URL`: file storage URL for custom file storage implementations. By default, files are stored inside Base64 Data Urls

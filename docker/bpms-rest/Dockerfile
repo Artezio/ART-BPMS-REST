@@ -37,7 +37,7 @@ ENV BPMS_REST_CLI_ADMIN_LOGIN ${JBOSS_CLI_ADMIN_LOGIN}
 ENV BPMS_REST_CLI_ADMIN_PASSWORD ${JBOSS_CLI_ADMIN_PASSWORD}
 ENV MAX_HEAP_SIZE_MB 2048
 ENV MAX_METASPACE_SIZE_MB 384
-ENV JBOSS_ARGUMENTS ""
+ENV JBOSS_ARGS ""
 
 ENV JDBC_POSTGRES_VERSION 42.2.2
 ENV JDBC_MYSQL_VERSION 5.1.46
@@ -65,7 +65,7 @@ RUN cd /opt && \
     curl -sL https://rpm.nodesource.com/setup_$NODEJS_VERSION | bash -
 RUN yum -y install nodejs
 
-# Setup formio settings
+# Install formio libs
 RUN npm install -g jsdom-global jsdom formiojs
 
 USER jboss

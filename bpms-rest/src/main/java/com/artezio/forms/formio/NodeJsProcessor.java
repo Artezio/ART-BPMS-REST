@@ -4,7 +4,6 @@ import com.artezio.forms.formio.exceptions.FormioProcessorException;
 import org.apache.commons.io.IOUtils;
 
 import javax.inject.Named;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -17,23 +16,13 @@ import java.util.stream.Stream;
 @Named
 public class NodeJsProcessor {
 
-    private final static File NODE_MODULES_DIR = new File(System.getProperty("NODE_MODULES_PATH"));
-
     public InputStream executeScript(String scriptName, String... args) throws IOException {
         String script = loadScript(scriptName);
         List<String> commands = new ArrayList<>(Arrays.asList(args));
         commands.add(0, script);
-
         Process nodeJs = runNodeJs(commands);
-        try {
-            checkErrors(nodeJs);
-
-            return readFromStdout(nodeJs);
-        } finally {
-            if (nodeJs.isAlive()) {
-                nodeJs.destroy();
-            }
-        }
+        checkErrors(nodeJs);
+        return readFromStdout(nodeJs);
     }
 
     private String loadScript(String scriptName) throws IOException {
@@ -46,9 +35,7 @@ public class NodeJsProcessor {
         List<String> commandList = Stream
                 .concat(Stream.of("node", "-e"), commands.stream())
                 .collect(Collectors.toList());
-        return new ProcessBuilder(commandList)
-                .directory(NODE_MODULES_DIR)
-                .start();
+        return new ProcessBuilder(commandList).start();
     }
 
     private void checkErrors(Process process) throws IOException {

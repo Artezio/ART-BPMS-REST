@@ -35,9 +35,6 @@ public class FormioClientTest extends ServiceTest {
 
     private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "dryValidationAndCleanUp.js";
     private final static String CLEAN_UP_SCRIPT_NAME = "cleanUp.js";
-    static {
-        System.setProperty("NODE_MODULES_PATH", ".");
-    }
 
     @Mock
     private DeploymentSvc deploymentSvc;
