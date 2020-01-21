@@ -19,6 +19,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -34,9 +35,6 @@ public class FormioClientTest extends ServiceTest {
 
     private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "dryValidationAndCleanUp.js";
     private final static String CLEAN_UP_SCRIPT_NAME = "cleanUp.js";
-    static {
-        System.setProperty("NODE_MODULES_PATH", System.getProperty("java.io.tmpdir"));
-    }
 
     @Mock
     private DeploymentSvc deploymentSvc;
@@ -211,73 +209,27 @@ public class FormioClientTest extends ServiceTest {
             }
         }
     }
-    
+
     @Test
     public void testUnwrapData() throws IOException {
         JsonNode definition = new ObjectMapper().readTree(new String(Files.readAllBytes(Paths.get("./src/test/resources/full-form-with-nested-forms.json"))));
-        JsonNode submittedData = new ObjectMapper().readTree(
-                "{" +
-                        "\"text\": \"text\", " +
-                        "\"nested-1\": {" +
-                        "   \"metadata\": {}, " +
-                        "   \"data\": {" +
-                        "       \"nested-1-text\": \"text1\"," +
-                        "       \"nested-2\": {" +
-                        "           \"metadata\": {}," +
-                        "           \"data\": {" +
-                        "               \"nested-2-text\": \"text2\"" +
-                        "           }" +
-                        "       }" +
-                        "   }" +
-                        "}," +
-                        "\"multipleForms\": [" +
-                        "   {\"nested-array-form\": {" +
-                        "       \"metadata\": \"\"," +
-                        "       \"data\": {}" +
-                        "   }" +
-                        "}]}");
-        JsonNode expectedData = new ObjectMapper().readTree(
-                "{" +
-                        "   \"text\": \"text\", " +
-                        "   \"nested-1\": {" +
-                        "       \"nested-1-text\": \"text1\"," +
-                        "       \"nested-2\": {" +
-                        "           \"nested-2-text\": \"text2\"" +
-                        "       }" +
-                        "   }," +
-                        "   \"multipleForms\": [{}]" +
-                        "}");
-        JsonNode actual = formioClient.unwrapSubformData(submittedData, null);//FIXME
+        JsonNode submittedData = new ObjectMapper().readTree(new String(Files.readAllBytes(Paths.get("./src/test/resources/full-form-with-nested-forms-data-submitted-unwrap.json"))));
+        JsonNode expectedData = new ObjectMapper().readTree(new String(Files.readAllBytes(Paths.get("./src/test/resources/full-form-with-nested-forms-data-expected-unwrap.json"))));
+        JsonNode actual = formioClient.unwrapGridData(submittedData, definition);
         assertEquals(expectedData, actual);
     }
 
     @Test
     public void testWrapData() throws IOException {
         JsonNode definition = new ObjectMapper().readTree(new String(Files.readAllBytes(Paths.get("./src/test/resources/full-form-with-nested-forms.json"))));
-        JsonNode sourceData = new ObjectMapper().readTree(
-                "{" +
-                        "   \"text\": \"text\", " +
-                        "   \"nested-1\": {" +
-                        "       \"nested-1-text\": \"text1\"," +
-                        "       \"nested-2\": {" +
-                        "           \"nested-2-text\": \"text2\"" +
-                        "       }" +
-                        "   }," +
-                        "   \"multipleForms\": [" +
-                        "       {" +
-                        "           \"nested-array-form\": {}" +
-                        "       }" +
-                        "   ]" +
-                        "}");
-        JsonNode actual = formioClient.wrapSubformData(sourceData, definition);
-        assertFalse(actual.at("/data").isMissingNode());
-        assertFalse(actual.at("/data/nested-1/data").isMissingNode());
-        assertFalse(actual.at("/data/nested-1/data/nested-2/data").isMissingNode());
-        assertEquals("text2", actual.at("/data/nested-1/data/nested-2/data/nested-2-text").asText());
+        JsonNode sourceData = new ObjectMapper().readTree(new String(Files.readAllBytes(Paths.get("./src/test/resources/full-form-with-nested-forms-data-submitted-wrap.json"))));
+        JsonNode actual = formioClient.wrapGridData(sourceData, definition);
+        assertFalse(actual.at("/nested-1/nested-3-datagrid/0/container").isMissingNode());
+        assertEquals("text2", actual.at("/nested-1/nested-2/nested-2-text").asText());
     }
 
     @Test
-    public void shouldProcessSubmittedData_SubmissionStateIsSubmitted() throws IOException {
+    public void shouldProcessSubmittedData_SubmissionStateIsSubmitted() throws IOException, URISyntaxException {
         String deploymentId = "deploymentId";
         String formPath = "forms/form-with-state";
         String submissionState = "submitted";
@@ -290,7 +242,7 @@ public class FormioClientTest extends ServiceTest {
     }
 
     @Test
-    public void shouldProcessSubmittedData_SubmissionStateIsCanceled() throws IOException {
+    public void shouldProcessSubmittedData_SubmissionStateIsCanceled() throws IOException, URISyntaxException {
         String deploymentId = "deploymentId";
         String formPath = "forms/form-with-state";
         String submissionState = "canceled";
@@ -303,7 +255,7 @@ public class FormioClientTest extends ServiceTest {
     }
 
     @Test
-    public void shouldProcessSubmittedData_SkipDataProcessingPropertyNotSet() throws IOException {
+    public void shouldProcessSubmittedData_SkipDataProcessingPropertyNotSet() throws IOException, URISyntaxException {
         String deploymentId = "deploymentId";
         String formPath = "forms/form-with-state";
         String submissionState = "submittedWithoutProperty";
@@ -316,7 +268,7 @@ public class FormioClientTest extends ServiceTest {
     }
 
     @Test
-    public void testFlatten_FormHasSubform() throws IOException {
+    public void testFlatten_FormHasSubform() throws IOException, URISyntaxException {
         String formPath = "forms/formWithSubform.json";
         String childFormPath = "subform.json";
         String deploymentId = "1";
@@ -331,7 +283,7 @@ public class FormioClientTest extends ServiceTest {
     }
 
     @Test
-    public void testFlatten_FormHasSubformInContainer() throws IOException {
+    public void testFlatten_FormHasSubformInContainer() throws IOException, URISyntaxException {
         String formPath = "forms/formWithSubformInContainer.json";
         String childFormPath = "subform.json";
         String deploymentId = "1";
@@ -346,7 +298,7 @@ public class FormioClientTest extends ServiceTest {
     }
 
     @Test
-    public void testFlatten_FormHasSubformsInArrays() throws IOException {
+    public void testFlatten_FormHasSubformsInArrays() throws IOException, URISyntaxException {
         String formPath = "forms/formWithSubformsInArrays.json";
         String childFormPath = "subform.json";
         String deploymentId = "1";
@@ -361,7 +313,7 @@ public class FormioClientTest extends ServiceTest {
     }
 
     @Test
-    public void testFlatten_FormHasSubformInOtherSubform() throws IOException {
+    public void testFlatten_FormHasSubformInOtherSubform() throws IOException, URISyntaxException {
         String formPath = "forms/formWithSubformInAnotherSubform.json";
         String childFormPath1 = "formWithSubform.json";
         String childFormPath2 = "subform.json";

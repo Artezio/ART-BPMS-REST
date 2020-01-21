@@ -21,6 +21,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.URISyntaxException;
 import java.util.*;
 
 import static java.util.Arrays.asList;
@@ -79,7 +80,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testListStartableByUser() throws IOException {
+    public void testListStartableByUser() throws IOException, URISyntaxException {
         createDeployment("test-deployment",
                 "test-process-not-startable-by-anyone.bpmn");
 
@@ -89,7 +90,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testListStartableByUser_userHasNoAccess() throws IOException {
+    public void testListStartableByUser_userHasNoAccess() throws IOException, URISyntaxException {
         createDeployment("test-deployment",
                 "test-process-startable-by-testUser.bpmn");
         expect(identitySvc.userId()).andReturn(ANOTHER_USER_ID);
@@ -102,7 +103,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testListStartableByUser_userIsCandidate() throws IOException {
+    public void testListStartableByUser_userIsCandidate() throws IOException, URISyntaxException {
         createDeployment("test-deployment",
                 "test-process-startable-by-testUser.bpmn");
         expect(identitySvc.userId()).andReturn(TEST_USER_ID);
@@ -115,7 +116,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testListStartableByUser_userIsInCandidateGroup() throws IOException {
+    public void testListStartableByUser_userIsInCandidateGroup() throws IOException, URISyntaxException {
         createDeployment("test-deployment",
                 "test-process-startable-by-testGroup.bpmn");
         expect(identitySvc.userGroups()).andReturn(asList(TEST_GROUP_ID));
@@ -128,7 +129,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testStart() throws IOException {
+    public void testStart() throws IOException, URISyntaxException {
         createDeployment("test-deployment",
                 "test-process-startable-by-testGroup.bpmn");
 
@@ -146,7 +147,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
     }
 
     @Test(expected = NotAuthorizedException.class)
-    public void testStart_notAuthorized() throws IOException {
+    public void testStart_notAuthorized() throws IOException, URISyntaxException {
         createDeployment("test-deployment",
                 "test-process-startable-by-testUser.bpmn");
         expect(identitySvc.userId()).andReturn(ANOTHER_USER_ID);
@@ -156,7 +157,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testStart_withStartForm() throws IOException {
+    public void testStart_withStartForm() throws IOException, URISyntaxException {
         createDeployment("test-deployment",
                 "test-process-with-start-form.bpmn");
         String validatedVariablesJson = "{\"stringFormVariable\":\"non-default-string\",\"booleanFormVariable\":true}";
@@ -209,7 +210,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testStart_withStartForm_MultipleFileValue() throws IOException {
+    public void testStart_withStartForm_MultipleFileValue() throws IOException, URISyntaxException {
         createDeployment("test-deployment",
                 "test-process-with-start-form.bpmn");
         String validatedVariablesJson = "validatedJsonWithFileValues";
@@ -248,7 +249,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testLoadStartForm() throws IOException {
+    public void testLoadStartForm() throws IOException, URISyntaxException {
         createDeployment("test-deployment",
                 "test-process-with-start-form.bpmn");
         Map<String, Object> expectedInitialFormVariables = new HashMap<>();
@@ -271,7 +272,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
     }
 
     @Test(expected = NotAuthorizedException.class)
-    public void testLoadStartForm_notAuthorized() throws IOException {
+    public void testLoadStartForm_notAuthorized() throws IOException, URISyntaxException {
         createDeployment("test-deployment",
                 "test-process-startable-by-testUser.bpmn");
         expect(identitySvc.userId()).andReturn(ANOTHER_USER_ID);

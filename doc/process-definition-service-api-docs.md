@@ -89,7 +89,7 @@ documentation.
 ### Example:
 
 #### Request:
-Request to Formio server: `GET /api/process-definition/key/some-process-definition-key/form`
+Get a form from a deployment: `GET /api/process-definition/key/some-process-definition-key/form`
 
 #### Response:
 Status 200 OK.

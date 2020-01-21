@@ -33,15 +33,8 @@ services:
       BPMS_REST_DB_NAME: ${BPMS_REST_DB_NAME}
       BPMS_REST_DB_LOGIN: ${BPMS_REST_DB_LOGIN}
       BPMS_REST_DB_PASSWORD: ${BPMS_REST_DB_PASSWORD}
-      FORMIO_HOST: ${FORMIO_HOST}
-      FORMIO_PORT: ${FORMIO_PORT}
-      FORMIO_URL: http://${FORMIO_HOST}:${FORMIO_PORT}
-      FORMIO_LOGIN: ${FORMIO_ROOT_EMAIL}
-      FORMIO_PASSWORD: ${FORMIO_ROOT_PASSWORD}
-      FORMIO_JWT_EXPIRATION_TIME: ${FORMIO_JWT_EXPIRATION_TIME}
       FILE_STORAGE_URL: ${FILE_STORAGE_URL}
-      FORM_VERSIONING: ${FORM_VERSIONING}
-      JBOSS_ARGUMENTS: ${JBOSS_ARGUMENTS}
+      JBOSS_ARGS: ${JBOSS_ARGS}
       KEYCLOAK_HOST: ${KEYCLOAK_HOST}
       KEYCLOAK_PORT: ${KEYCLOAK_PORT}
       KEYCLOAK_SERVER_URL: http://${KEYCLOAK_HOST}:${KEYCLOAK_PORT}/auth
@@ -99,33 +92,3 @@ services:
       KEYCLOAK_PORT: ${KEYCLOAK_PORT}
     ports:
       - "${KEYCLOAK_PORT}:${KEYCLOAK_PORT}"
-
-  formio:
-    container_name: formio
-    hostname: formio
-    build:
-      context: formio
-      args:
-        ROOT_EMAIL: ${FORMIO_ROOT_EMAIL}
-        ROOT_PASSWORD: ${FORMIO_ROOT_PASSWORD}
-    restart: always
-    links:
-      - mongo
-    ports:
-      - "${FORMIO_PORT}:3001"
-    external_links:
-      - mongo
-    environment:
-      NODE_CONFIG: "{\"mongo\": \"${MONGODB_URL}\"}"
-      ROOT_EMAIL: ${FORMIO_ROOT_EMAIL}
-      ROOT_PASSWORD: ${FORMIO_ROOT_PASSWORD}
-
-  mongo:
-    container_name: mongo
-    image: mongo:4.1
-    restart: always
-    volumes:
-      - mongodb-data:/data/db
-
-volumes:
-  mongodb-data:
