@@ -19,24 +19,24 @@ public class VariablesMapper {
 
     public final static String EXTENSION_NAME_PREFIX = "entity.";
 
-    private final static ObjectMapper MAPPER = new ObjectMapper()
+    private final static ObjectMapper JSON_MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             .setDefaultMergeable(false);
 
     static {
-        JacksonDataFormatConfigurator.registerSpinjarFileValueSerializers(MAPPER);
+        JacksonDataFormatConfigurator.registerSpinjarFileValueSerializers(JSON_MAPPER);
     }
 
     @Log(level = CONFIG, beforeExecuteMessage = "Updating process variables")
     public void updateVariables(Map<String, Object> existedVariables, String inputVarsJson) throws IOException {
-        MAPPER.readTree(inputVarsJson).fields()
+        JSON_MAPPER.readTree(inputVarsJson).fields()
                 .forEachRemaining(inputField -> updateVariable(inputField, existedVariables));
     }
 
     public Map<String, Object> convertEntitiesToMaps(Map<String, Object> variables) {
         try {
-            String variablesJson = MAPPER.writeValueAsString(variables);
-            return MAPPER.readValue(variablesJson, Map.class);
+            String variablesJson = JSON_MAPPER.writeValueAsString(variables);
+            return JSON_MAPPER.readValue(variablesJson, Map.class);
         } catch (IOException e) {
             throw new RuntimeException("Error during converting entities to maps", e);
         }
@@ -60,8 +60,8 @@ public class VariablesMapper {
             String varName = variable.getKey();
             Object varValue = variable.getValue();
             Class<?> entityType = Class.forName(existingEntityClassName);
-            String variableJsonValue = MAPPER.writeValueAsString(varValue);
-            varValue = MAPPER.readValue(variableJsonValue, entityType);
+            String variableJsonValue = JSON_MAPPER.writeValueAsString(varValue);
+            varValue = JSON_MAPPER.readValue(variableJsonValue, entityType);
             return new AbstractMap.SimpleEntry<>(varName, varValue);
         } catch (ClassNotFoundException | IOException e) {
             throw new RuntimeException("Error during converting variable to entity", e);
@@ -81,8 +81,8 @@ public class VariablesMapper {
 
     private Object updateVariable(Object target, JsonNode inputValue) throws IOException {
         return inputValue.isObject() && target != null
-                ? MAPPER.readerForUpdating(target).readValue(inputValue)
-                : MAPPER.convertValue(inputValue, Object.class);
+                ? JSON_MAPPER.readerForUpdating(target).readValue(inputValue)
+                : JSON_MAPPER.convertValue(inputValue, Object.class);
     }
 
 }

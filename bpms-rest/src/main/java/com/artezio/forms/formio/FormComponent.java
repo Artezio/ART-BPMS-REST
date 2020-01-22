@@ -1,22 +1,21 @@
 package com.artezio.forms.formio;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static java.util.Collections.emptyMap;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class FormComponent {
     
+    private final Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS = new HashMap<>();
     private final Set<String> CONTAINER_TYPES = new HashSet<String>(){{
         add("container");
         add("form");
@@ -50,12 +49,22 @@ public class FormComponent {
     String action;
     String state;
     
-    List<FormComponent> components;
-    List<List<FormComponent>> columns;
-    List<List<List<FormComponent>>> rows;
+    List<FormComponent> components = new ArrayList<>();
+    List<List<FormComponent>> columns = new ArrayList<>();
+    List<List<List<FormComponent>>> rows = new ArrayList<>();
     
-    Map<String, Object> properties;
-    
+    Map<String, Object> properties = new HashMap<>();
+
+    public List<FormComponent> getAllChildComponents() {
+        return getChildComponents().stream()
+                .flatMap(component -> {
+                    List<FormComponent> allChildComponents = component.getAllChildComponents();
+                    allChildComponents.add(component);
+                    return allChildComponents.stream();
+                })
+                .collect(Collectors.toList());
+    }
+
     public List<FormComponent> getChildComponents() {
         List<FormComponent> result = getNonLayoutChildComponents();
         result.addAll(getLayoutChildComponents());
@@ -63,7 +72,7 @@ public class FormComponent {
     }
 
     private List<FormComponent> getNonLayoutChildComponents() {
-        return getComponents().stream()
+        return Optional.ofNullable(getComponents()).orElse(new ArrayList<>()).stream()
                 .filter(component -> !LAYOUT_TYPES.contains(component.getType()))
                 .collect(Collectors.toList());
     }
@@ -76,17 +85,17 @@ public class FormComponent {
     }
 
     private List<FormComponent> getSimpleLayoutChildComponents() {
-        return getComponents().stream()
+        return Optional.ofNullable(getComponents()).orElse(new ArrayList<>()).stream()
                 .filter(component -> SIMPLE_LAYOUT_TYPES.contains(component.getType()))
-                .map(component -> component.getComponents())
+                .map(FormComponent::getComponents)
                 .flatMap(Collection::stream)
                 .collect(Collectors.toList());
     }
 
     private List<FormComponent> getTableChildComponents() {
-        return getComponents().stream()
+        return Optional.ofNullable(getComponents()).orElse(new ArrayList<>()).stream()
                 .filter(component -> "table".equals(component.getType()))
-                .map(component -> component.getRows())
+                .map(FormComponent::getRows)
                 .flatMap(Collection::stream)
                 .flatMap(Collection::stream)
                 .flatMap(Collection::stream)
@@ -94,20 +103,20 @@ public class FormComponent {
     }
 
     private List<FormComponent> getColumnsChildComponents() {
-        return getComponents().stream()
+        return Optional.ofNullable(getComponents()).orElse(new ArrayList<>()).stream()
                 .filter(component -> "columns".equals(component.getType()))
-                .map(component -> component.getColumns())
+                .map(FormComponent::getColumns)
                 .flatMap(Collection::stream)
                 .flatMap(Collection::stream)
                 .collect(Collectors.toList());
     }
     
     public boolean isContainer() {
-        return CONTAINER_TYPES.contains(type);
+        return StringUtils.equalsAny(type, CONTAINER_TYPES.toArray(ArrayUtils.EMPTY_STRING_ARRAY));
     }
     
     public boolean isArray() {
-        return ARRAY_TYPES.contains(type);
+        return StringUtils.equalsAny(type, ARRAY_TYPES.toArray(ArrayUtils.EMPTY_STRING_ARRAY));
     }
     
     public boolean isEditable() {
@@ -126,21 +135,28 @@ public class FormComponent {
         return CollectionUtils.isNotEmpty(components);
     }
     
-    public boolean mustBeWrapped() {
-        return getChildComponents().stream()
-                .anyMatch(component -> "flat".equals(component.getKey()));
-    }
-    
     public boolean isSubform() {
         return "form".equals(type) && src != null;
     }
-    //FIXME check all components
+
     public boolean containsFileComponent(String componentKey) {
-        return getChildComponents().stream()
+        return getAllChildComponents().stream()
             .filter(component -> componentKey.equals(component.getKey()))
             .anyMatch(component -> "file".equals(component.getType()));
     }
     
+    public boolean shouldProcessSubmission(String submissionState) {
+        return SUBMISSION_PROCESSING_DECISIONS.computeIfAbsent(submissionState, key ->
+                (boolean) getChildComponents().stream()
+                        .filter(component -> "saveState".equals(component.getAction()))
+                        .filter(component -> submissionState.equals(component.getState()))
+                        .map(component -> Optional.ofNullable(component.getProperties())
+                                .orElse(emptyMap())
+                                .getOrDefault("isSubmissionProcessed", true))
+                        .findFirst()
+                        .orElse(true));
+    }
+
     public String getId() {
         return id;
     }

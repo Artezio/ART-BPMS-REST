@@ -1,7 +1,5 @@
 package com.artezio.forms.formio;
 
-import static java.util.AbstractMap.SimpleEntry;
-
 import com.artezio.bpm.services.DeploymentSvc;
 import com.artezio.bpm.services.VariablesMapper;
 import com.artezio.forms.FormClient;
@@ -15,15 +13,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.jayway.jsonpath.Criteria;
-import com.jayway.jsonpath.Filter;
-import com.jayway.jsonpath.JsonPath;
-import net.minidev.json.JSONArray;
 import org.camunda.bpm.engine.variable.value.FileValue;
 
 import javax.inject.Inject;
 import javax.inject.Named;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
@@ -37,15 +30,14 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static com.artezio.logging.Log.Level.CONFIG;
-import static java.lang.Boolean.TRUE;
+import static java.util.AbstractMap.SimpleEntry;
 import static java.util.Arrays.asList;
 
 @Named
 public class FormioClient implements FormClient {
 
-    private final static Map<String, FormComponent> FORM_DEFINITION_CACHE = new ConcurrentHashMap<>();
-    private final static Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
-    private final static Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS_CACHE = new ConcurrentHashMap<>();
+    private final static Map<String, FormComponent> FORM_COMPONENT_CACHE = new ConcurrentHashMap<>();
+
     private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "dryValidationAndCleanUp.js";
     private final static String CLEAN_UP_SCRIPT_NAME = "cleanUp.js";
     private final static String GRID_NO_ROW_WRAPPING_PROPERTY = "noRowWrapping";
@@ -68,56 +60,35 @@ public class FormioClient implements FormClient {
     @Log(level = CONFIG, beforeExecuteMessage = "Getting definition with data for a form '{0}'")
     public String getFormWithData(String deploymentId, String formPath, Map<String, Object> variables) {
         try {
-            JsonNode form = getFormSource(deploymentId, formPath);
+            JsonNode form = getFormDefinition(deploymentId, formPath);
             JsonNode data = cleanUnusedData(deploymentId, formPath, variables);
-            ((ObjectNode) form).set("data", wrapGridData(data, form));
+            FormComponent formComponent = toFormComponent(form);
+            ((ObjectNode) form).set("data", wrapGridData(data, formComponent));
             return form.toString();
         } catch (IOException e) {
             throw new RuntimeException("Failed to get a form.", e);
         }
     }
 
-    /**
-     * @deprecated use {@link #dryValidationAndCleanup(String, String, Map, Map)}
-     */
-    @Deprecated
-    @Log(level = CONFIG, beforeExecuteMessage = "Performing dry validation and cleanup of a form '{0}'")
-    public String dryValidationAndCleanup(String deploymentId, String formPath, Map<String, Object> variables) {
-        try {
-            String formDefinition = getFormSource(deploymentId, formPath).toString();
-            variables = convertVariablesToFileRepresentations(variables, formDefinition);
-            String submissionData = JSON_MAPPER.writeValueAsString(toFormIoSubmissionData(variables));
-            try (InputStream validationResult = nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition, submissionData)) {
-                JsonNode cleanData = JSON_MAPPER.readTree(validationResult).get("data");
-                return unwrapGridData(cleanData, deploymentId, formPath).toString();
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Error while dry validation and cleanup", e);
-        }
-    }
-
     public boolean shouldProcessSubmission(String deploymentId, String formPath, String submissionState) {
-        String formDefinition = getFormSource(deploymentId, formPath).toString();
-        String cacheKey = deploymentId + "-" + formPath + "-" + submissionState;
-        return SUBMISSION_PROCESSING_DECISIONS_CACHE.computeIfAbsent(
-                cacheKey,
-                key -> shouldProcessSubmission(formDefinition, submissionState));
+        FormComponent formComponent = getFormComponent(deploymentId, formPath);
+        return formComponent.shouldProcessSubmission(submissionState);
     }
 
-    private JsonNode getFormSource(String deploymentId, String formPath) {
+    private JsonNode getFormDefinition(String deploymentId, String formPath) {
         String formPathWithExt = !formPath.endsWith(".json") ? formPath.concat(".json") : formPath;
         try {
             JsonNode form = JSON_MAPPER.readTree(deploymentSvc.getResource(deploymentId, formPathWithExt));
             return expandSubforms(deploymentId, form);
         } catch (IOException e) {
-            throw new RuntimeException("Failed to get the form into the cache.", e);
+            throw new RuntimeException("Failed to get the form.", e);
         }
 
     }
 
     private JsonNode cleanUnusedData(String deploymentId, String formPath, Map<String, Object> variables) throws IOException {
         Map<String, Object> convertedVariables = variablesMapper.convertEntitiesToMaps(variables);
-        JsonNode formDefinition = getFormSource(deploymentId, formPath);
+        JsonNode formDefinition = getFormDefinition(deploymentId, formPath);
         String submissionData = JSON_MAPPER.writeValueAsString(toFormIoSubmissionData(convertedVariables));
         try (InputStream cleanUpResult = nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), submissionData)) {
             return JSON_MAPPER.readTree(cleanUpResult)
@@ -149,7 +120,7 @@ public class FormioClient implements FormClient {
     private JsonNode convertToContainer(String deploymentId, JsonNode form) {
         String formResourceName = form.get("key").asText() + ".json";
         JsonNode container = convertToContainer(form);
-        JsonNode components = getFormSource(deploymentId, formResourceName).get("components").deepCopy();
+        JsonNode components = getFormDefinition(deploymentId, formResourceName).get("components").deepCopy();
         ((ObjectNode) container).replace("components", components);
         return container;
     }
@@ -165,35 +136,22 @@ public class FormioClient implements FormClient {
         return container;
     }
 
-    //FIXME use FormComponent or JsonNode for formDefinitionJson
-    private boolean shouldProcessSubmission(String formDefinitionJson, String submissionState) {
-        Filter saveStateComponentsFilter = Filter.filter((Criteria.where("action").eq("saveState").and("state").eq(submissionState)));
-        return (boolean) ((JSONArray) JsonPath.read(formDefinitionJson, "$..components[?]", saveStateComponentsFilter))
-                .stream()
-                .map(stateComponent -> (Map<String, Object>) stateComponent)
-                .map(stateComponent -> (Map<String, Object>) stateComponent.get("properties"))
-                .map(properties -> properties.get("isSubmittedDataProcessed"))
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElse(true);
-    }
-
-    protected JsonNode wrapGridData(JsonNode data, JsonNode definition) {
+    protected JsonNode wrapGridData(JsonNode data, FormComponent formComponent) {
         if (data.isObject()) {
-            return wrapGridDataInObject(data, definition);
+            return wrapGridDataInObject(data, formComponent);
         }
         if (data.isArray()) {
-            return wrapGridDataInArray((ArrayNode) data, definition);
+            return wrapGridDataInArray((ArrayNode) data, formComponent);
         }
         return data;
     }
 
-    protected JsonNode wrapGridDataInObject(JsonNode data, JsonNode definition) {
+    protected JsonNode wrapGridDataInObject(JsonNode data, FormComponent formComponent) {
         ObjectNode dataWithWrappedChildren = data.deepCopy();
-        if (hasChildComponents(definition)) {
-            List<JsonNode> childComponents = getChildComponentDefinitions(definition);
-            for (JsonNode child : childComponents) {
-                String key = child.get("key").asText();
+        if (formComponent.hasComponents()) {
+            List<FormComponent> childComponents = formComponent.getChildComponents();
+            for (FormComponent child : childComponents) {
+                String key = child.getKey();
                 if (dataWithWrappedChildren.has(key)) {
                     dataWithWrappedChildren.set(key, wrapGridData(dataWithWrappedChildren.get(key), child));
                 }
@@ -202,10 +160,10 @@ public class FormioClient implements FormClient {
         return dataWithWrappedChildren;
     }
 
-    protected JsonNode wrapGridDataInArray(ArrayNode data, JsonNode definition) {
+    protected JsonNode wrapGridDataInArray(ArrayNode data, FormComponent formComponent) {
         ArrayNode wrappedData = data.deepCopy();
-        if (isGridUnwrapped(definition)) {
-            String wrapperName = definition.at("/components/0/key").asText();
+        if (isGridUnwrapped(formComponent)) {
+            String wrapperName = formComponent.getComponents().get(0).getKey();
             for (int index = 0; index < data.size(); index++) {
                 JsonNode arrayElement = data.get(index);
                 ObjectNode wrapper = JsonNodeFactory.instance.objectNode();
@@ -214,23 +172,20 @@ public class FormioClient implements FormClient {
             }
         }
         for (int index = 0; index < data.size(); index++) {
-            JsonNode wrappedElement = wrapGridData(wrappedData.get(index), definition);
+            JsonNode wrappedElement = wrapGridData(wrappedData.get(index), formComponent);
             wrappedData.set(index, wrappedElement);
         }
         return wrappedData;
     }
 
-    protected boolean isGridUnwrapped(JsonNode definition) {
-        JsonNode noRowWrappingProperty = definition.at(String.format("/properties/%s", GRID_NO_ROW_WRAPPING_PROPERTY));
-        return isArrayComponent(definition)
-                && !noRowWrappingProperty.isMissingNode()
-                && TRUE.equals(noRowWrappingProperty.asBoolean());
+    protected boolean isGridUnwrapped(FormComponent formComponent) {
+        boolean shouldWrapRows = Boolean.parseBoolean(String.valueOf(formComponent.getProperties().get(GRID_NO_ROW_WRAPPING_PROPERTY)));
+        return formComponent.isArray() && shouldWrapRows;
     }
 
     protected boolean hasChildComponents(JsonNode definition) {
         return !definition.at("/components").isMissingNode();
     }
-
 
     /**
      * @deprecated use {@link com.artezio.forms.formio.FormComponent#getChildComponents()}
@@ -271,13 +226,14 @@ public class FormioClient implements FormClient {
     }
 
     protected JsonNode unwrapGridData(JsonNode data, String deploymentId, String formPath) {
-        JsonNode formDefinition = getFormSource(deploymentId, formPath);
-        return unwrapGridData(data, formDefinition);
+        JsonNode formDefinition = getFormDefinition(deploymentId, formPath);
+        FormComponent formComponent = toFormComponent(formDefinition);
+        return unwrapGridData(data, formComponent);
     }
 
-    protected JsonNode unwrapGridData(JsonNode data, JsonNode definition) {
-        if (hasChildComponents(definition)) {
-            List<JsonNode> childComponents = getChildComponentDefinitions(definition);
+    protected JsonNode unwrapGridData(JsonNode data, FormComponent formComponent) {
+        if (formComponent.hasComponents()) {
+            List<FormComponent> childComponents = formComponent.getChildComponents();
             if (data.isObject()) {
                 return unwrapGridDataFromObject(data, childComponents);
             }
@@ -288,24 +244,24 @@ public class FormioClient implements FormClient {
         return data;
     }
 
-    protected JsonNode unwrapGridDataFromObject(JsonNode data, List<JsonNode> childComponents) {
+    protected JsonNode unwrapGridDataFromObject(JsonNode data, List<FormComponent> childComponents) {
         ObjectNode unwrappedData = JsonNodeFactory.instance.objectNode();
-        for (JsonNode childDefinition : childComponents) {
-            String key = childDefinition.get("key").asText();
+        for (FormComponent childComponent : childComponents) {
+            String key = childComponent.getKey();
             if (data.has(key)) {
-                unwrappedData.set(key, unwrapGridData(data, childDefinition, key));
+                unwrappedData.set(key, unwrapGridData(data, childComponent, key));
             }
         }
         return unwrappedData;
     }
 
-    protected JsonNode unwrapGridDataFromArray(JsonNode data, List<JsonNode> childComponents) {
+    protected JsonNode unwrapGridDataFromArray(JsonNode data, List<FormComponent> childComponents) {
         ArrayNode unwrappedArray = data.deepCopy();
         for (int index = 0; index < data.size(); index++) {
             ObjectNode currentNode = JsonNodeFactory.instance.objectNode();
-            for (JsonNode childDefinition : childComponents) {
-                String key = childDefinition.get("key").asText();
-                JsonNode unwrappedData = unwrapGridData(data.get(index), childDefinition, key);
+            for (FormComponent childComponent : childComponents) {
+                String key = childComponent.getKey();
+                JsonNode unwrappedData = unwrapGridData(data.get(index), childComponent, key);
                 currentNode.set(key, unwrappedData);
             }
             unwrappedArray.set(index, currentNode);
@@ -313,22 +269,22 @@ public class FormioClient implements FormClient {
         return unwrappedArray;
     }
 
-    protected JsonNode unwrapGridData(JsonNode data, JsonNode childDefinition, String key) {
+    protected JsonNode unwrapGridData(JsonNode data, FormComponent formComponent, String key) {
         if (!data.has(key)) {
             return data;
         }
-        data = unwrapGridData(data.get(key), childDefinition);
-        if (isArrayComponent(childDefinition)) {
-            data = unwrapGridData(childDefinition, (ArrayNode) data);
+        data = unwrapGridData(data.get(key), formComponent);
+        if (formComponent.isArray()) {
+            data = unwrapGridData(formComponent, (ArrayNode) data);
         }
         return data;
     }
 
-    protected JsonNode unwrapGridData(JsonNode gridDefinition, ArrayNode data) {
-        ArrayNode components = (ArrayNode) gridDefinition.get("components");
+    protected JsonNode unwrapGridData(FormComponent gridDefinition, ArrayNode data) {
+        List<FormComponent> childComponents = gridDefinition.getChildComponents();
         ArrayNode unwrappedData = JsonNodeFactory.instance.arrayNode();
-        JsonNode noRowWrappingProperty = gridDefinition.at(String.format("/properties/%s", GRID_NO_ROW_WRAPPING_PROPERTY));
-        if (!noRowWrappingProperty.isMissingNode() && TRUE.equals(noRowWrappingProperty.asBoolean()) && (components.size() == 1)) {
+        boolean shouldWrapRows = Boolean.parseBoolean(String.valueOf(gridDefinition.getProperties().get(GRID_NO_ROW_WRAPPING_PROPERTY)));
+        if (shouldWrapRows && (childComponents.size() == 1)) {
             data.forEach(node -> unwrappedData.add(node.elements().next()));
         } else {
             unwrappedData.addAll(data);
@@ -370,64 +326,9 @@ public class FormioClient implements FormClient {
                 .spliteratorUnknownSize(node.fields(), Spliterator.ORDERED), false);
     }
 
-    /**
-     * @deprecated use {@link #convertVariablesToFileRepresentations(String, String, Map)}
-     */
-    @Deprecated
-    private Map<String, Object> convertVariablesToFileRepresentations(Map<String, Object> taskVariables, String formSource) {
-        return convertVariablesToFileRepresentations("", taskVariables, formSource);
-    }
-
     private Map<String, Object> convertVariablesToFileRepresentations(String deploymentId, String formPath, Map<String, Object> taskVariables) {
-        return convertVariablesToFileRepresentations(taskVariables, getFormDefinition(deploymentId, formPath));
+        return convertVariablesToFileRepresentations(taskVariables, getFormComponent(deploymentId, formPath));
     }
-
-    /**
-     * @deprecated use {@link #convertVariablesToFileRepresentations(Map, FormComponent)}
-     */
-    @Deprecated
-    @SuppressWarnings("unchecked")
-    protected Map<String, Object> convertVariablesToFileRepresentations(String objectVariableName, Map<String, Object> objectVariableAttributes, String formDefinition) {
-        return objectVariableAttributes.entrySet().stream()
-                .peek(objectAttribute -> {
-                    Object attributeValue = objectVariableAttributes.get(objectAttribute.getKey());
-                    String attributeName = objectAttribute.getKey();
-                    String attributePath = !objectVariableName.isEmpty()//FIXME is attributePath used anywhere?
-                            ? objectVariableName + "/" + attributeName
-                            : attributeName;
-                    if (isFileVariable(attributeName, formDefinition)) {
-                        attributeValue = convertVariablesToFileRepresentations(attributeValue);
-                    } else if (isObjectVariable(attributeValue)) {
-                        attributeValue = convertVariablesToFileRepresentations(attributePath, (Map<String, Object>) attributeValue, formDefinition);
-                    } else if (isArrayVariable(attributeValue)) {
-                        attributeValue = convertListVariableToFileRepresentations(attributePath, (List<Object>) attributeValue, formDefinition);
-                    }
-                    objectAttribute.setValue(attributeValue);
-                })
-                .collect(HashMap::new, (m, e) -> m.put(e.getKey(), objectVariableAttributes.get(e.getKey())), HashMap::putAll);
-    }
-
-    /**
-     * @deprecated use {@link #convertListVariableToFileRepresentations(List, FormComponent)}
-     */
-    @Deprecated
-    @SuppressWarnings("unchecked")
-    private List<Object> convertListVariableToFileRepresentations(String attributePath, List<Object> variableValue, String formDefinition) {
-        return variableValue.stream()
-                .map(element -> {
-                    if (isObjectVariable(element)) {
-                        return convertVariablesToFileRepresentations(attributePath, (Map<String, Object>) element, formDefinition);
-                    } else if (isArrayVariable(element)) {
-                        return ((List<Object>) element).stream()
-                                .map(objectVariable -> convertListVariableToFileRepresentations(attributePath + "[*]", (List<Object>) element, formDefinition))
-                                .collect(Collectors.toList());
-                    } else {
-                        return element;
-                    }
-                })
-                .collect(Collectors.toList());
-    }
-
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> convertVariablesToFileRepresentations(Map<String, Object> formComponentVariables, FormComponent formComponent) {
@@ -464,16 +365,6 @@ public class FormioClient implements FormClient {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * @deprecated use {@link #toFileValues(List)}
-     */
-    @Deprecated
-    private List<FileValue> convertVariablesToFileRepresentations(Object fileVariableValue) {
-        return ((List<Map<String, Object>>) fileVariableValue).stream()
-                .map(this::toFileValue)
-                .collect(Collectors.toList());
-    }
-
     private List<FileValue> toFileValues(List<Map<String, Object>> formFiles) {
         return formFiles.stream()
                 .map(this::toFileValue)
@@ -489,16 +380,6 @@ public class FormioClient implements FormClient {
         }
     }
 
-    /**
-     * @deprecated use  {@link com.artezio.forms.formio.FormComponent#containsFileComponent(String)}
-     */
-    @Deprecated
-    private boolean isFileVariable(String variableName, String formDefinition) {
-        Function<String, JSONArray> fileFieldSearch = key -> JsonPath.read(formDefinition, String.format("$..[?(@.type == 'file' && @.key == '%s')]", variableName));
-        JSONArray fileField = FILE_FIELDS_CACHE.computeIfAbsent(formDefinition + "." + variableName, fileFieldSearch);
-        return !fileField.isEmpty();
-    }
-
     private boolean isArrayVariable(Object variableValue) {
         return variableValue instanceof List;
     }
@@ -509,7 +390,7 @@ public class FormioClient implements FormClient {
 
     @Override
     public List<String> getFormVariableNames(String deploymentId, String formPath) {
-        return Optional.ofNullable(getFormDefinition(deploymentId, formPath).getComponents())
+        return Optional.ofNullable(getFormComponent(deploymentId, formPath).getComponents())
                 .map(Collection::stream)
                 .orElse(Stream.empty())
                 .filter(FormComponent::isInput)
@@ -521,26 +402,26 @@ public class FormioClient implements FormClient {
     //TODO change output type to Map?
     @Log(level = CONFIG, beforeExecuteMessage = "Performing dry validation and cleanup of a form '{0}'")
     public String dryValidationAndCleanup(String deploymentId, String formPath, Map<String, Object> submittedVariables,
-            Map<String, Object> currentVariables) {
+                                          Map<String, Object> currentVariables) {
         try {
             submittedVariables = convertVariablesToFileRepresentations(deploymentId, formPath, submittedVariables);
             Map<String, Object> formVariables = getFormComponentVariables(deploymentId, formPath, submittedVariables, currentVariables);
             String submissionData = JSON_MAPPER.writeValueAsString(toFormIoSubmissionData(formVariables));
-            String formSource = getFormSource(deploymentId, formPath).toString();
-            try (InputStream validationResult = nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formSource, submissionData)) {
-                JsonNode cleanData = JSON_MAPPER.readTree(validationResult).get("data");//TODO rename cleanData?
-                return unwrapSubformData(cleanData, deploymentId, formPath).toString();
+            String formDefinition = getFormDefinition(deploymentId, formPath).toString();
+            try (InputStream validationResult = nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition, submissionData)) {
+                JsonNode cleanData = JSON_MAPPER.readTree(validationResult).get("data");
+                return unwrapGridData(cleanData, deploymentId, formPath).toString();
             }
         } catch (Exception ex) {
             throw new FormValidationException(ex.getMessage());
         }
     }
 
-    protected FormComponent getFormDefinition(String deploymentId, String formPath) {
-        return FORM_DEFINITION_CACHE.computeIfAbsent(formPath, path -> convertToFormComponent(getFormSource(deploymentId, formPath)));
+    protected FormComponent getFormComponent(String deploymentId, String formPath) {
+        return FORM_COMPONENT_CACHE.computeIfAbsent(formPath, path -> toFormComponent(getFormDefinition(deploymentId, formPath)));
     }
 
-    private FormComponent convertToFormComponent(JsonNode formSource) {
+    private FormComponent toFormComponent(JsonNode formSource) {
         try {
             return JSON_MAPPER.treeToValue(formSource, FormComponent.class);
         } catch (JsonProcessingException e) {
@@ -549,9 +430,9 @@ public class FormioClient implements FormClient {
     }
 
     //TODO rename editableData, readOnlyData?
-    protected Map<String, Object> getFormComponentVariables(String deploymentId, String formPath, Map<String, Object> editableData, Map<String, Object> readOnlyData)
-            throws JsonProcessingException {
-        return getFormComponentVariables(getFormDefinition(deploymentId, formPath).getComponents(), editableData, readOnlyData);
+    protected Map<String, Object> getFormComponentVariables(String deploymentId, String formPath,
+                                                            Map<String, Object> editableData, Map<String, Object> readOnlyData) {
+        return getFormComponentVariables(getFormComponent(deploymentId, formPath).getComponents(), editableData, readOnlyData);
     }
 
     //TODO remove clean up?

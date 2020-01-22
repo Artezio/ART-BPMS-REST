@@ -1,5 +1,6 @@
 package com.artezio.forms.formio;
 
+import static org.codehaus.groovy.runtime.InvokerHelper.asList;
 import static org.junit.Assert.*;
 import static org.powermock.api.easymock.PowerMock.*;
 import static org.easymock.EasyMock.*;
@@ -254,39 +255,7 @@ public class FormComponentTest {
         formComponent.setComponents(null);
         assertFalse(formComponent.hasComponents());
     }
-    
-    @Test
-    public void testMustBeWrapped() {
-        formComponent = PowerMock.createPartialMock(FormComponent.class, "getChildComponents");
-        FormComponent flatComponent = new FormComponent();
-        flatComponent.setId("id");
-        flatComponent.setKey("flat");
-        
-        expect(formComponent.getChildComponents()).andReturn(new ArrayList() {{add(flatComponent);}});
-        
-        PowerMock.replay(formComponent);
-        
-        assertTrue(formComponent.mustBeWrapped());
-        
-        PowerMock.verify(formComponent);
-    }
-    
-    @Test
-    public void testMustBeWrapped_keyIsNotFlat() {
-        formComponent = PowerMock.createPartialMock(FormComponent.class, "getChildComponents");
-        FormComponent flatComponent = new FormComponent();
-        flatComponent.setId("id");
-        flatComponent.setKey("any_key");
-        
-        expect(formComponent.getChildComponents()).andReturn(new ArrayList() {{add(flatComponent);}});
-        
-        PowerMock.replay(formComponent);
-        
-        assertFalse(formComponent.mustBeWrapped());
-        
-        PowerMock.verify(formComponent);
-    }
-    
+
     @Test
     public void testIsSubform() {
         formComponent.setType("form");
@@ -321,9 +290,30 @@ public class FormComponentTest {
         
         assertTrue(formComponent.containsFileComponent(fileComponentKey));
     }
+
+    @Test
+    public void testContainsFileComponent_FileComponentIsPlacedDeep() {
+        String fileComponentKey = "file_component_key";
+        String container1ComponentKey = "container1";
+        String container2ComponentKey = "container2";
+        FormComponent container1Component = new FormComponent();
+        container1Component.setKey(container1ComponentKey);
+        container1Component.setType("container");
+        FormComponent container2Component = new FormComponent();
+        container2Component.setKey(container2ComponentKey);
+        container2Component.setType("container");
+        FormComponent fileComponent = new FormComponent();
+        fileComponent.setType("file");
+        fileComponent.setKey(fileComponentKey);
+        container1Component.setComponents(asList(container2Component));
+        container2Component.setComponents(asList(fileComponent));
+        formComponent.setComponents(Arrays.asList(container1Component));
+
+        assertTrue(formComponent.containsFileComponent(fileComponentKey));
+    }
     
     @Test
-    public void testtContainsFileComponent_notFileType() {
+    public void testContainsFileComponent_notFileType() {
         String fileComponentKey = "file_component_key";
         FormComponent fileComponent = new FormComponent();
         fileComponent.setType("any_type");
@@ -332,10 +322,9 @@ public class FormComponentTest {
         
         assertFalse(formComponent.containsFileComponent(fileComponentKey));
     }
-    
-    
+
     @Test
-    public void testtContainsFileComponent_noComponent() {
+    public void testContainsFileComponent_noComponent() {
         String fileComponentKey = "file_component_key";
         FormComponent fileComponent = new FormComponent();
         fileComponent.setType("file");
@@ -344,8 +333,5 @@ public class FormComponentTest {
         
         assertFalse(formComponent.containsFileComponent("other_file_component_key"));
     }
-    
-    
-
 
 }

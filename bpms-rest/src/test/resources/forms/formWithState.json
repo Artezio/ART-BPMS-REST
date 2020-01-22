@@ -27,7 +27,7 @@
         "eq": ""
       },
       "properties": {
-        "isSubmittedDataProcessed": true
+        "isSubmissionProcessed": true
       },
       "state": "submitted",
       "lockKey": true
@@ -77,7 +77,7 @@
         "eq": ""
       },
       "properties": {
-        "isSubmittedDataProcessed": false
+        "isSubmissionProcessed": false
       },
       "state": "canceled",
       "lockKey": true
