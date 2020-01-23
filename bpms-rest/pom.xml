@@ -48,6 +48,17 @@
 
 	<dependencies>
 		<dependency>
+			<groupId>com.artezio.forms</groupId>
+			<artifactId>formio</artifactId>
+			<version>1.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-databind</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
 			<groupId>com.artezio.logging</groupId>
 			<artifactId>logger</artifactId>
 			<version>1.0</version>
@@ -136,11 +147,6 @@
 			<groupId>org.hibernate.validator</groupId>
 			<artifactId>hibernate-validator-annotation-processor</artifactId>
 			<version>6.0.13.Final</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.tika</groupId>
-			<artifactId>tika-core</artifactId>
-			<version>1.22</version>
 		</dependency>
 		<dependency>
 			<groupId>org.glassfish</groupId>
@@ -249,12 +255,6 @@
 			<version>2.4.6.Final</version>
 			<scope>test</scope>
 		</dependency>
-		<!-- <dependency> <groupId>org.jboss.arquillian.junit</groupId> <artifactId>arquillian-junit-container</artifactId> 
-			<scope>test</scope> </dependency> <dependency> <groupId>org.jboss.arquillian.container</groupId> 
-			<artifactId>arquillian-weld-embedded</artifactId> <version>2.0.0.Final</version> 
-			<scope>test</scope> </dependency> <dependency> <groupId>org.jboss.weld</groupId> 
-			<artifactId>weld-core</artifactId> <version>2.4.6.Final</version> <scope>test</scope> 
-			</dependency> -->
 		<dependency>
 			<groupId>org.codehaus.groovy</groupId>
 			<artifactId>groovy-all</artifactId>
@@ -280,6 +280,7 @@
 				<version>2.6</version>
 				<configuration>
 					<failOnMissingWebXml>false</failOnMissingWebXml>
+					<attachClasses>true</attachClasses>
 					<archive>
 						<manifestEntries>
 							<Implementation-Version>${project.version}-${maven.build.timestamp}</Implementation-Version>

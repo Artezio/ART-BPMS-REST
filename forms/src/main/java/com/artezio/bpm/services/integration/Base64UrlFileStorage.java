@@ -2,6 +2,7 @@ package com.artezio.bpm.services.integration;
 
 import com.artezio.bpm.services.integration.cdi.DefaultImplementation;
 import com.artezio.logging.Log;
+import com.artezio.utils.Base64Utils;
 import org.apache.commons.io.IOUtils;
 import org.apache.tika.Tika;
 
@@ -9,7 +10,6 @@ import javax.inject.Named;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.Charset;
 import java.util.Base64;
 import java.util.Optional;
 
@@ -24,9 +24,9 @@ public class Base64UrlFileStorage implements FileStorage {
     public String store(InputStream dataStream) {
         try {
             byte[] data = IOUtils.toByteArray(dataStream);
-            String encodedBytes = Base64.getMimeEncoder().encodeToString(data);
+            String base64encodedData = Base64.getMimeEncoder().encodeToString(data);
             String dataHeader = String.format("data:%s;base64,", getContentType(data));
-            return dataHeader + encodedBytes;
+            return dataHeader + base64encodedData;
         } catch (IOException e) {
             throw new RuntimeException("An error occured while serializing the file to base64 url components", e);
         }
@@ -34,7 +34,7 @@ public class Base64UrlFileStorage implements FileStorage {
 
     @Override
     public InputStream retrieve(String id) {
-        return IOUtils.toInputStream(id, Charset.forName("UTF-8"));
+        return Base64Utils.getData(id);
     }
 
     private String getContentType(byte[] data) {

@@ -4,8 +4,12 @@ import com.artezio.bpm.rest.dto.task.TaskRepresentation;
 import com.artezio.bpm.rest.query.task.TaskQueryParams;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.services.exceptions.NotFoundException;
+import com.artezio.bpm.services.integration.Base64UrlFileStorage;
+import com.artezio.bpm.services.integration.FileStorage;
+import com.artezio.bpm.services.integration.cdi.ConcreteImplementation;
+import com.artezio.bpm.utils.Base64Utils;
 import com.artezio.bpm.validation.VariableValidator;
-import com.artezio.forms.formio.FormioClient;
+import com.artezio.forms.FormClient;
 import junitx.framework.ListAssert;
 import junitx.util.PrivateAccessor;
 import org.apache.commons.io.IOUtils;
@@ -31,11 +35,20 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
+import javax.enterprise.inject.Instance;
+import javax.enterprise.inject.spi.CDI;
+import javax.enterprise.util.AnnotationLiteral;
 import javax.ws.rs.core.*;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -49,7 +62,8 @@ import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.*;
 import static org.mockito.internal.util.reflection.FieldSetter.setField;
 
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({CDI.class})
 public class TaskSvcTest extends ServiceTest {
 
     @InjectMocks
@@ -63,17 +77,32 @@ public class TaskSvcTest extends ServiceTest {
     @Mock
     private FormSvc formSvc;
     @Mock
-    private FormioClient formio;
+    private FormClient formio;
     @Mock
     private VariablesMapper variablesMapper;
     @Mock
     private VariableValidator variableValidator;
     private SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSZ");
+    private FileStorage fileStorage = new Base64UrlFileStorage();
 
     @Before
     public void init() throws NoSuchFieldException {
+        setupMockFileStorage();
         Field taskServiceField = taskSvc.getClass().getDeclaredField("taskService");
         setField(taskSvc, taskServiceField, getTaskService());
+        Field fileStorageField = taskSvc.getClass().getDeclaredField("fileStorage");
+        setField(taskSvc, fileStorageField, fileStorage);
+    }
+
+    private void setupMockFileStorage() {
+        PowerMockito.mockStatic(CDI.class);
+        CDI mockCdi = mock(CDI.class);
+        Instance mockFileStorageInstance = mock(Instance.class);
+        Instance mockConcreteFileStorageInstance = mock(Instance.class);
+        when(CDI.current()).thenReturn(mockCdi);
+        when(mockCdi.select(FileStorage.class)).thenReturn(mockFileStorageInstance);
+        when(mockFileStorageInstance.select(any(AnnotationLiteral.class))).thenReturn(mockConcreteFileStorageInstance);
+        when(mockConcreteFileStorageInstance.get()).thenReturn(fileStorage);
     }
 
     @After
@@ -1022,29 +1051,31 @@ public class TaskSvcTest extends ServiceTest {
         String taskId = "taskId";
         String fileName = "testFile.png";
         String fileVariableName = "testVar";
-        String filePath = fileVariableName + "[*]/[?(@.originalName == '" + fileName + "')]";
+        String filePath = fileVariableName + "[*]/[?(@.filename == '" + fileName + "')]";
         String candidateUserId = "candidateUserId";
         List<String> candidateGroups = asList("candidateGroup");
         String callerId = "callerId";
-//        Map<String, Object> fileValue = getFileAsAttributesMap(getFile(fileName));
-        FileValue fileValue = getFileValue(getFile(fileName));
+        File file = getFile(fileName);
+        FileValue fileValue = getFileValue(file);
         Map<String, Object> variables = new HashMap<String, Object>() {{
             put(fileVariableName, asList(fileValue));
         }};
         String mimeType = "image/png";
-        Response expected = Response.ok(IOUtils.toByteArray(fileValue.getValue()), MediaType.valueOf(mimeType))
-                .header("Content-Disposition", "attachment; filename=" + fileName)
-                .build();
+        try (InputStream in = new FileInputStream(file)) {
+            Response expected = Response.ok(in, MediaType.valueOf(mimeType))
+                    .header("Content-Disposition", "attachment; filename=" + fileName)
+                    .build();
 
-        createTask(taskId, callerId, candidateUserId, candidateGroups);
-        setVariablesToTask(taskId, variables);
+            createTask(taskId, callerId, candidateUserId, candidateGroups);
+            setVariablesToTask(taskId, variables);
 
-        when(identityService.userId()).thenReturn(callerId);
-        when(identityService.userGroups()).thenReturn(candidateGroups);
+            when(identityService.userId()).thenReturn(callerId);
+            when(identityService.userGroups()).thenReturn(candidateGroups);
 
-        Response actual = taskSvc.downloadFile(taskId, filePath);
+            Response actual = taskSvc.downloadFile(taskId, filePath);
 
-        assertFileResponseEquals(expected, actual);
+            assertFileResponseEquals(expected, actual);
+        }
     }
 
     @Test
@@ -1056,27 +1087,30 @@ public class TaskSvcTest extends ServiceTest {
         String fileName = "testFile.png";
         String containerVariableName = "container";
         String fileVariableName = "testVar";
-        String filePath = containerVariableName + "/" + fileVariableName + "[*]/[?(@.originalName == '" + fileName + "')]";
+        String filePath = containerVariableName + "/" + fileVariableName + "[*]/[?(@.filename == '" + fileName + "')]";
         Map<String, Object> containerVariable = new HashMap<>();
-        Map<String, Object> fileValue = getFileAsAttributesMap(getFile(fileName));
+        File file = getFile(fileName);
+        Map<String, Object> fileValue = getFileAsAttributesMap(file);
         containerVariable.put(fileVariableName, asList(fileValue));
         Map<String, Object> variables = new HashMap<>();
         variables.put(containerVariableName, containerVariable);
 
-        Response expected = Response
-                .ok(getFileContentFromUrl((String) fileValue.get("url")), MediaType.valueOf("image/png"))
-                .header("Content-Disposition", "attachment; filename=" + fileName)
-                .build();
+        try (InputStream in = new FileInputStream(file)) {
+            Response expected = Response
+                    .ok(in, MediaType.valueOf("image/png"))
+                    .header("Content-Disposition", "attachment; filename=" + fileName)
+                    .build();
 
-        createTask(taskId, callerId, candidateUserId, candidateGroups);
-        setVariablesToTask(taskId, variables);
+            createTask(taskId, callerId, candidateUserId, candidateGroups);
+            setVariablesToTask(taskId, variables);
 
-        when(identityService.userId()).thenReturn(callerId);
-        when(identityService.userGroups()).thenReturn(candidateGroups);
+            when(identityService.userId()).thenReturn(callerId);
+            when(identityService.userGroups()).thenReturn(candidateGroups);
 
-        Response actual = taskSvc.downloadFile(taskId, filePath);
+            Response actual = taskSvc.downloadFile(taskId, filePath);
 
-        assertFileResponseEquals(expected, actual);
+            assertFileResponseEquals(expected, actual);
+        }
     }
 
     @Test
@@ -1084,28 +1118,31 @@ public class TaskSvcTest extends ServiceTest {
         String taskId = "taskId";
         String fileName = "testFile.png";
         String fileVariableName = "testVar";
-        String filePath = fileVariableName + "[*]/[?(@.originalName == '" + fileName + "')]";
+        String filePath = fileVariableName + "[*]/[?(@.filename == '" + fileName + "')]";
         String candidateUserId = "candidateUserId";
         List<String> candidateGroups = asList("candidateGroup");
         String callerId = "callerId";
-        Map<String, Object> fileValue = getFileAsAttributesMap(getFile(fileName));
-        fileValue.put("type", "");
+        File file = getFile(fileName);
+        Map<String, Object> fileValue = getFileAsAttributesMap(file);
+        fileValue.put("mimeType", "");
         Map<String, Object> variables = new HashMap<String, Object>() {{
             put(fileVariableName, asList(fileValue));
         }};
-        Response expected = Response.ok(getFileContentFromUrl((String) fileValue.get("url")), MediaType.APPLICATION_OCTET_STREAM)
-                .header("Content-Disposition", "attachment; filename=" + fileName)
-                .build();
+        try (InputStream in = new FileInputStream(file)) {
+            Response expected = Response.ok(in, MediaType.APPLICATION_OCTET_STREAM)
+                    .header("Content-Disposition", "attachment; filename=" + fileName)
+                    .build();
 
-        createTask(taskId, callerId, candidateUserId, candidateGroups);
-        setVariablesToTask(taskId, variables);
+            createTask(taskId, callerId, candidateUserId, candidateGroups);
+            setVariablesToTask(taskId, variables);
 
-        when(identityService.userId()).thenReturn(callerId);
-        when(identityService.userGroups()).thenReturn(candidateGroups);
+            when(identityService.userId()).thenReturn(callerId);
+            when(identityService.userGroups()).thenReturn(candidateGroups);
 
-        Response actual = taskSvc.downloadFile(taskId, filePath);
+            Response actual = taskSvc.downloadFile(taskId, filePath);
 
-        assertFileResponseEquals(expected, actual);
+            assertFileResponseEquals(expected, actual);
+        }
     }
 
     @Test(expected = NotFoundException.class)

@@ -3,7 +3,6 @@ package com.artezio.bpm.rest;
 import com.artezio.bpm.services.*;
 import com.artezio.ws.rs.ExceptionMapper;
 import io.swagger.v3.jaxrs2.integration.resources.OpenApiResource;
-import com.artezio.forms.formio.jackson.ObjectMapperProvider;
 
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
@@ -32,7 +31,6 @@ public class RestApplication extends Application {
     @Override
     public Set<Object> getSingletons() {
         Set<Object> singletons = new HashSet<>();
-        singletons.add(new ObjectMapperProvider());
         return singletons;
     }
 }

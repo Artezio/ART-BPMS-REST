@@ -10,7 +10,7 @@ Formio.createForm(body, form)
         instance.on('change',
             () => instance.submit()
                 .then(
-                    submit => console.info('submit:', submit),
-                    error => console.error('error:', error)));
+                    submit => console.info(JSON.stringify(submit)),
+                    error => console.error(error)));
         instance.submission = submission;
     });

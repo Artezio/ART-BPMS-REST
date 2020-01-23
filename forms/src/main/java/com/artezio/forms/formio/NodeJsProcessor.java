@@ -11,6 +11,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -18,6 +20,7 @@ import java.util.stream.Stream;
 public class NodeJsProcessor {
 
     private final static File NODE_MODULES_DIR = new File(System.getProperty("NODE_MODULES_PATH"));
+    private Map<String, String> SCRIPTS_CACHE = new ConcurrentHashMap<>();
 
     public InputStream executeScript(String scriptName, String... args) throws IOException {
         String script = loadScript(scriptName);
@@ -30,10 +33,14 @@ public class NodeJsProcessor {
         return readFromStdout(nodeJs);
     }
 
-    private String loadScript(String scriptName) throws IOException {
-        try(InputStream scriptResource = getClass().getClassLoader().getResourceAsStream("formio-scripts/" + scriptName)) {
-            return IOUtils.toString(scriptResource, StandardCharsets.UTF_8);
-        }
+    private String loadScript(String scriptName) {
+        return SCRIPTS_CACHE.computeIfAbsent(scriptName, name -> {
+            try (InputStream scriptResource = getClass().getClassLoader().getResourceAsStream("formio-scripts/" + scriptName)) {
+                return IOUtils.toString(scriptResource, StandardCharsets.UTF_8);
+            } catch (IOException ex) {
+                throw new RuntimeException("Could not load script " + scriptName, ex);
+            }
+        });
     }
 
     private Process runNodeJs(List<String> commands) throws IOException {

@@ -1,5 +1,5 @@
-global.Option = global.window.Option;
 const arrayComponents = ['datagrid'];
+
 
 function saveToResult(key, result) {
     if (Array.isArray(result)) {
@@ -79,8 +79,8 @@ function stripUnknown(data, schema) {
             if (!(key in schema)) {
                 delete data[key];
             }
-            if (data[key] !== null && typeof data[key] === 'object') {
-                if (typeof schema[key] !== 'object' || schema[key] === null) {
+            if (schema[key] !== null && typeof schema[key] === 'object') {
+                if (typeof data[key] !== 'object' || data[key] === null) {
                     delete data[key];
                 } else {
                     stripUnknown(data[key], schema[key]);
@@ -98,6 +98,10 @@ function cleanUpSubmissionData(form, submission = {}) {
     return { ...submission, data: data };
 }
 
-const [form, data] = process.argv.slice(1).map(JSON.parse);
-
-console.info(JSON.stringify(cleanUpSubmissionData(form, data)));
+const [form, data] = process.argv.slice(1).map(x => JSON.parse(x));
+const cleanData = cleanUpSubmissionData(form, data);
+try {
+    console.info(JSON.stringify(cleanData));	
+} catch (err) {
+    console.error(err)
+}

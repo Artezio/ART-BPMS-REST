@@ -2,6 +2,7 @@ package com.artezio.bpm.services;
 
 import com.artezio.camunda.spinjar.jackson.JacksonDataFormatConfigurator;
 import com.artezio.logging.Log;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import spinjar.com.fasterxml.jackson.databind.DeserializationFeature;
 import spinjar.com.fasterxml.jackson.databind.JsonNode;
 import spinjar.com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,26 +20,27 @@ public class VariablesMapper {
 
     public final static String EXTENSION_NAME_PREFIX = "entity.";
 
-    private final static ObjectMapper MAPPER = new ObjectMapper()
+    private final static com.fasterxml.jackson.databind.ObjectMapper JACKSON_MAPPER = new com.fasterxml.jackson.databind.ObjectMapper();
+
+    private final static ObjectMapper SPINJAR_MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             .setDefaultMergeable(false);
 
     static {
-        JacksonDataFormatConfigurator.registerSpinjarFileValueSerializers(MAPPER);
+        JacksonDataFormatConfigurator.registerSpinjarFileValueSerializers(SPINJAR_MAPPER);
     }
 
     @Log(level = CONFIG, beforeExecuteMessage = "Updating process variables")
     public void updateVariables(Map<String, Object> existedVariables, String inputVarsJson) throws IOException {
-        MAPPER.readTree(inputVarsJson).fields()
+        SPINJAR_MAPPER.readTree(inputVarsJson).fields()
                 .forEachRemaining(inputField -> updateVariable(inputField, existedVariables));
     }
 
-    public Map<String, Object> convertEntitiesToMaps(Map<String, Object> variables) {
+    public com.fasterxml.jackson.databind.node.ObjectNode toJsonNode(Map<String, Object> variables) {
         try {
-            String variablesJson = MAPPER.writeValueAsString(variables);
-            return MAPPER.readValue(variablesJson, Map.class);
+            return (ObjectNode) JACKSON_MAPPER.readTree(JACKSON_MAPPER.writeValueAsString(variables));
         } catch (IOException e) {
-            throw new RuntimeException("Error during converting entities to maps", e);
+            throw new RuntimeException("Could not serialize variables");
         }
     }
 
@@ -60,8 +62,8 @@ public class VariablesMapper {
             String varName = variable.getKey();
             Object varValue = variable.getValue();
             Class<?> entityType = Class.forName(existingEntityClassName);
-            String variableJsonValue = MAPPER.writeValueAsString(varValue);
-            varValue = MAPPER.readValue(variableJsonValue, entityType);
+            String variableJsonValue = SPINJAR_MAPPER.writeValueAsString(varValue);
+            varValue = SPINJAR_MAPPER.readValue(variableJsonValue, entityType);
             return new AbstractMap.SimpleEntry<>(varName, varValue);
         } catch (ClassNotFoundException | IOException e) {
             throw new RuntimeException("Error during converting variable to entity", e);
@@ -81,8 +83,8 @@ public class VariablesMapper {
 
     private Object updateVariable(Object target, JsonNode inputValue) throws IOException {
         return inputValue.isObject() && target != null
-                ? MAPPER.readerForUpdating(target).readValue(inputValue)
-                : MAPPER.convertValue(inputValue, Object.class);
+                ? SPINJAR_MAPPER.readerForUpdating(target).readValue(inputValue)
+                : SPINJAR_MAPPER.convertValue(inputValue, Object.class);
     }
 
 }
