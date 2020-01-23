@@ -1,5 +1,5 @@
 {
-  "_id": "5df74bf32b305b0010a88521",
+  "_id": "5e29678809386c190403923e",
   "type": "form",
   "tags": [
     "common"
@@ -43,6 +43,45 @@
       "inputFormat": "plain",
       "tags": [],
       "properties": {}
+    },
+    {
+      "autofocus": false,
+      "input": true,
+      "tableView": true,
+      "inputType": "text",
+      "inputMask": "",
+      "label": "ReadOnly",
+      "key": "readOnly",
+      "placeholder": "",
+      "prefix": "",
+      "suffix": "",
+      "multiple": false,
+      "defaultValue": "test",
+      "protected": false,
+      "unique": false,
+      "persistent": true,
+      "hidden": false,
+      "clearOnHide": true,
+      "spellcheck": true,
+      "validate": {
+        "required": false,
+        "minLength": "",
+        "maxLength": "",
+        "pattern": "",
+        "custom": "",
+        "customPrivate": false
+      },
+      "conditional": {
+        "show": "",
+        "when": null,
+        "eq": ""
+      },
+      "type": "textfield",
+      "labelPosition": "top",
+      "inputFormat": "plain",
+      "tags": [],
+      "properties": {},
+      "disabled": true
     },
     {
       "autofocus": false,
@@ -101,6 +140,6 @@
     }
   ],
   "created": "2019-12-16T09:18:43.653Z",
-  "modified": "2019-12-20T09:45:28.117Z",
+  "modified": "2020-01-23T09:30:24.023Z",
   "machineName": "test"
 }
