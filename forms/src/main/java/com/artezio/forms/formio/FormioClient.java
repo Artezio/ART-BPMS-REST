@@ -89,6 +89,7 @@ public class FormioClient implements FormClient {
                                           ObjectNode taskVariables) {
         try {
             String formDefinition = getForm(formPath, deploymentId).toString();
+            taskVariables = convertFilesInData(formDefinition, taskVariables, fileAttributeConverter::toFormioFile);
             ObjectNode formVariables = (ObjectNode)getFormVariables(formPath, deploymentId, submittedVariables, taskVariables);
             String submissionData = JSON_MAPPER.writeValueAsString(toFormIoSubmissionData(formVariables));
             String formSource = getForm(formPath, deploymentId).toString();
@@ -493,6 +494,7 @@ public class FormioClient implements FormClient {
     }
 
     private ArrayNode convertFilesInData(ArrayNode fileData, Function<ObjectNode, ObjectNode> converter) {
+        System.out.format("Converting files in data; fileData=%s %n", fileData.toString());
         ArrayNode convertedFileData = JSON_MAPPER.createArrayNode();
         StreamSupport.stream(fileData.spliterator(), false)
                 .map(jsonNode -> (ObjectNode) jsonNode)
