@@ -1,20 +1,26 @@
 package com.artezio.forms.formio;
 
-import com.artezio.bpm.services.DeploymentSvc;
-import com.artezio.bpm.services.ServiceTest;
-import com.artezio.bpm.services.VariablesMapper;
+import com.artezio.bpm.services.integration.Base64UrlFileStorage;
+import com.artezio.bpm.services.integration.FileStorage;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.io.IOUtils;
+import org.camunda.bpm.engine.RepositoryService;
+import org.camunda.bpm.engine.test.ProcessEngineRule;
 import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.internal.util.reflection.FieldSetter;
 import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.stubbing.Answer;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,23 +34,38 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
-public class FormioClientTest extends ServiceTest {
+public class FormioClientTest {
 
     private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "dryValidationAndCleanUp.js";
     private final static String CLEAN_UP_SCRIPT_NAME = "cleanUp.js";
 
-    @Mock
-    private DeploymentSvc deploymentSvc;
-    @Mock
-    private VariablesMapper variablesMapper;
+    @Rule
+    public ProcessEngineRule processEngineRule = new ProcessEngineRule();
+
     @Mock
     private NodeJsProcessor nodeJsProcessor;
+    @Mock
+    private RepositoryService repositoryService;
     @InjectMocks
     private FormioClient formioClient = new FormioClient();
     private ObjectMapper objectMapper = new ObjectMapper();
+
+    private File getFile(String fileName) {
+        return new File(FormioClientTest.class.getClassLoader().getResource(fileName).getFile());
+    }
+
+    @Before
+    public void setUp() throws NoSuchFieldException {
+        FileStorage fileStorage = new Base64UrlFileStorage();
+        FileAttributeConverter fileAttributeConverter = new FileAttributeConverter(fileStorage);
+        Field fileConverterField = FormioClient.class.getDeclaredField("fileAttributeConverter");
+        FieldSetter.setField(formioClient, fileConverterField, fileAttributeConverter);
+    }
 
     @After
     public void tearDown() throws NoSuchFieldException, IllegalAccessException {
@@ -56,14 +77,52 @@ public class FormioClientTest extends ServiceTest {
         ((Map<String, JsonNode>) submitButtonsCacheField.get(FormioClient.class)).clear();
     }
 
+    private ArrayNode getFormioFileData(String filename, String mimeType) {
+        ArrayNode files = objectMapper.createArrayNode();
+        ObjectNode file = objectMapper.createObjectNode();
+        file.put("storage", "base64");
+        file.put("name", filename);
+        file.put("originalName", filename);
+        byte[] data;
+        try {
+            data = IOUtils.toByteArray(FormioClientTest.class.getClassLoader().getResourceAsStream(filename));
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Could not load file");
+        }
+        file.put("size", data.length);
+        file.put("type", mimeType);
+        file.put("url", String.format("data:%s;base64,%s", mimeType, Base64.getMimeEncoder().encodeToString(data)));
+        files.add(file);
+        return files;
+    }
+
+    private ArrayNode getCamundaFileData(String filename, String mimeType) {
+        ArrayNode files = objectMapper.createArrayNode();
+        ObjectNode file = objectMapper.createObjectNode();
+        file.put("name", filename);
+        file.put("filename", filename);
+        byte[] data;
+        try {
+            data = IOUtils.toByteArray(FormioClientTest.class.getClassLoader().getResourceAsStream(filename));
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Could not load file");
+        }
+        file.put("size", data.length);
+        file.put("mimeType", mimeType);
+        file.put("url", String.format("data:%s;base64,%s", mimeType, Base64.getMimeEncoder().encodeToString(data)));
+        files.add(file);
+        return files;
+    }
+
     @Test
     public void testGetFormWithData_NoDataPassed() throws IOException {
         String deploymentId = "deploymentId";
-        String formPath = "forms/testForm.json";
-        Map<String, Object> variables = new HashMap<>();
-        Map<String, Object> submissionData = new HashMap<String, Object>() {{
-           put("data", variables);
-        }};
+        String formPath = "testForm.json";
+        ObjectNode data = objectMapper.createObjectNode();
+        ObjectNode submissionData = objectMapper.createObjectNode();
+        submissionData.set("data", data);
 
         try (InputStream is = getClass().getClassLoader().getResourceAsStream(formPath);
              InputStream deploymentResource = getClass().getClassLoader().getResourceAsStream(formPath)) {
@@ -71,11 +130,10 @@ public class FormioClientTest extends ServiceTest {
             JsonNode expected = formDefinition.deepCopy();
             ((ObjectNode) expected).set("data", objectMapper.createObjectNode());
             try (InputStream scriptResult = IOUtils.toInputStream(expected.toString(), StandardCharsets.UTF_8)) {
-                when(deploymentSvc.getResource(deploymentId, formPath)).thenReturn(deploymentResource);
-                when(variablesMapper.convertEntitiesToMaps(variables)).thenReturn(variables);
+                when(repositoryService.getResourceAsStream(deploymentId, formPath)).thenReturn(deploymentResource);
                 when(nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), objectMapper.writeValueAsString(submissionData))).thenReturn(scriptResult);
 
-                String actual = formioClient.getFormWithData(deploymentId, formPath, variables);
+                String actual = formioClient.getFormWithData(formPath, deploymentId, data);
 
                 assertEquals(expected.toString(), actual);
             }
@@ -85,26 +143,45 @@ public class FormioClientTest extends ServiceTest {
     @Test
     public void testGetFormWithData_ExistentDataPassed() throws IOException {
         String deploymentId = "deploymentId";
-        String formPath = "forms/testForm.json";
-        Map<String, Object> variables = new HashMap<String, Object>() {{
-            put("testFile", "fileContent");
-        }};
-        Map<String, Object> submissionData = new HashMap<String, Object>() {{
-            put("data", variables);
-        }};
+        String formPath = "testForm.json";
+
+        ObjectNode taskData = objectMapper.createObjectNode();
+        ArrayNode taskFile = getCamundaFileData("testForm.json", "application/json");
+        taskData.set("testFile", taskFile);
+        ObjectNode container = objectMapper.createObjectNode();
+        container.put("containerField", "123");
+        taskData.set("container", container);
+        ObjectNode submissionData = objectMapper.createObjectNode();
+        submissionData.set("data", taskData);
+
+        ObjectNode scriptResultData = objectMapper.createObjectNode();
+        ArrayNode scriptResultFileData = getFormioFileData("testForm.json", "application/json");
+        scriptResultData.set("testFile", scriptResultFileData);
+        ObjectNode scriptResultContainer = objectMapper.createObjectNode();
+        scriptResultContainer.put("containerField", "123");
+        scriptResultData.set("container", scriptResultContainer);
+        ObjectNode scriptResult = objectMapper.createObjectNode();
+        scriptResult.set("data", scriptResultData);
+
         try (InputStream is = getClass().getClassLoader().getResourceAsStream(formPath);
              InputStream deploymentResource = getClass().getClassLoader().getResourceAsStream(formPath)) {
             JsonNode formDefinition = objectMapper.readTree(is);
             JsonNode expected = formDefinition.deepCopy();
-            ((ObjectNode) expected).set("data", objectMapper.valueToTree(variables));
-            try (InputStream scriptResult = IOUtils.toInputStream(expected.toString(), StandardCharsets.UTF_8)) {
-                when(deploymentSvc.getResource(deploymentId, formPath)).thenReturn(deploymentResource);
-                when(variablesMapper.convertEntitiesToMaps(variables)).thenReturn(variables);
-                when(nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), objectMapper.writeValueAsString(submissionData))).thenReturn(scriptResult);
+            ObjectNode expectedData = objectMapper.valueToTree(taskData);
+            expectedData.set("testFile", taskFile);
+            ((ObjectNode) expected).set("data", expectedData);
+            try (InputStream scriptResultInputStream = IOUtils.toInputStream(scriptResult.toString(), StandardCharsets.UTF_8)) {
+                when(repositoryService.getResourceAsStream(deploymentId, formPath)).thenReturn(deploymentResource);
+                when(nodeJsProcessor.executeScript(eq(CLEAN_UP_SCRIPT_NAME), eq(formDefinition.toString()), anyString())).thenReturn(scriptResultInputStream);
 
-                String actual = formioClient.getFormWithData(deploymentId, formPath, variables);
-
-                assertEquals(expected.toString(), actual);
+                String actual = formioClient.getFormWithData(formPath, deploymentId, taskData);
+                JsonNode actualJson = objectMapper.readTree(actual);
+                assertTrue(actualJson.has("data"));
+                JsonNode actualData = actualJson.get("data");
+                assertTrue(actualData.has("container"));
+                assertTrue(actualData.has("testFile"));
+                assertFalse(actualData.at("/testFile/0/name").isMissingNode());
+                assertEquals("testForm.json", actualData.at("/testFile/0/name").asText());
             }
         }
     }
@@ -113,23 +190,23 @@ public class FormioClientTest extends ServiceTest {
     public void testGetFormWithData_NonexistentDataPassed() throws IOException {
         String deploymentId = "deploymentId";
         String formPath = "forms/testForm.json";
-        Map<String, Object> variables = new HashMap<String, Object>() {{
-            put("testFile", "fileContent");
-        }};
-        Map<String, Object> submissionData = new HashMap<String, Object>() {{
-            put("data", variables);
-        }};
+
+        ObjectNode data = objectMapper.createObjectNode();
+        ArrayNode multiFileNode = getCamundaFileData("testForm.json", "application/json");
+        data.set("testFile", multiFileNode);
+        ObjectNode submissionData = objectMapper.createObjectNode();
+        submissionData.set("data", data);
+
         try (InputStream is = getClass().getClassLoader().getResourceAsStream(formPath);
              InputStream deploymentResource = getClass().getClassLoader().getResourceAsStream(formPath)) {
             JsonNode formDefinition = objectMapper.readTree(is);
             JsonNode expected = formDefinition.deepCopy();
             ((ObjectNode) expected).set("data", objectMapper.createObjectNode());
             try (InputStream scriptResult = IOUtils.toInputStream(expected.toString(), StandardCharsets.UTF_8)) {
-                when(deploymentSvc.getResource(deploymentId, formPath)).thenReturn(deploymentResource);
-                when(variablesMapper.convertEntitiesToMaps(variables)).thenReturn(variables);
-                when(nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), objectMapper.writeValueAsString(submissionData))).thenReturn(scriptResult);
+                when(repositoryService.getResourceAsStream(deploymentId, formPath)).thenReturn(deploymentResource);
+                when(nodeJsProcessor.executeScript(eq(CLEAN_UP_SCRIPT_NAME), eq(formDefinition.toString()), anyString())).thenReturn(scriptResult);
 
-                String actual = formioClient.getFormWithData(deploymentId, formPath, variables);
+                String actual = formioClient.getFormWithData(formPath, deploymentId, data);
 
                 assertEquals(expected.toString(), actual);
             }
@@ -140,21 +217,21 @@ public class FormioClientTest extends ServiceTest {
     public void dryValidationAndCleanupTest_NoDataPassed() throws IOException {
         String deploymentId = "deploymentId";
         String formPath = "forms/testForm.json";
-        Map<String, Object> submittedVariables = new HashMap<>();
-        Map<String, Object> currentVariables = new HashMap<>();
-        Map<String, Object> submissionData = new HashMap<String, Object>() {{
-            put("data", currentVariables);
-        }};
+        ObjectNode submittedVariables = objectMapper.createObjectNode();
+        ObjectNode currentVariables = objectMapper.createObjectNode();
+        ObjectNode submissionData = objectMapper.createObjectNode();
+        submissionData.set("data", submittedVariables);
+
         try (InputStream is = getClass().getClassLoader().getResourceAsStream(formPath);
              InputStream deploymentResource = getClass().getClassLoader().getResourceAsStream(formPath)) {
             JsonNode formDefinition = objectMapper.readTree(is);
             JsonNode expected = formDefinition.deepCopy();
             ((ObjectNode) expected).set("data", objectMapper.createObjectNode());
             try (InputStream scriptResult = IOUtils.toInputStream(expected.toString(), StandardCharsets.UTF_8)) {
-                when(deploymentSvc.getResource(deploymentId, formPath)).thenReturn(deploymentResource);
+                when(repositoryService.getResourceAsStream(deploymentId, formPath)).thenReturn(deploymentResource);
                 when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), objectMapper.writeValueAsString(submissionData))).thenReturn(scriptResult);
 
-                String actual = formioClient.dryValidationAndCleanup(deploymentId, formPath, submittedVariables, currentVariables);
+                String actual = formioClient.dryValidationAndCleanup(formPath, deploymentId, submittedVariables, currentVariables);
 
                 assertEquals(objectMapper.writeValueAsString(currentVariables), actual);
             }
@@ -165,23 +242,21 @@ public class FormioClientTest extends ServiceTest {
     public void dryValidationAndCleanupTest_ValidDataPassed() throws IOException {
         String deploymentId = "deploymentId";
         String formPath = "forms/test.json";
-        Map<String, Object> currentVariables = new HashMap<>();
-        Map<String, Object> submittedVariables = new HashMap<String, Object>() {{
-            put("text", "123");
-        }};
-        Map<String, Object> submissionData = new HashMap<String, Object>() {{
-            put("data", submittedVariables);
-        }};
+        ObjectNode currentVariables = objectMapper.createObjectNode();
+        ObjectNode submittedVariables = objectMapper.createObjectNode();
+        submittedVariables.put("text", "123");
+        ObjectNode submissionData = objectMapper.createObjectNode();
+        submissionData.set("data", submittedVariables);
         try (InputStream is = getClass().getClassLoader().getResourceAsStream(formPath);
              InputStream deploymentResource = getClass().getClassLoader().getResourceAsStream(formPath)) {
             JsonNode formDefinition = objectMapper.readTree(is);
             JsonNode expected = formDefinition.deepCopy();
             ((ObjectNode) expected).set("data", objectMapper.valueToTree(submittedVariables));
             try (InputStream scriptResult = IOUtils.toInputStream(expected.toString(), StandardCharsets.UTF_8)) {
-                when(deploymentSvc.getResource(deploymentId, formPath)).thenReturn(deploymentResource);
+                when(repositoryService.getResourceAsStream(deploymentId, formPath)).thenReturn(deploymentResource);
                 when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), objectMapper.writeValueAsString(submissionData))).thenReturn(scriptResult);
 
-                String actual = formioClient.dryValidationAndCleanup(deploymentId, formPath, submittedVariables, currentVariables);
+                String actual = formioClient.dryValidationAndCleanup(formPath, deploymentId, submittedVariables, currentVariables);
 
                 assertEquals(objectMapper.writeValueAsString(submittedVariables), actual);
             }
@@ -192,35 +267,28 @@ public class FormioClientTest extends ServiceTest {
     public void dryValidationAndCleanupTest_ValidDataWithChangedReadOnlyVariablePassed() throws IOException {
         String deploymentId = "deploymentId";
         String formPath = "forms/test.json";
-        Map<String, Object> currentVariables = new HashMap<String, Object>() {{
-            put("readOnly", "test");
-        }};
-        Map<String, Object> submittedVariables = new HashMap<String, Object>() {{
-            put("text", "123");
-            put("readOnly", "test2");
-        }};
-        Map<String, Object> expected = new HashMap<String, Object>() {{
-            put("text", "123");
-            put("readOnly", "test");
-        }};
-        Map<String, Object> formVariables = new HashMap<String, Object>() {{
-            put("data", new HashMap<String, Object>() {{
-                put("text", "123");
-                put("readOnly", "test");
-            }});
-        }};
+        ObjectNode currentVariables = objectMapper.createObjectNode();
+        currentVariables.put("readOnly", "test");
+        ObjectNode submittedVariables = objectMapper.createObjectNode();
+        submittedVariables.put("readOnly", "test2");
+        submittedVariables.put("text", "123");
+        ObjectNode expected = objectMapper.createObjectNode();
+        expected.put("text", "123");
+        expected.put("readOnly", "test");
+        ObjectNode formVariables = objectMapper.createObjectNode();
+        formVariables.set("data", expected.deepCopy());
         try (InputStream is = getClass().getClassLoader().getResourceAsStream(formPath);
              InputStream deploymentResource = getClass().getClassLoader().getResourceAsStream(formPath)) {
             JsonNode formDefinition = objectMapper.readTree(is);
             ObjectNode scriptResult = objectMapper.createObjectNode();
             scriptResult.set("data", objectMapper.valueToTree(expected));
             try (InputStream scriptResultAsStream = IOUtils.toInputStream(scriptResult.toString(), StandardCharsets.UTF_8)) {
-                when(deploymentSvc.getResource(deploymentId, formPath)).thenReturn(deploymentResource);
+                when(repositoryService.getResourceAsStream(deploymentId, formPath)).thenReturn(deploymentResource);
                 when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), objectMapper.writeValueAsString(formVariables))).thenReturn(scriptResultAsStream);
 
-                String actual = formioClient.dryValidationAndCleanup(deploymentId, formPath, submittedVariables, currentVariables);
+                String actual = formioClient.dryValidationAndCleanup(formPath, deploymentId, submittedVariables, currentVariables);
 
-                assertEquals(expected, objectMapper.treeToValue(objectMapper.readTree(actual), Map.class));
+                assertEquals(expected, objectMapper.readTree(actual));
             }
         }
     }
@@ -229,22 +297,23 @@ public class FormioClientTest extends ServiceTest {
     public void dryValidationAndCleanupTest_InvalidDataPassed() throws IOException {
         String deploymentId = "deploymentId";
         String formPath = "forms/testForm.json";
-        Map<String, Object> currentVariables = new HashMap<>();
-        Map<String, Object> submittedVariables = new HashMap<>();
-        Map<String, Object> submittedVariablesInFormioView = new HashMap<String, Object>() {{
-            put("data", submittedVariables);
-        }};
+
+        ObjectNode currentVariables = objectMapper.createObjectNode();
+        ObjectNode submittedVariables = objectMapper.createObjectNode();
+        ObjectNode submittedVariablesInFormioView = objectMapper.createObjectNode();
+        submittedVariablesInFormioView.set("data", submittedVariables.deepCopy());
+
         try (InputStream is = getClass().getClassLoader().getResourceAsStream(formPath);
              InputStream deploymentResource = getClass().getClassLoader().getResourceAsStream(formPath)) {
             JsonNode formDefinition = objectMapper.readTree(is);
             JsonNode expected = formDefinition.deepCopy();
             ((ObjectNode) expected).set("data", objectMapper.createObjectNode());
             try (InputStream scriptResult = IOUtils.toInputStream(expected.toString(), StandardCharsets.UTF_8)) {
-                when(deploymentSvc.getResource(deploymentId, formPath)).thenReturn(deploymentResource);
+                when(repositoryService.getResourceAsStream(deploymentId, formPath)).thenReturn(deploymentResource);
                 when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), objectMapper.writeValueAsString(submittedVariablesInFormioView)))
                         .thenReturn(scriptResult);
 
-                String actual = formioClient.dryValidationAndCleanup(deploymentId, formPath, submittedVariables,currentVariables);
+                String actual = formioClient.dryValidationAndCleanup(formPath, deploymentId, submittedVariables, currentVariables);
 
                 assertEquals(objectMapper.writeValueAsString(submittedVariables), actual);
             }
@@ -275,9 +344,9 @@ public class FormioClientTest extends ServiceTest {
         String formPath = "forms/form-with-state";
         String submissionState = "submitted";
 
-        when(deploymentSvc.getResource(deploymentId, formPath + ".json")).thenReturn(new FileInputStream(getFile("forms/formWithState.json")));
+        when(repositoryService.getResourceAsStream(deploymentId, formPath + ".json")).thenReturn(new FileInputStream(getFile("forms/formWithState.json")));
 
-        boolean actual = formioClient.shouldProcessSubmission(deploymentId, formPath, submissionState);
+        boolean actual = formioClient.shouldProcessSubmission(formPath, deploymentId, submissionState);
 
         assertTrue(actual);
     }
@@ -288,9 +357,9 @@ public class FormioClientTest extends ServiceTest {
         String formPath = "forms/form-with-state";
         String submissionState = "canceled";
 
-        when(deploymentSvc.getResource(deploymentId, formPath + ".json")).thenReturn(new FileInputStream(getFile("forms/formWithState.json")));
+        when(repositoryService.getResourceAsStream(deploymentId, formPath + ".json")).thenReturn(new FileInputStream(getFile("forms/formWithState.json")));
 
-        boolean actual = formioClient.shouldProcessSubmission(deploymentId, formPath, submissionState);
+        boolean actual = formioClient.shouldProcessSubmission(formPath, deploymentId, submissionState);
 
         assertFalse(actual);
     }
@@ -301,9 +370,9 @@ public class FormioClientTest extends ServiceTest {
         String formPath = "forms/form-with-state";
         String submissionState = "submittedWithoutProperty";
 
-        when(deploymentSvc.getResource(deploymentId, formPath + ".json")).thenReturn(new FileInputStream(getFile("forms/formWithState.json")));
+        when(repositoryService.getResourceAsStream(deploymentId, formPath + ".json")).thenReturn(new FileInputStream(getFile("forms/formWithState.json")));
 
-        boolean actual = formioClient.shouldProcessSubmission(deploymentId, formPath, submissionState);
+        boolean actual = formioClient.shouldProcessSubmission(formPath, deploymentId, submissionState);
 
         assertTrue(actual);
     }
@@ -316,9 +385,9 @@ public class FormioClientTest extends ServiceTest {
         JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
         JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubform.json"));
 
-        when(deploymentSvc.getResource("1", childFormPath)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath)));
+        when(repositoryService.getResourceAsStream("1", childFormPath)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath)));
 
-        JsonNode actual = formioClient.expandSubforms(deploymentId, formDefinition);
+        JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId);
 
         assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
     }
@@ -331,9 +400,9 @@ public class FormioClientTest extends ServiceTest {
         JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
         JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubformInContainer.json"));
 
-        when(deploymentSvc.getResource("1", childFormPath)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath)));
+        when(repositoryService.getResourceAsStream("1", childFormPath)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath)));
 
-        JsonNode actual = formioClient.expandSubforms(deploymentId, formDefinition);
+        JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId);
 
         assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
     }
@@ -346,9 +415,9 @@ public class FormioClientTest extends ServiceTest {
         JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
         JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubformsInArrays.json"));
 
-        when(deploymentSvc.getResource("1", childFormPath)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath)));
+        when(repositoryService.getResourceAsStream("1", childFormPath)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath)));
 
-        JsonNode actual = formioClient.expandSubforms(deploymentId, formDefinition);
+        JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId);
 
         assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
     }
@@ -362,10 +431,10 @@ public class FormioClientTest extends ServiceTest {
         JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
         JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubformInAnotherTransformedSubform.json"));
 
-        when(deploymentSvc.getResource("1", childFormPath1)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath1)));
-        when(deploymentSvc.getResource("1", childFormPath2)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath2)));
+        when(repositoryService.getResourceAsStream("1", childFormPath1)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath1)));
+        when(repositoryService.getResourceAsStream("1", childFormPath2)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath2)));
 
-        JsonNode actual = formioClient.expandSubforms(deploymentId, formDefinition);
+        JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId);
 
         assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
     }
