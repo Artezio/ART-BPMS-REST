@@ -494,7 +494,6 @@ public class FormioClient implements FormClient {
     }
 
     private ArrayNode convertFilesInData(ArrayNode fileData, Function<ObjectNode, ObjectNode> converter) {
-        System.out.format("Converting files in data; fileData=%s %n", fileData.toString());
         ArrayNode convertedFileData = JSON_MAPPER.createArrayNode();
         StreamSupport.stream(fileData.spliterator(), false)
                 .map(jsonNode -> (ObjectNode) jsonNode)
