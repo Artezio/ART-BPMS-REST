@@ -406,7 +406,7 @@ public class FormioClient implements FormClient {
     private Map.Entry<String, ? extends JsonNode> getContainerVariable(JsonNode component, JsonNode submittedVariables,
                                                                        JsonNode taskVariables) {
         String componentKey = component.get("key").asText();
-        submittedVariables = submittedVariables.get(componentKey);
+        submittedVariables = submittedVariables.has(componentKey) ? submittedVariables.get(componentKey) : JSON_MAPPER.createObjectNode();
         taskVariables = taskVariables.has(componentKey) ? taskVariables.get(componentKey) : JSON_MAPPER.createObjectNode();
         JsonNode containerValue = getFormVariables(getChildComponents(component), submittedVariables, taskVariables);
         return containerValue.size() == 0 ? null : new SimpleEntry<>(componentKey, containerValue);
@@ -416,7 +416,7 @@ public class FormioClient implements FormClient {
                                                                    JsonNode taskVariables) {
         String componentKey = component.get("key").asText();
         ArrayNode containerValue = JSON_MAPPER.createArrayNode();
-        JsonNode editableArrayData = submittedVariables.get(componentKey);
+        JsonNode editableArrayData = submittedVariables.has(componentKey) ? submittedVariables.get(componentKey) : JSON_MAPPER.createObjectNode();
         JsonNode readOnlyArrayData = taskVariables.has(componentKey) ? taskVariables.get(componentKey) : JSON_MAPPER.createArrayNode();
         if (editableArrayData != null) {
             for (int i = 0; i < editableArrayData.size(); i++) {
