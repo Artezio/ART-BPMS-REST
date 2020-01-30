@@ -8,6 +8,7 @@ import spinjar.com.fasterxml.jackson.core.JsonGenerator;
 import spinjar.com.fasterxml.jackson.databind.SerializerProvider;
 import spinjar.com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
+import javax.enterprise.inject.Default;
 import javax.enterprise.inject.spi.CDI;
 import javax.enterprise.util.AnnotationLiteral;
 import java.io.IOException;
@@ -44,7 +45,7 @@ public class FileValueSerializer<T extends FileValue> extends StdSerializer<T> {
     private FileStorage getFileStorage() {
         return CDI.current()
                 .select(FileStorage.class)
-                .select(new AnnotationLiteral<ConcreteImplementation>() {
+                .select(new AnnotationLiteral<Default>() {
                 }).get();
     }
 

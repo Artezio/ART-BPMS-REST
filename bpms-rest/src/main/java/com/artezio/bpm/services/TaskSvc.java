@@ -38,6 +38,7 @@ import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperty;
 
 import javax.annotation.security.PermitAll;
 import javax.ejb.Stateless;
+import javax.enterprise.inject.Default;
 import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -81,7 +82,6 @@ public class TaskSvc {
     @Inject
     private VariableValidator variableValidator;
     @Inject
-    @ConcreteImplementation
     private FileStorage fileStorage;
 
     @GET
