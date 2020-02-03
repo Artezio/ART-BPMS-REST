@@ -13,6 +13,8 @@
         <camunda.version>7.10.0</camunda.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<java.version>8</java.version>
+        <artezio.mvn.repo.id>art-mvn-repo</artezio.mvn.repo.id>
+        <artezio.mvn.repo.url>https://maven.pkg.github.com/Artezio/ART-MVN-REPO</artezio.mvn.repo.url>
     </properties>
 
     <modules>
@@ -23,10 +25,17 @@
 
     <distributionManagement>
         <repository>
-            <id>art-mvn-repo</id>
-            <url>https://maven.pkg.github.com/Artezio/ART-MVN-REPO</url>
+            <id>${artezio.mvn.repo.id}</id>
+            <url>${artezio.mvn.repo.url}</url>
         </repository>
     </distributionManagement>
+
+    <repositories>
+        <repository>
+            <id>${artezio.mvn.repo.id}</id>
+            <url>${artezio.mvn.repo.url}</url>
+        </repository>
+    </repositories>
 
     <build>
         <pluginManagement>

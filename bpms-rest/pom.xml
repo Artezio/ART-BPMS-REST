@@ -47,7 +47,7 @@
 
 	<dependencies>
 		<dependency>
-			<groupId>com.artezio.forms</groupId>
+			<groupId>com.artezio.camunda</groupId>
 			<artifactId>formio</artifactId>
 			<version>1.0</version>
 			<exclusions>
