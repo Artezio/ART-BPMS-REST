@@ -73,7 +73,7 @@ echo "========================================================================="
 echo "Starting BPMS-REST"
 export JAVA_OPTS="-server -Xms256m -Xmx${MAX_HEAP_SIZE_MB}m -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=${MAX_METASPACE_SIZE_MB}m
 -Djava.net.preferIPv4Stack=true -Djboss.modules.system.pkgs=org.jboss.byteman -Djava.awt.headless=true -Djboss.as.management.blocking.timeout=1200
--DKEYCLOAK_SERVER_URL=${KEYCLOAK_SERVER_URL} -DKEYCLOAK_REALM=${KEYCLOAK_REALM} -DKEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
+-Dfile.encoding=UTF-8 -DKEYCLOAK_SERVER_URL=${KEYCLOAK_SERVER_URL} -DKEYCLOAK_REALM=${KEYCLOAK_REALM} -DKEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
 -DFILE_STORAGE_URL=${FILE_STORAGE_URL} ${JBOSS_ARGS} -agentlib:jdwp=transport=dt_socket,address=0.0.0.0:8787,server=y,suspend=n"
 exec /opt/jboss/wildfly/bin/standalone.sh "-c" "standalone.xml" "-b" "0.0.0.0" "-bmanagement" "0.0.0.0"
 exit $?
