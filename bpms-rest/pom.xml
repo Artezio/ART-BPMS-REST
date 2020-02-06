@@ -45,6 +45,13 @@
 		</dependencies>
 	</dependencyManagement>
 
+	<repositories>
+		<repository>
+			<id>maven-releases</id>
+			<url>https://nexus.artezio.net/repository/maven-releases</url>
+		</repository>
+	</repositories>
+
 	<dependencies>
 		<dependency>
 			<groupId>com.artezio.camunda</groupId>
