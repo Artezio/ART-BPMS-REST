@@ -30,36 +30,36 @@ public class FormSvc {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
         ObjectNode data = variablesMapper.toJsonNode(variables);
-        return formClient.getFormWithData(formKey, deploymentId, data);
+        return formClient.getFormWithData(deploymentId, formKey, data);
     }
 
     public String getStartFormWithData(String processDefinitionId, Map<String, Object> variables) {
         String formKey = getStartFormKey(processDefinitionId);
         String deploymentId = formService.getStartFormData(processDefinitionId).getDeploymentId();
         ObjectNode data = variablesMapper.toJsonNode(variables);
-        return formClient.getFormWithData(formKey, deploymentId, data);
+        return formClient.getFormWithData(deploymentId, formKey, data);
     }
 
     public String dryValidationAndCleanupTaskForm(String taskId, Map<String, Object> formVariables) {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
-        Collection<String> formVariableNames = formClient.getFormVariableNames(formKey, deploymentId);
+        Collection<String> formVariableNames = formClient.getFormVariableNames(deploymentId, formKey);
         ObjectNode processVariablesJson = variablesMapper.toJsonNode(taskService.getVariables(taskId, formVariableNames));
         ObjectNode formVariablesJson = variablesMapper.toJsonNode(formVariables);
-        return formClient.dryValidationAndCleanup(formKey, deploymentId, formVariablesJson, processVariablesJson);
+        return formClient.dryValidationAndCleanup(deploymentId, formKey, formVariablesJson, processVariablesJson);
     }
 
     public String dryValidationAndCleanupStartForm(String processDefinitionId, Map<String, Object> formVariables) {
         String formKey = getStartFormKey(processDefinitionId);
         String deploymentId = formService.getStartFormData(processDefinitionId).getDeploymentId();
         ObjectNode formVariablesJson = variablesMapper.toJsonNode(formVariables);
-        return formClient.dryValidationAndCleanup(formKey, deploymentId, formVariablesJson, OBJECT_MAPPER.createObjectNode());
+        return formClient.dryValidationAndCleanup(deploymentId, formKey, formVariablesJson, OBJECT_MAPPER.createObjectNode());
     }
 
     public boolean shouldProcessSubmittedData(String taskId, String decision) {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
-        return formClient.shouldProcessSubmission(formKey, deploymentId, decision);
+        return formClient.shouldProcessSubmission(deploymentId, formKey, decision);
     }
 
     private String getTaskFormKey(String taskId) {
