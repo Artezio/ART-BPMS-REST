@@ -1,13 +1,14 @@
 package com.artezio.bpm.services;
 
 import com.artezio.forms.FormClient;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.camunda.bpm.engine.TaskService;
 import org.camunda.bpm.engine.repository.Deployment;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.task.Task;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
@@ -18,6 +19,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URISyntaxException;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -35,6 +37,8 @@ public class FormSvcTest extends ServiceTest {
     private FormSvc formSvc = new FormSvc();
     @Mock
     private FormClient formioClient;
+    @Mock
+    private VariablesMapper variablesMapper;
 
     @Before
     public void init() throws NoSuchFieldException {
@@ -68,7 +72,6 @@ public class FormSvcTest extends ServiceTest {
     }
 
     @Test
-    @Ignore
     public void testGetTaskFormWithData() throws IOException, URISyntaxException {
         Deployment deployment = createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
         getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
@@ -76,7 +79,8 @@ public class FormSvcTest extends ServiceTest {
         String expectedFormPath = "Form_1";
         String expectedResult = "{someFormWithData}";
 
-        when(formioClient.getFormWithData(eq(expectedFormPath), eq(deployment.getId()), any())).thenReturn(expectedResult);
+        when(formioClient.getFormWithData(eq(deployment.getId()), eq(expectedFormPath), any())).thenReturn(expectedResult);
+        when(variablesMapper.toJsonNode(Collections.emptyMap())).thenReturn(JsonNodeFactory.instance.objectNode());
 
         String actual = formSvc.getTaskFormWithData(task.getId(), Collections.emptyMap());
 
@@ -84,16 +88,18 @@ public class FormSvcTest extends ServiceTest {
     }
 
     @Test
-    @Ignore
     public void testGetStartFormWithData() throws IOException, URISyntaxException {
         Deployment deployment = createDeployment("test-deployment", "test-process-with-start-form.bpmn");
         ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("testProcessWithStartForm");
         String expectedResult = "{someFormWithData}";
-        String expectedFormPath = "";
+        String expectedFormPath = "testStartForm";
+        Map<String, Object> taskVariables = Collections.emptyMap();
+        ObjectNode taskVariablesNode = JsonNodeFactory.instance.objectNode();
 
-        when(formioClient.getFormWithData(eq(expectedFormPath), eq(deployment.getId()), any())).thenReturn(expectedResult);
+        when(variablesMapper.toJsonNode(taskVariables)).thenReturn(JsonNodeFactory.instance.objectNode());
+        when(formioClient.getFormWithData(deployment.getId(), expectedFormPath, taskVariablesNode)).thenReturn(expectedResult);
 
-        String actual = formSvc.getStartFormWithData(processInstance.getProcessDefinitionId(), Collections.emptyMap());
+        String actual = formSvc.getStartFormWithData(processInstance.getProcessDefinitionId(), taskVariables);
 
         assertEquals(expectedResult, actual);
     }
@@ -107,7 +113,7 @@ public class FormSvcTest extends ServiceTest {
         String decision = "submitted";
         String formKey = "Form_1";
 
-        when(formioClient.shouldProcessSubmission(formKey, deployment.getId(), decision)).thenReturn(true);
+        when(formioClient.shouldProcessSubmission(deployment.getId(), formKey, decision)).thenReturn(true);
 
         boolean shouldSkipValidation = formSvc.shouldProcessSubmittedData(taskId, decision);
 
@@ -123,7 +129,7 @@ public class FormSvcTest extends ServiceTest {
         String decision = "canceled";
         String formKey = "Form_1";
 
-        when(formioClient.shouldProcessSubmission(formKey, deployment.getId(), decision)).thenReturn(false);
+        when(formioClient.shouldProcessSubmission(deployment.getId(), formKey, decision)).thenReturn(false);
 
         boolean actual = formSvc.shouldProcessSubmittedData(taskId, decision);
 
