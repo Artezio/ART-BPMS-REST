@@ -2,7 +2,10 @@ package com.artezio.bpm.services;
 
 import com.artezio.bpm.localization.BpmResourceBundleControl;
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
+import com.artezio.forms.FormClient;
 import com.artezio.logging.Log;
+
+import de.otto.edison.hal.HalRepresentation;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -23,17 +26,26 @@ import javax.ejb.DependsOn;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.artezio.logging.Log.Level.CONFIG;
+import static de.otto.edison.hal.Link.linkBuilder;
+import static de.otto.edison.hal.Links.linkingTo;
 import static javax.ws.rs.core.HttpHeaders.ACCEPT_LANGUAGE;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
@@ -52,6 +64,10 @@ public class DeploymentSvc {
     private ManagementService managementService;
     @Inject
     private ProcessApplicationInterface processApplication;
+    @Context
+    private HttpServletRequest httpRequest;
+    @Inject
+    private FormClient formClient;
 
     @PostConstruct
     public void registerDeployments() {
@@ -238,4 +254,56 @@ public class DeploymentSvc {
                 .singleResult();
     }
 
+    @PermitAll
+    @GET
+    @Path("/form-resources")
+    @Produces("application/hal+json")
+    @Log(level = CONFIG, beforeExecuteMessage = "Getting list of task resources")
+    //TODO document it
+    public HalRepresentation listFormResources(
+            @Parameter(description = "The id of process definition which has the resources. Not required, if 'case-definition-id' is passed.", allowEmptyValue = true) @QueryParam("process-definition-id") String processDefinitionId,
+            @Parameter(description = "The id of case definition which has the resources. Not required, if 'process-definition-id' is passed.", allowEmptyValue = true) @QueryParam("case-definition-id") String caseDefinitionId,
+            @Parameter(description = "The key of a form for which resources are requested.", allowEmptyValue = false) @QueryParam("form-key") String formKey) {
+        String deploymentId =  getResourceDefinition(processDefinitionId, caseDefinitionId).getDeploymentId();
+        Map<String, String> resources = formClient.listResources(deploymentId, formKey);
+        String baseUrl = getBaseUrl();
+        return new HalRepresentation(
+                linkingTo()
+                        .array(resources.entrySet()
+                                .stream()
+                                .map(e -> linkBuilder("items", 
+                                            baseUrl + "/deployment/form-resource/"  + deploymentId + "/"+ encodeUrl(e.getValue()))
+                                        .withName(e.getKey())
+                                        .build())
+                                .collect(Collectors.toList()))
+                        .build());
+    }
+
+    private String getBaseUrl() {
+        StringBuffer requestUrl = httpRequest.getRequestURL();
+        return requestUrl.toString().replaceFirst("/deployment.*", "");
+    }
+    
+    private String encodeUrl(String unsafeUrl) {
+        try {
+            return URLEncoder.encode(unsafeUrl, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @PermitAll
+    @GET
+    @Path("/form-resource/{deployment-id}/{resource-key}")
+    @Produces(MediaType.APPLICATION_OCTET_STREAM)
+    @Log(level = CONFIG, beforeExecuteMessage = "Getting list of task resources")
+    //TODO document it
+    public InputStream getFormResource(
+            @Parameter(description = "The requested resource path.", required = true) @PathParam("resource-key") @Valid @NotNull String resourceKey,
+            @Parameter(description = "The id of the deployment connected with resource requested.", required = true) @PathParam("deployment-id") @Valid @NotNull String deploymentId)
+            throws UnsupportedEncodingException {
+        return formClient.getResource(deploymentId, URLDecoder.decode(resourceKey, "UTF-8"));
+    }
+
+    
 }
