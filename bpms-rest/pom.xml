@@ -56,7 +56,7 @@
 		<dependency>
 			<groupId>com.artezio.camunda</groupId>
 			<artifactId>formio</artifactId>
-			<version>1.0</version>
+			<version>1.0.2</version>
 			<exclusions>
 				<exclusion>
 					<groupId>com.fasterxml.jackson.core</groupId>
@@ -401,4 +401,5 @@
 			</plugin>
 		</plugins>
 	</build>
+	<version>1.0.0</version>
 </project>
