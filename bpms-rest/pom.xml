@@ -6,11 +6,12 @@
 	<parent>
 		<groupId>com.artezio.bpm</groupId>
 		<artifactId>bpm-bom</artifactId>
-		<version>0.5.1</version>
+		<version>0.5.2</version>
 	</parent>
 
 	<artifactId>bpms-rest</artifactId>
 	<packaging>war</packaging>
+	<version>0.5.2</version>
 
 	<properties>
 		<maven.compiler.target>1.8</maven.compiler.target>
