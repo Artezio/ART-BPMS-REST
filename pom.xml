@@ -6,7 +6,7 @@
 
     <groupId>com.artezio.bpm</groupId>
     <artifactId>bpm-bom</artifactId>
-    <version>0.5.1</version>
+    <version>0.5.2</version>
     <packaging>pom</packaging>
 
     <properties>
