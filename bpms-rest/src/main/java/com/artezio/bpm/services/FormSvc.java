@@ -10,11 +10,16 @@ import org.camunda.bpm.engine.task.Task;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import java.util.Collection;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Named
 public class FormSvc {
+
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
     @Inject
     private FormClient formClient;
@@ -24,42 +29,63 @@ public class FormSvc {
     private FormService formService;
     @Inject
     private VariablesMapper variablesMapper;
-    private ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    @Inject
+    private DeploymentSvc deploymentSvc;
 
-    public String getTaskFormWithData(String taskId, Map<String, Object> variables) {
+    public String getTaskFormWithData(String taskId, Map<String, Object> variables) throws UnsupportedEncodingException {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
         ObjectNode data = variablesMapper.toJsonNode(variables);
-        return formClient.getFormWithData(deploymentId, formKey, data);
+        InputStream form = deploymentSvc.getPublicResource(deploymentId, formKey);
+        Map<String, InputStream> publicResources = getPublicResources(formKey, deploymentId);
+        return formClient.getFormWithData(form, data, publicResources);
     }
 
-    public String getStartFormWithData(String processDefinitionId, Map<String, Object> variables) {
+    public String getStartFormWithData(String processDefinitionId, Map<String, Object> variables) throws UnsupportedEncodingException {
         String formKey = getStartFormKey(processDefinitionId);
         String deploymentId = formService.getStartFormData(processDefinitionId).getDeploymentId();
         ObjectNode data = variablesMapper.toJsonNode(variables);
-        return formClient.getFormWithData(deploymentId, formKey, data);
+        InputStream form = deploymentSvc.getPublicResource(deploymentId, formKey);
+        Map<String, InputStream> publicResources = getPublicResources(formKey, deploymentId);
+        return formClient.getFormWithData(form, data, publicResources);
     }
 
-    public String dryValidationAndCleanupTaskForm(String taskId, Map<String, Object> formVariables) {
+    public String dryValidationAndCleanupTaskForm(String taskId, Map<String, Object> formVariables) throws UnsupportedEncodingException {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
-        Collection<String> formVariableNames = formClient.getFormVariableNames(deploymentId, formKey);
+        InputStream form = deploymentSvc.getPublicResource(deploymentId, formKey);
+        List<String> formVariableNames = formClient.getFormVariableNames(form);
         ObjectNode processVariablesJson = variablesMapper.toJsonNode(taskService.getVariables(taskId, formVariableNames));
         ObjectNode formVariablesJson = variablesMapper.toJsonNode(formVariables);
-        return formClient.dryValidationAndCleanup(deploymentId, formKey, formVariablesJson, processVariablesJson);
+        Map<String, InputStream> publicResources = getPublicResources(formKey, deploymentId);
+        return formClient.dryValidationAndCleanup(form, formVariablesJson, processVariablesJson, publicResources);
     }
 
-    public String dryValidationAndCleanupStartForm(String processDefinitionId, Map<String, Object> formVariables) {
+    public String dryValidationAndCleanupStartForm(String processDefinitionId, Map<String, Object> formVariables) throws UnsupportedEncodingException {
         String formKey = getStartFormKey(processDefinitionId);
         String deploymentId = formService.getStartFormData(processDefinitionId).getDeploymentId();
         ObjectNode formVariablesJson = variablesMapper.toJsonNode(formVariables);
-        return formClient.dryValidationAndCleanup(deploymentId, formKey, formVariablesJson, OBJECT_MAPPER.createObjectNode());
+        InputStream form = deploymentSvc.getPublicResource(deploymentId, formKey);
+        Map<String, InputStream> publicResources = getPublicResources(formKey, deploymentId);
+        return formClient.dryValidationAndCleanup(form, formVariablesJson, JSON_MAPPER.createObjectNode(), publicResources);
     }
 
-    public boolean shouldProcessSubmittedData(String taskId, String decision) {
+    public boolean shouldProcessSubmittedData(String taskId, String decision) throws UnsupportedEncodingException {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
-        return formClient.shouldProcessSubmission(deploymentId, formKey, decision);
+        InputStream form = deploymentSvc.getPublicResource(deploymentId, formKey);
+        return formClient.shouldProcessSubmission(form, decision);
+    }
+
+    private Map<String, InputStream> getPublicResources(String formKey, String deploymentId) {
+        return deploymentSvc.listResources(deploymentId, formKey).keySet().stream()
+                .collect(Collectors.toMap(key -> key, key -> {
+                    try {
+                        return deploymentSvc.getPublicResource(deploymentId, key);
+                    } catch (UnsupportedEncodingException e) {
+                        throw new RuntimeException(e);
+                    }
+                }));
     }
 
     private String getTaskFormKey(String taskId) {

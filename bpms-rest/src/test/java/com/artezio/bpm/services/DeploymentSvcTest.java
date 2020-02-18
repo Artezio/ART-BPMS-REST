@@ -21,6 +21,9 @@ import java.util.ResourceBundle;
 
 import javax.servlet.http.HttpServletRequest;
 
+import com.artezio.bpm.resources.AppResourceLoader;
+import com.artezio.bpm.resources.DeploymentResourceLoader;
+import com.artezio.bpm.resources.ResourceLoader;
 import org.camunda.bpm.application.ProcessApplicationInterface;
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.impl.persistence.entity.ResourceEntity;
@@ -29,7 +32,6 @@ import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
@@ -323,7 +325,7 @@ public class DeploymentSvcTest extends ServiceTest {
         String processDefinitionId = getRepositoryService().createProcessDefinitionQuery().processDefinitionKey("formResourcesLoadTest").singleResult().getId();
         when(httpRequest.getRequestURL()).thenReturn(new StringBuffer("http://localhost:8080/bpms-rest/deployment/form-resources"));
         
-        HalRepresentation actual =  deploymentSvc.listFormResources(processDefinitionId, null, "embedded:deployment:/startForm");
+        HalRepresentation actual =  deploymentSvc.listPublicResources(processDefinitionId, null, "embedded:deployment:/startForm");
         
         String actualHref = actual.getLinks().getLinkBy("items").get().getHref();
         assertTrue(actualHref.matches("http://localhost:8080/bpms-rest/deployment/form-resource/.*/embedded%3Adeployment%3Acustom-components%2Ftexteditor.js"));

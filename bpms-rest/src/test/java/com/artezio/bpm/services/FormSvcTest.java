@@ -79,7 +79,7 @@ public class FormSvcTest extends ServiceTest {
         String expectedFormPath = "Form_1";
         String expectedResult = "{someFormWithData}";
 
-        when(formioClient.getFormWithData(eq(deployment.getId()), eq(expectedFormPath), any())).thenReturn(expectedResult);
+//        when(formioClient.getFormWithData(eq(deployment.getId()), eq(expectedFormPath), any())).thenReturn(expectedResult);
         when(variablesMapper.toJsonNode(Collections.emptyMap())).thenReturn(JsonNodeFactory.instance.objectNode());
 
         String actual = formSvc.getTaskFormWithData(task.getId(), Collections.emptyMap());
@@ -97,7 +97,7 @@ public class FormSvcTest extends ServiceTest {
         ObjectNode taskVariablesNode = JsonNodeFactory.instance.objectNode();
 
         when(variablesMapper.toJsonNode(taskVariables)).thenReturn(JsonNodeFactory.instance.objectNode());
-        when(formioClient.getFormWithData(deployment.getId(), expectedFormPath, taskVariablesNode)).thenReturn(expectedResult);
+//        when(formioClient.getFormWithData(deployment.getId(), expectedFormPath, taskVariablesNode)).thenReturn(expectedResult);
 
         String actual = formSvc.getStartFormWithData(processInstance.getProcessDefinitionId(), taskVariables);
 
@@ -113,7 +113,7 @@ public class FormSvcTest extends ServiceTest {
         String decision = "submitted";
         String formKey = "Form_1";
 
-        when(formioClient.shouldProcessSubmission(deployment.getId(), formKey, decision)).thenReturn(true);
+//        when(formioClient.shouldProcessSubmission(deployment.getId(), formKey, decision)).thenReturn(true);
 
         boolean shouldSkipValidation = formSvc.shouldProcessSubmittedData(taskId, decision);
 
@@ -129,7 +129,7 @@ public class FormSvcTest extends ServiceTest {
         String decision = "canceled";
         String formKey = "Form_1";
 
-        when(formioClient.shouldProcessSubmission(deployment.getId(), formKey, decision)).thenReturn(false);
+//        when(formioClient.shouldProcessSubmission(deployment.getId(), formKey, decision)).thenReturn(false);
 
         boolean actual = formSvc.shouldProcessSubmittedData(taskId, decision);
 

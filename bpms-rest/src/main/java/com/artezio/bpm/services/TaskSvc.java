@@ -47,6 +47,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -341,7 +342,7 @@ public class TaskSvc {
     )
     @Log(beforeExecuteMessage = "Loading form for user task '{0}'", afterExecuteMessage = "Form successfully loaded")
     public String loadForm(
-            @Parameter(description = "The id of the task which form is requested for.", required = true) @PathParam("task-id") @Valid @NotNull String taskId) {
+            @Parameter(description = "The id of the task which form is requested for.", required = true) @PathParam("task-id") @Valid @NotNull String taskId) throws UnsupportedEncodingException {
         ensureUserHasAccess(taskId);
         VariableMap taskVariables = taskService.getVariablesTyped(taskId);
         return formService.getTaskFormWithData(taskId, taskVariables);

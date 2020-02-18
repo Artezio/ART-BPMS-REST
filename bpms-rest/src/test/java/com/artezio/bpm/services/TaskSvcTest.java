@@ -43,10 +43,7 @@ import javax.enterprise.inject.Instance;
 import javax.enterprise.inject.spi.CDI;
 import javax.enterprise.util.AnnotationLiteral;
 import javax.ws.rs.core.*;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.lang.reflect.Field;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -718,7 +715,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testLoadForm() {
+    public void testLoadForm() throws UnsupportedEncodingException {
         String taskId = "taskId";
         String callerId = "callerId";
         String taskFormDefinition = "taskFormDefinition";
@@ -732,7 +729,7 @@ public class TaskSvcTest extends ServiceTest {
 
         when(identityService.userId()).thenReturn(callerId);
         when(identityService.userGroups()).thenReturn(callerGroups);
-        when(formSvc.getTaskFormWithData(taskId, taskVariables)).thenReturn(expected);
+//        when(formSvc.getTaskFormWithData(taskId, taskVariables)).thenReturn(expected);
 
         String actual = taskSvc.loadForm(taskId);
 
@@ -784,7 +781,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testLoadForm_VariableDoesntExist_ExecutionVariableIsContainer_ContainerHasSimpleVariables() {
+    public void testLoadForm_VariableDoesntExist_ExecutionVariableIsContainer_ContainerHasSimpleVariables() throws UnsupportedEncodingException {
         String taskId = "taskId";
         String callerId = "callerId";
         String formKey = "formKey";
@@ -810,8 +807,6 @@ public class TaskSvcTest extends ServiceTest {
         when(formService.getTaskFormData(taskId).getFormKey()).thenReturn(formKey);
         when(identityService.userId()).thenReturn(callerId);
         when(identityService.userGroups()).thenReturn(callerGroups);
-        when(formSvc.getTaskFormWithData(taskId, taskVariablesRepresentation)).thenReturn(expected);
-        when(formSvc.getTaskFormWithData(taskId, taskVariables)).thenReturn(expected);
 
         String actual = taskSvc.loadForm(taskId);
 
@@ -873,7 +868,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test(expected = NotAuthorizedException.class)
-    public void testLoadForm_CallerHasNoAccess() {
+    public void testLoadForm_CallerHasNoAccess() throws UnsupportedEncodingException {
         String taskId = "taskId";
         String callerId = "callerId";
         String candidateUserId = "candidateUserId";

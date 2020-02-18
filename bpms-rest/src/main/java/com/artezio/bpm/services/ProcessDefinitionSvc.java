@@ -34,6 +34,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -159,7 +160,7 @@ public class ProcessDefinitionSvc {
     )
     @Log(beforeExecuteMessage = "Loading start form for process '{0}'", afterExecuteMessage = "Start form for process '{0}' successfully loaded")
     public String loadStartForm(
-            @Parameter(description = "The key of the process definition, which form is loaded for.") @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey) {
+            @Parameter(description = "The key of the process definition, which form is loaded for.") @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey) throws UnsupportedEncodingException {
         ProcessDefinition processDefinition = getLastProcessDefinition(processDefinitionKey);
         ensureStartableByUser(processDefinition);
         FormData formData = camundaFormService.getStartFormData(processDefinition.getId());
@@ -236,9 +237,9 @@ public class ProcessDefinitionSvc {
         ExtensionElements extensionElements = processElement.getExtensionElements();
         return extensionElements != null
                 ? extensionElements.getElements().stream()
-                .flatMap(extensionElement -> ((CamundaProperties) extensionElement).getCamundaProperties().stream())
-                .filter(extension -> extension.getCamundaName().startsWith(EXTENSION_NAME_PREFIX))
-                .collect(Collectors.toMap(CamundaProperty::getCamundaName, CamundaProperty::getCamundaValue))
+                    .flatMap(extensionElement -> ((CamundaProperties) extensionElement).getCamundaProperties().stream())
+                    .filter(extension -> extension.getCamundaName().startsWith(EXTENSION_NAME_PREFIX))
+                    .collect(Collectors.toMap(CamundaProperty::getCamundaName, CamundaProperty::getCamundaValue))
                 : emptyMap();
     }
 
