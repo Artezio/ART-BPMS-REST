@@ -276,6 +276,11 @@
 			<artifactId>swagger-jaxrs2</artifactId>
 			<version>${swagger.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>de.otto.edison</groupId>
+			<artifactId>edison-hal</artifactId>
+			<version>2.1.0</version>
+		</dependency>
     </dependencies>
 	<build>
 		<finalName>${project.artifactId}</finalName>
@@ -396,4 +401,5 @@
 			</plugin>
 		</plugins>
 	</build>
+	<version>1.0.0</version>
 </project>
