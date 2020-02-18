@@ -6,7 +6,7 @@
 
     <groupId>com.artezio.bpm</groupId>
     <artifactId>bpm-bom</artifactId>
-    <version>0.5.1</version>
+    <version>0.5.2</version>
     <packaging>pom</packaging>
 
     <properties>
@@ -17,16 +17,8 @@
 
     <modules>
         <module>bpms-rest</module>
-        <module>logger</module>
         <module>bpms-rest-spa-example</module>
     </modules>
-
-    <distributionManagement>
-        <repository>
-            <id>art-mvn-repo</id>
-            <url>https://maven.pkg.github.com/Artezio/ART-MVN-REPO</url>
-        </repository>
-    </distributionManagement>
 
     <build>
         <pluginManagement>

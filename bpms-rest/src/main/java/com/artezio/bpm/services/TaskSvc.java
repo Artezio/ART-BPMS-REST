@@ -6,6 +6,7 @@ import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.bpm.services.integration.FileStorage;
 import com.artezio.bpm.services.integration.cdi.ConcreteImplementation;
+import com.artezio.bpm.utils.Base64Utils;
 import com.artezio.bpm.validation.VariableValidator;
 import com.artezio.logging.Log;
 import com.jayway.jsonpath.JsonPath;
@@ -18,6 +19,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import net.minidev.json.JSONArray;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.camunda.bpm.engine.CaseService;
 import org.camunda.bpm.engine.FormService;
@@ -36,6 +38,7 @@ import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperty;
 
 import javax.annotation.security.PermitAll;
 import javax.ejb.Stateless;
+import javax.enterprise.inject.Default;
 import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -43,6 +46,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -74,12 +78,11 @@ public class TaskSvc {
     @Inject
     private CaseService caseService;
     @Inject
-    @ConcreteImplementation
-    private FileStorage fileStorage;
-    @Inject
     private RepositoryService repositoryService;
     @Inject
     private VariableValidator variableValidator;
+    @Inject
+    private FileStorage fileStorage;
 
     @GET
     @Path("available")
@@ -374,11 +377,11 @@ public class TaskSvc {
         ensureUserHasAccess(taskId);
         try {
             Map<String, Object> file = getRequestedFileVariableValue(taskId, filePath);
-            String type = StringUtils.isNotEmpty((String) file.get("type")) ? (String) file.get("type") : MediaType.APPLICATION_OCTET_STREAM;
-            byte[] fileContent = getFileContentFromUrl((String) file.get("url"));
+            String type = StringUtils.isNotEmpty((String) file.get("mimeType")) ? (String) file.get("mimeType") : MediaType.APPLICATION_OCTET_STREAM;
+            InputStream fileContent = fileStorage.retrieve((String) file.get("url"));
             return Response
                     .ok(fileContent, type)
-                    .header("Content-Disposition", "attachment; filename=" + file.get("originalName"))
+                    .header("Content-Disposition", "attachment; filename=" + file.get("filename"))
                     .build();
         } catch (RuntimeException exception) {
             throw new NotFoundException("File '" + filePath + "' is not found.");
@@ -553,19 +556,6 @@ public class TaskSvc {
         String jaywayFilePath = String.join(".", copyOfRange(splitFilePath, 1, splitFilePath.length));
         JSONArray fileValues = JsonPath.read(variableJsonValue, "$.." + jaywayFilePath);
         return (Map<String, Object>) fileValues.get(0);
-    }
-
-    private byte[] getFileContentFromUrl(String url) {
-        String base64EncodedFileContent = extractContentFromUrl(url);
-        return decodeFromBase64(base64EncodedFileContent);
-    }
-
-    private String extractContentFromUrl(String url) {
-        return url.split(",")[1];
-    }
-
-    private byte[] decodeFromBase64(String encodedString) {
-        return Base64.getMimeDecoder().decode(encodedString);
     }
 
     private String cleanUpVariableName(String variableName) {

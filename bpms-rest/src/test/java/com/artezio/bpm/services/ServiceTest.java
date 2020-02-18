@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.*;
@@ -156,10 +157,12 @@ abstract public class ServiceTest {
         }
     }
 
-    void assertFileResponseEquals(Response expected, Response actual) {
+    void assertFileResponseEquals(Response expected, Response actual) throws IOException {
         assertEquals(expected.getStatus(), actual.getStatus());
         assertEquals(expected.getMediaType(), actual.getMediaType());
-        assertArrayEquals((byte[]) expected.getEntity(), (byte[]) actual.getEntity());
+        byte[] expectedBytes = IOUtils.toByteArray((InputStream) expected.getEntity());
+        byte[] actualBytes = IOUtils.toByteArray((InputStream) actual.getEntity());
+        assertArrayEquals(expectedBytes, actualBytes);
     }
 
     String getFileValueRepresentationJson(Map<String, Object> fileValue) throws IOException {
@@ -172,11 +175,9 @@ abstract public class ServiceTest {
         byte[] fileContent = Files.readAllBytes(file.toPath());
         String base64EncodedFileContent = Base64.getMimeEncoder().encodeToString(fileContent);
         Map<String, Object> fileValue = new HashMap<>();
-        fileValue.put("name", file.getName());
-        fileValue.put("originalName", file.getName());
+        fileValue.put("filename", file.getName());
         fileValue.put("size", (int) file.length());
-        fileValue.put("storage", "base64");
-        fileValue.put("type", mimeType);
+        fileValue.put("mimeType", mimeType);
         fileValue.put("url", "data:" + mimeType + ";base64," + base64EncodedFileContent);
 
         return fileValue;

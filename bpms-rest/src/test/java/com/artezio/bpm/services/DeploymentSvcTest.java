@@ -1,19 +1,12 @@
 package com.artezio.bpm.services;
 
-import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
-import org.camunda.bpm.application.ProcessApplicationInterface;
-import org.camunda.bpm.application.ProcessApplicationReference;
-import org.camunda.bpm.engine.impl.persistence.entity.ResourceEntity;
-import org.camunda.bpm.engine.repository.Deployment;
-import org.jboss.resteasy.plugins.providers.multipart.InputPart;
-import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import static java.util.Arrays.asList;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.internal.util.reflection.FieldSetter.setField;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -26,17 +19,37 @@ import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 
-import static java.util.Arrays.asList;
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.internal.util.reflection.FieldSetter.setField;
+import javax.servlet.http.HttpServletRequest;
+
+import org.camunda.bpm.application.ProcessApplicationInterface;
+import org.camunda.bpm.application.ProcessApplicationReference;
+import org.camunda.bpm.engine.impl.persistence.entity.ResourceEntity;
+import org.camunda.bpm.engine.repository.Deployment;
+import org.jboss.resteasy.plugins.providers.multipart.InputPart;
+import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
+
+import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
+import com.artezio.forms.FormClient;
+import com.artezio.forms.formio.FormioClient;
+
+import de.otto.edison.hal.HalRepresentation;
+import junitx.util.PrivateAccessor;
 
 @RunWith(MockitoJUnitRunner.class)
 public class DeploymentSvcTest extends ServiceTest {
 
     @Mock
     private ProcessApplicationInterface processApplication;
+    @Mock
+    private HttpServletRequest httpRequest;
     @InjectMocks
     private DeploymentSvc deploymentSvc = new DeploymentSvc();
 
@@ -46,6 +59,18 @@ public class DeploymentSvcTest extends ServiceTest {
         setField(deploymentSvc, repositoryServiceField, getRepositoryService());
         Field managementServiceField = deploymentSvc.getClass().getDeclaredField("managementService");
         setField(deploymentSvc, managementServiceField, getManagementService());
+        Field formClientField = deploymentSvc.getClass().getDeclaredField("formClient");
+        
+        AppResourceLoader appResourceLoader = new AppResourceLoader();
+        DeploymentResourceLoader deploymentResourceLoader = new DeploymentResourceLoader();
+        ResourceLoader resourceLoader = new ResourceLoader();
+        FormClient formClient = new FormioClient();
+        
+        PrivateAccessor.setField(resourceLoader, "appResourceLoader", appResourceLoader);
+        PrivateAccessor.setField(resourceLoader, "deploymentResourceLoader", deploymentResourceLoader);
+        PrivateAccessor.setField(formClient, "resourceLoader", resourceLoader);
+        
+        setField(deploymentSvc, formClientField, formClient);
     }
 
     @After
@@ -290,6 +315,18 @@ public class DeploymentSvcTest extends ServiceTest {
 
     private String getExistingDeploymentId() {
         return getDeploymentList().get(0).getId();
+    }
+    
+    @Test
+    public void listFormResources() throws IOException, URISyntaxException {
+        createDeployment("Form resources load test", "forms-with-embedded-deployment-protocol.bpmn", "custom-components/texteditor.js");
+        String processDefinitionId = getRepositoryService().createProcessDefinitionQuery().processDefinitionKey("formResourcesLoadTest").singleResult().getId();
+        when(httpRequest.getRequestURL()).thenReturn(new StringBuffer("http://localhost:8080/bpms-rest/deployment/form-resources"));
+        
+        HalRepresentation actual =  deploymentSvc.listFormResources(processDefinitionId, null, "embedded:deployment:/startForm");
+        
+        String actualHref = actual.getLinks().getLinkBy("items").get().getHref();
+        assertTrue(actualHref.matches("http://localhost:8080/bpms-rest/deployment/form-resource/.*/embedded%3Adeployment%3Acustom-components%2Ftexteditor.js"));
     }
 
 }

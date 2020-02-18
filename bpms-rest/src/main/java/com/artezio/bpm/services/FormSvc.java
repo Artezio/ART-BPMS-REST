@@ -1,12 +1,16 @@
 package com.artezio.bpm.services;
 
 import com.artezio.forms.FormClient;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.camunda.bpm.engine.FormService;
 import org.camunda.bpm.engine.TaskService;
 import org.camunda.bpm.engine.task.Task;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+
+import java.util.Collection;
 import java.util.Map;
 
 @Named
@@ -18,29 +22,38 @@ public class FormSvc {
     private TaskService taskService;
     @Inject
     private FormService formService;
+    @Inject
+    private VariablesMapper variablesMapper;
+    private ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     public String getTaskFormWithData(String taskId, Map<String, Object> variables) {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
-        return formClient.getFormWithData(deploymentId, formKey, variables);
+        ObjectNode data = variablesMapper.toJsonNode(variables);
+        return formClient.getFormWithData(deploymentId, formKey, data);
     }
 
     public String getStartFormWithData(String processDefinitionId, Map<String, Object> variables) {
         String formKey = getStartFormKey(processDefinitionId);
         String deploymentId = formService.getStartFormData(processDefinitionId).getDeploymentId();
-        return formClient.getFormWithData(deploymentId, formKey, variables);
+        ObjectNode data = variablesMapper.toJsonNode(variables);
+        return formClient.getFormWithData(deploymentId, formKey, data);
     }
 
-    public String dryValidationAndCleanupTaskForm(String taskId, Map<String, Object> variables) {
+    public String dryValidationAndCleanupTaskForm(String taskId, Map<String, Object> formVariables) {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
-        return formClient.dryValidationAndCleanup(deploymentId, formKey, variables);
+        Collection<String> formVariableNames = formClient.getFormVariableNames(deploymentId, formKey);
+        ObjectNode processVariablesJson = variablesMapper.toJsonNode(taskService.getVariables(taskId, formVariableNames));
+        ObjectNode formVariablesJson = variablesMapper.toJsonNode(formVariables);
+        return formClient.dryValidationAndCleanup(deploymentId, formKey, formVariablesJson, processVariablesJson);
     }
 
-    public String dryValidationAndCleanupStartForm(String processDefinitionId, Map<String, Object> variables) {
+    public String dryValidationAndCleanupStartForm(String processDefinitionId, Map<String, Object> formVariables) {
         String formKey = getStartFormKey(processDefinitionId);
         String deploymentId = formService.getStartFormData(processDefinitionId).getDeploymentId();
-        return formClient.dryValidationAndCleanup(deploymentId, formKey, variables);
+        ObjectNode formVariablesJson = variablesMapper.toJsonNode(formVariables);
+        return formClient.dryValidationAndCleanup(deploymentId, formKey, formVariablesJson, OBJECT_MAPPER.createObjectNode());
     }
 
     public boolean shouldProcessSubmittedData(String taskId, String decision) {

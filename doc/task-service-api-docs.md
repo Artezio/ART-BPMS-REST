@@ -126,7 +126,7 @@ documentation.
 ### Example:
 
 #### Request:
-Request to Formio server: `GET /task/taskId/form`
+Get a form from a deployment: `GET /task/taskId/form`
 
 #### Response:
 Status 200 OK.
