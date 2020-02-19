@@ -1,5 +1,6 @@
 package com.artezio.bpm.services;
 
+import com.artezio.bpm.resources.ResourceLoader;
 import com.artezio.forms.FormClient;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -16,18 +17,18 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.URISyntaxException;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 import static org.mockito.internal.util.reflection.FieldSetter.setField;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -73,47 +74,49 @@ public class FormSvcTest extends ServiceTest {
 
     @Test
     public void testGetTaskFormWithData() throws IOException, URISyntaxException {
-        Deployment deployment = createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
+        createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
         getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
         Task task = getTaskService().createTaskQuery().taskUnassigned().singleResult();
-        String expectedFormPath = "Form_1";
-        String expectedResult = "{someFormWithData}";
+        Map<String, Object> taskVariables = Collections.emptyMap();
+        ObjectNode taskVariablesNode = JsonNodeFactory.instance.objectNode();
+        String formKey = "Form_1";
+        String expected = "{someFormWithData}";
 
-//        when(formioClient.getFormWithData(eq(deployment.getId()), eq(expectedFormPath), any())).thenReturn(expectedResult);
-        when(variablesMapper.toJsonNode(Collections.emptyMap())).thenReturn(JsonNodeFactory.instance.objectNode());
+        when(variablesMapper.toJsonNode(taskVariables)).thenReturn(taskVariablesNode);
+        when(formioClient.getFormWithData(eq(formKey), eq(taskVariablesNode), any(ResourceLoader.class))).thenReturn(expected);
 
-        String actual = formSvc.getTaskFormWithData(task.getId(), Collections.emptyMap());
+        String actual = formSvc.getTaskFormWithData(task.getId(), taskVariables);
 
-        assertEquals(expectedResult, actual);
+        assertEquals(expected, actual);
     }
 
     @Test
     public void testGetStartFormWithData() throws IOException, URISyntaxException {
-        Deployment deployment = createDeployment("test-deployment", "test-process-with-start-form.bpmn");
+        createDeployment("test-deployment", "test-process-with-start-form.bpmn");
         ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("testProcessWithStartForm");
-        String expectedResult = "{someFormWithData}";
-        String expectedFormPath = "testStartForm";
+        String formKey = "testStartForm";
+        String expected = "{someFormWithData}";
         Map<String, Object> taskVariables = Collections.emptyMap();
         ObjectNode taskVariablesNode = JsonNodeFactory.instance.objectNode();
 
-        when(variablesMapper.toJsonNode(taskVariables)).thenReturn(JsonNodeFactory.instance.objectNode());
-//        when(formioClient.getFormWithData(deployment.getId(), expectedFormPath, taskVariablesNode)).thenReturn(expectedResult);
+        when(variablesMapper.toJsonNode(taskVariables)).thenReturn(taskVariablesNode);
+        when(formioClient.getFormWithData(eq(formKey), eq(taskVariablesNode), any(ResourceLoader.class))).thenReturn(expected);
 
         String actual = formSvc.getStartFormWithData(processInstance.getProcessDefinitionId(), taskVariables);
 
-        assertEquals(expectedResult, actual);
+        assertEquals(expected, actual);
     }
 
     @Test
     public void testShouldProcessSubmittedData_DecisionWithValidation() throws IOException, URISyntaxException {
-        Deployment deployment = createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
+        createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
         getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
 
         String taskId = getTaskService().createTaskQuery().taskDefinitionKey("Task_1").singleResult().getId();
         String decision = "submitted";
         String formKey = "Form_1";
 
-//        when(formioClient.shouldProcessSubmission(deployment.getId(), formKey, decision)).thenReturn(true);
+        when(formioClient.shouldProcessSubmission(eq(formKey), eq(decision), any(ResourceLoader.class))).thenReturn(true);
 
         boolean shouldSkipValidation = formSvc.shouldProcessSubmittedData(taskId, decision);
 
@@ -122,14 +125,14 @@ public class FormSvcTest extends ServiceTest {
 
     @Test
     public void testShouldProcessSubmittedData_DecisionWithoutValidation() throws IOException, URISyntaxException {
-        Deployment deployment = createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
+        createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
         getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
 
         String taskId = getTaskService().createTaskQuery().taskDefinitionKey("Task_1").singleResult().getId();
         String decision = "canceled";
         String formKey = "Form_1";
 
-//        when(formioClient.shouldProcessSubmission(deployment.getId(), formKey, decision)).thenReturn(false);
+        when(formioClient.shouldProcessSubmission(eq(formKey), eq(decision), any(ResourceLoader.class))).thenReturn(false);
 
         boolean actual = formSvc.shouldProcessSubmittedData(taskId, decision);
 

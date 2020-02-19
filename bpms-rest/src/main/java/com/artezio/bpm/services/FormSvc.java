@@ -1,5 +1,9 @@
 package com.artezio.bpm.services;
 
+import com.artezio.bpm.resources.AbstractResourceLoader;
+import com.artezio.bpm.resources.AppResourceLoader;
+import com.artezio.bpm.resources.DeploymentResourceLoader;
+import com.artezio.bpm.resources.ResourceLoader;
 import com.artezio.forms.FormClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -9,14 +13,9 @@ import org.camunda.bpm.engine.task.Task;
 
 import javax.inject.Inject;
 import javax.inject.Named;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.util.Collection;
+import javax.servlet.ServletContext;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Named
 public class FormSvc {
@@ -32,79 +31,53 @@ public class FormSvc {
     @Inject
     private VariablesMapper variablesMapper;
     @Inject
-    private DeploymentSvc deploymentSvc;
+    private ServletContext servletContext;
 
-    public String getTaskFormWithData(String taskId, Map<String, Object> variables) throws IOException {
+    public String getTaskFormWithData(String taskId, Map<String, Object> variables) {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
         ObjectNode data = variablesMapper.toJsonNode(variables);
-        Map<String, InputStream> publicResources = null;
-        try (InputStream form = deploymentSvc.getResource(deploymentId, formKey)) {
-            publicResources = getPublicResources(formKey, deploymentId);
-            return formClient.getFormWithData(form, data, publicResources);
-        } finally {
-            closeResources(publicResources.values());
-        }
+        ResourceLoader resourceLoader = getResourceLoader(deploymentId, formKey);
+        return formClient.getFormWithData(formKey, data, resourceLoader);
     }
 
-    public String getStartFormWithData(String processDefinitionId, Map<String, Object> variables) throws IOException {
+    public String getStartFormWithData(String processDefinitionId, Map<String, Object> variables) {
         String formKey = getStartFormKey(processDefinitionId);
         String deploymentId = formService.getStartFormData(processDefinitionId).getDeploymentId();
         ObjectNode data = variablesMapper.toJsonNode(variables);
-        Map<String, InputStream> publicResources = null;
-        try (InputStream form = deploymentSvc.getResource(deploymentId, formKey)) {
-            publicResources = getPublicResources(formKey, deploymentId);
-            return formClient.getFormWithData(form, data, publicResources);
-        } finally {
-            closeResources(publicResources.values());
-        }
+        ResourceLoader resourceLoader = getResourceLoader(deploymentId, formKey);
+        return formClient.getFormWithData(formKey, data, resourceLoader);
     }
 
-    public String dryValidationAndCleanupTaskForm(String taskId, Map<String, Object> formVariables) throws IOException {
+    public String dryValidationAndCleanupTaskForm(String taskId, Map<String, Object> formVariables) {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
-        Map<String, InputStream> publicResources = null;
-        try (InputStream form = deploymentSvc.getResource(deploymentId, formKey)) {
-            List<String> formVariableNames = formClient.getFormVariableNames(form);
-            ObjectNode processVariablesJson = variablesMapper.toJsonNode(taskService.getVariables(taskId, formVariableNames));
-            ObjectNode formVariablesJson = variablesMapper.toJsonNode(formVariables);
-            publicResources = getPublicResources(formKey, deploymentId);
-            return formClient.dryValidationAndCleanup(form, formVariablesJson, processVariablesJson, publicResources);
-        } finally {
-            closeResources(publicResources.values());
-        }
+        ResourceLoader resourceLoader = getResourceLoader(deploymentId, formKey);
+        List<String> formVariableNames = formClient.getFormVariableNames(formKey, resourceLoader);
+        ObjectNode processVariablesJson = variablesMapper.toJsonNode(taskService.getVariables(taskId, formVariableNames));
+        ObjectNode formVariablesJson = variablesMapper.toJsonNode(formVariables);
+        return formClient.dryValidationAndCleanup(formKey, formVariablesJson, processVariablesJson, resourceLoader);
     }
 
-    public String dryValidationAndCleanupStartForm(String processDefinitionId, Map<String, Object> formVariables) throws IOException {
+    public String dryValidationAndCleanupStartForm(String processDefinitionId, Map<String, Object> formVariables) {
         String formKey = getStartFormKey(processDefinitionId);
         String deploymentId = formService.getStartFormData(processDefinitionId).getDeploymentId();
         ObjectNode formVariablesJson = variablesMapper.toJsonNode(formVariables);
-        Map<String, InputStream> publicResources = null;
-        try(InputStream form = deploymentSvc.getResource(deploymentId, formKey)) {
-            publicResources = getPublicResources(formKey, deploymentId);
-            return formClient.dryValidationAndCleanup(form, formVariablesJson, JSON_MAPPER.createObjectNode(), publicResources);
-        } finally {
-            closeResources(publicResources.values());
-        }
+        ResourceLoader resourceLoader = getResourceLoader(deploymentId, formKey);
+        return formClient.dryValidationAndCleanup(formKey, formVariablesJson, JSON_MAPPER.createObjectNode(), resourceLoader);
     }
 
-    public boolean shouldProcessSubmittedData(String taskId, String decision) throws IOException {
+    public boolean shouldProcessSubmittedData(String taskId, String decision) {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
-        try (InputStream form = deploymentSvc.getResource(deploymentId, formKey)) {
-            return formClient.shouldProcessSubmission(form, decision);
-        }
+        ResourceLoader resourceLoader = getResourceLoader(deploymentId, formKey);
+        return formClient.shouldProcessSubmission(formKey, decision, resourceLoader);
     }
 
-    private Map<String, InputStream> getPublicResources(String formKey, String deploymentId) {
-        return deploymentSvc.listResourceNames(deploymentId, formKey).stream()
-                .collect(Collectors.toMap(resourceName -> resourceName, resourceName -> {
-                    try {
-                        return deploymentSvc.getResource(deploymentId, resourceName);
-                    } catch (UnsupportedEncodingException e) {
-                        throw new RuntimeException(e);
-                    }
-                }));
+    private ResourceLoader getResourceLoader(String deploymentId, String formKey) {
+        return AbstractResourceLoader.getProtocol(formKey).equals(AbstractResourceLoader.DEPLOYMENT_PROTOCOL)
+                ? new DeploymentResourceLoader(deploymentId)
+                : new AppResourceLoader(servletContext);
     }
 
     private String getTaskFormKey(String taskId) {
@@ -127,16 +100,6 @@ public class FormSvc {
 
     private String getStartFormKey(String processDefinitionId) {
         return formService.getStartFormKey(processDefinitionId);
-    }
-
-    private void closeResources(Collection<InputStream> values) {
-        values.forEach(value -> {
-            try {
-                if (value != null) value.close();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
     }
 
 }

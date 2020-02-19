@@ -5,20 +5,30 @@ import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.ProcessEngines;
 import org.camunda.bpm.engine.RepositoryService;
 
-import javax.inject.Named;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-@Named
-public class DeploymentResourceLoader implements AbstractResourceLoader {
+public class DeploymentResourceLoader extends AbstractResourceLoader {
 
     private final static String PROCESS_ENGINE_NAME = System.getenv("PROCESS_ENGINE_NAME");
+    protected String deploymentId;
+
+    public DeploymentResourceLoader(String deploymentId) {
+        this.deploymentId = deploymentId;
+    }
 
     @Override
-    public InputStream getResource(String deploymentId, String resourceKey) {
+    public InputStream getResource(String resourceKey) {
         return getRepositoryService().getResourceAsStream(deploymentId, resourceKey);
+    }
+
+    @Override
+    public List<String> listResourceNames(String initialPath) {
+        return getRepositoryService().getDeploymentResourceNames(deploymentId).stream()
+                .filter(resourceName -> resourceName.startsWith(initialPath))
+                .collect(Collectors.toList());
     }
 
     private RepositoryService getRepositoryService() {
@@ -36,11 +46,6 @@ public class DeploymentResourceLoader implements AbstractResourceLoader {
         return defaultProcessEngine != null
                 ? defaultProcessEngine
                 : ProcessEngines.getProcessEngine(processEngineName);
-    }
-
-    @Override
-    public List<String> listResourceNames(String deploymentId) {
-        return getRepositoryService().getDeploymentResourceNames(deploymentId);
     }
 
 }

@@ -1,6 +1,9 @@
 package com.artezio.bpm.services;
 
 import com.artezio.bpm.localization.BpmResourceBundleControl;
+import com.artezio.bpm.resources.AbstractResourceLoader;
+import com.artezio.bpm.resources.AppResourceLoader;
+import com.artezio.bpm.resources.DeploymentResourceLoader;
 import com.artezio.bpm.resources.ResourceLoader;
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
 import com.artezio.logging.Log;
@@ -26,6 +29,7 @@ import javax.ejb.DependsOn;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
 import javax.inject.Inject;
+import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -69,7 +73,7 @@ public class DeploymentSvc {
     @Context
     private HttpServletRequest httpRequest;
     @Inject
-    private ResourceLoader resourceLoader;
+    private ServletContext servletContext;
 
     @PostConstruct
     public void registerDeployments() {
@@ -198,14 +202,15 @@ public class DeploymentSvc {
             @Parameter(description = "The id of case definition which has the resources. Not required, if 'process-definition-id' is passed.", allowEmptyValue = true) @QueryParam("case-definition-id") String caseDefinitionId,
             @Parameter(description = "The key of a form for which resources are requested.", allowEmptyValue = false) @QueryParam("form-key") String resourceKey) {
         String deploymentId =  getResourceDefinition(processDefinitionId, caseDefinitionId).getDeploymentId();
-        List<String> resources = listResourceNames(deploymentId, resourceKey);
+        ResourceLoader resourceLoader = getResourceLoader(deploymentId, resourceKey);
+        List<String> resources = resourceLoader.listResourceNames("");
         String baseUrl = getBaseUrl();
         return new HalRepresentation(
                 linkingTo()
                         .array(resources
                                 .stream()
                                 .map(resource -> linkBuilder("items",
-                                        baseUrl + "/deployment/form-resource/"  + deploymentId + "/"+ encodeUrl(resource))
+                                        baseUrl + "/deployment/public-resource/"  + deploymentId + "/"+ encodeUrl(resource))
                                         .withRel(resource)
                                         .build())
                                 .collect(Collectors.toList()))
@@ -222,15 +227,14 @@ public class DeploymentSvc {
             @Parameter(description = "The id of the deployment connected with resource requested.", required = true) @PathParam("deployment-id") @Valid @NotNull String deploymentId,
             @Parameter(description = "The requested resource path.", required = true) @PathParam("resource-key") @Valid @NotNull String resourceKey)
             throws UnsupportedEncodingException {
-        return getResource(deploymentId, resourceKey);
+        ResourceLoader resourceLoader = getResourceLoader(deploymentId, resourceKey);
+        return resourceLoader.getResource(URLDecoder.decode(resourceKey, "UTF-8"));
     }
 
-    public InputStream getResource(String deploymentId, String resourceKey) throws UnsupportedEncodingException {
-        return resourceLoader.getResource(deploymentId, URLDecoder.decode(resourceKey, "UTF-8"));
-    }
-
-    public List<String> listResourceNames(String deploymentId, String resourceKey) {
-        return resourceLoader.listResources(deploymentId, resourceKey);
+    private ResourceLoader getResourceLoader(String deploymentId, String resourceKey) {
+        return AbstractResourceLoader.getProtocol(resourceKey).equals(AbstractResourceLoader.DEPLOYMENT_PROTOCOL)
+                ? new DeploymentResourceLoader(deploymentId)
+                : new AppResourceLoader(servletContext);
     }
 
     private void registerInProcessApplication(Deployment deployment) {

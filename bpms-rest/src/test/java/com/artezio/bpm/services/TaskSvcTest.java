@@ -6,13 +6,8 @@ import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.bpm.services.integration.Base64UrlFileStorage;
 import com.artezio.bpm.services.integration.FileStorage;
-import com.artezio.bpm.services.integration.cdi.ConcreteImplementation;
-import com.artezio.bpm.utils.Base64Utils;
-import com.artezio.bpm.validation.VariableValidator;
-import com.artezio.forms.FormClient;
 import junitx.framework.ListAssert;
 import junitx.util.PrivateAccessor;
-import org.apache.commons.io.IOUtils;
 import org.camunda.bpm.engine.FormService;
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.RuntimeService;
@@ -34,7 +29,6 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -42,11 +36,14 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import javax.enterprise.inject.Instance;
 import javax.enterprise.inject.spi.CDI;
 import javax.enterprise.util.AnnotationLiteral;
-import javax.ws.rs.core.*;
-import java.io.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -75,11 +72,7 @@ public class TaskSvcTest extends ServiceTest {
     @Mock
     private FormSvc formSvc;
     @Mock
-    private FormClient formio;
-    @Mock
     private VariablesMapper variablesMapper;
-    @Mock
-    private VariableValidator variableValidator;
     private SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSZ");
     private FileStorage fileStorage = new Base64UrlFileStorage();
 
@@ -718,9 +711,7 @@ public class TaskSvcTest extends ServiceTest {
     public void testLoadForm() throws IOException {
         String taskId = "taskId";
         String callerId = "callerId";
-        String taskFormDefinition = "taskFormDefinition";
         List<String> callerGroups = asList("callerGroup");
-        String formKey = "formKey";
         String expected = "form";
         Map<String, Object> taskVariables = new HashMap<>();
 
@@ -729,7 +720,7 @@ public class TaskSvcTest extends ServiceTest {
 
         when(identityService.userId()).thenReturn(callerId);
         when(identityService.userGroups()).thenReturn(callerGroups);
-//        when(formSvc.getTaskFormWithData(taskId, taskVariables)).thenReturn(expected);
+        when(formSvc.getTaskFormWithData(taskId, taskVariables)).thenReturn(expected);
 
         String actual = taskSvc.loadForm(taskId);
 
@@ -769,7 +760,6 @@ public class TaskSvcTest extends ServiceTest {
         createTask(taskId, callerId, callerId, callerGroups);
         setVariablesToTask(taskId, taskVariables);
 
-        when(formService.getTaskFormData(taskId).getFormKey()).thenReturn(formKey);
         when(identityService.userId()).thenReturn(callerId);
         when(identityService.userGroups()).thenReturn(callerGroups);
         when(formSvc.getTaskFormWithData(eq(taskId), convertedTaskVariablesCaptor.capture())).thenReturn(expected);
@@ -787,26 +777,18 @@ public class TaskSvcTest extends ServiceTest {
         String formKey = "formKey";
         String expected = "{ \"title\": \"form\", { \"container1\": { \"container2\": { \"var\": \"val\" } } } }";
         List<String> callerGroups = asList("callerGroup");
-        Map<String, Object> taskVariablesRepresentation = new HashMap<String, Object>() {{
-            put("container1", new HashMap<String, Object>() {{
-                put("container2", new HashMap<String, Object>() {{
-                    put("var", "val");
-                }});
-            }});
-        }};
         Map<String, Object> container1 = new HashMap<>();
         Map<String, Object> container2 = new HashMap<>();
         container1.put("container2", container2);
         container2.put("var", "val");
         Map<String, Object> taskVariables = new HashMap<>();
         taskVariables.put("container1", container1);
-
         createTask(taskId, callerId, callerId, callerGroups);
         setVariablesToTask(taskId, taskVariables);
 
-        when(formService.getTaskFormData(taskId).getFormKey()).thenReturn(formKey);
         when(identityService.userId()).thenReturn(callerId);
         when(identityService.userGroups()).thenReturn(callerGroups);
+        when(formSvc.getTaskFormWithData(taskId, taskVariables)).thenReturn(expected);
 
         String actual = taskSvc.loadForm(taskId);
 
@@ -819,15 +801,10 @@ public class TaskSvcTest extends ServiceTest {
         String callerId = "callerId";
         List<String> callerGroups = asList("callerGroup");
         String formKey = "formKey";
-        String taskFormDefinition = "taskFormDefinition";
         String container1VariableName = "container1";
         String container2VariableName = "container2";
         String fileVariableName = "testFile";
         String fileName = "testFile.png";
-        String filePath = "/bpms-rest/api/task/" + taskId + "/file?filePath=" +
-                container1VariableName + "/" +
-                container2VariableName + "/" +
-                fileVariableName + "[?(@.originalName == '" + fileName + "')]";
         File file = getFile(fileName);
         Map<String, Object> fileValue = getFileAsAttributesMap(file);
         Map<String, Object> convertedFileValue = getFileAsAttributesMap(file);

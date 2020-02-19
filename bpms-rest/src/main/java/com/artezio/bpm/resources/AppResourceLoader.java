@@ -13,23 +13,24 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Named
-public class AppResourceLoader implements AbstractResourceLoader {
+public class AppResourceLoader extends AbstractResourceLoader {
 
-    @Inject
     private ServletContext servletContext;
 
+    public AppResourceLoader() {
+    }
+
+    public AppResourceLoader(ServletContext servletContext) {
+        this.servletContext = servletContext;
+    }
+
     @Override
-    public InputStream getResource(String deploymentId, String resourceKey) {
+    public InputStream getResource(String resourceKey) {
         return servletContext.getResourceAsStream(resourceKey);
     }
 
     @Override
-    public List<String> listResourceNames(String deploymentId) {
-        return listResourceNames(deploymentId, "/");
-    }
-
-    private List<String> listResourceNames(String deploymentId, String initialPath) {
+    public List<String> listResourceNames(String initialPath) {
         try {
             String resourcePath = initialPath.startsWith("/") ? initialPath : "/" + initialPath;
             URL url = servletContext.getResource(resourcePath);
@@ -39,7 +40,7 @@ public class AppResourceLoader implements AbstractResourceLoader {
                     .flatMap(file -> {
                         String resourceName = initialPath + "/" + file.getName();
                         return file.isDirectory()
-                                ? listResourceNames(deploymentId, resourceName).stream()
+                                ? listResourceNames(resourceName).stream()
                                 : Arrays.asList(resourceName).stream();
                     })
                     .collect(Collectors.toList());
