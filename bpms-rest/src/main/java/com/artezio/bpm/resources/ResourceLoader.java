@@ -1,8 +1,5 @@
 package com.artezio.bpm.resources;
 
-import com.artezio.bpm.resources.AppResourceLoader;
-import com.artezio.bpm.resources.DeploymentResourceLoader;
-
 import javax.inject.Inject;
 import javax.inject.Named;
 import java.io.InputStream;
@@ -49,9 +46,10 @@ public class ResourceLoader {
         return matcher.group(1);
     }
 
-    public List<String> listResources(String deploymentId, String protocol, String initialPath) {
+    public List<String> listResources(String deploymentId, String resourceKey) {
+        String protocol = getProtocol(resourceKey);
         return getLoader(protocol)
-                .listResources(deploymentId, initialPath)
+                .listResourceNames(deploymentId)
                 .stream()
                 .map(resourceName -> protocol + resourceName)
                 .collect(Collectors.toList());

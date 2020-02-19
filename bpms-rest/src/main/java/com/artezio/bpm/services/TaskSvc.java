@@ -342,7 +342,7 @@ public class TaskSvc {
     )
     @Log(beforeExecuteMessage = "Loading form for user task '{0}'", afterExecuteMessage = "Form successfully loaded")
     public String loadForm(
-            @Parameter(description = "The id of the task which form is requested for.", required = true) @PathParam("task-id") @Valid @NotNull String taskId) throws UnsupportedEncodingException {
+            @Parameter(description = "The id of the task which form is requested for.", required = true) @PathParam("task-id") @Valid @NotNull String taskId) throws IOException {
         ensureUserHasAccess(taskId);
         VariableMap taskVariables = taskService.getVariablesTyped(taskId);
         return formService.getTaskFormWithData(taskId, taskVariables);

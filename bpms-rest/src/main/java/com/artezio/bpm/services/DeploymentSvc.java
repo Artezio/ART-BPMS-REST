@@ -3,7 +3,6 @@ package com.artezio.bpm.services;
 import com.artezio.bpm.localization.BpmResourceBundleControl;
 import com.artezio.bpm.resources.ResourceLoader;
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
-import com.artezio.forms.FormClient;
 import com.artezio.logging.Log;
 
 import de.otto.edison.hal.HalRepresentation;
@@ -42,7 +41,6 @@ import java.net.URLEncoder;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -60,7 +58,6 @@ import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
 public class DeploymentSvc {
 
     private static final Map<String, ResourceBundle> RESOURCE_BUNDLE_CACHE = new ConcurrentHashMap<>();
-    private static final String CUSTOM_COMPONENTS_FOLDER = "custom-components";
     private final static Pattern COMPONENT_NAME_PATTERN = Pattern.compile("(?:\\w*:)?.*/(.*)(?:\\.[^\\.]*)$");
 
     @Inject
@@ -71,8 +68,6 @@ public class DeploymentSvc {
     private ProcessApplicationInterface processApplication;
     @Context
     private HttpServletRequest httpRequest;
-    @Inject
-    private FormClient formClient;
     @Inject
     private ResourceLoader resourceLoader;
 
@@ -194,7 +189,7 @@ public class DeploymentSvc {
 
     @PermitAll
     @GET
-    @Path("/form-resources")
+    @Path("/public-resources")
     @Produces("application/hal+json")
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of task resources")
     //TODO document it
@@ -203,15 +198,15 @@ public class DeploymentSvc {
             @Parameter(description = "The id of case definition which has the resources. Not required, if 'process-definition-id' is passed.", allowEmptyValue = true) @QueryParam("case-definition-id") String caseDefinitionId,
             @Parameter(description = "The key of a form for which resources are requested.", allowEmptyValue = false) @QueryParam("form-key") String resourceKey) {
         String deploymentId =  getResourceDefinition(processDefinitionId, caseDefinitionId).getDeploymentId();
-        Map<String, String> resources = listResources(deploymentId, resourceKey);
+        List<String> resources = listResourceNames(deploymentId, resourceKey);
         String baseUrl = getBaseUrl();
         return new HalRepresentation(
                 linkingTo()
-                        .array(resources.entrySet()
+                        .array(resources
                                 .stream()
-                                .map(e -> linkBuilder("items",
-                                        baseUrl + "/deployment/form-resource/"  + deploymentId + "/"+ encodeUrl(e.getValue()))
-                                        .withName(e.getKey())
+                                .map(resource -> linkBuilder("items",
+                                        baseUrl + "/deployment/form-resource/"  + deploymentId + "/"+ encodeUrl(resource))
+                                        .withRel(resource)
                                         .build())
                                 .collect(Collectors.toList()))
                         .build());
@@ -219,7 +214,7 @@ public class DeploymentSvc {
 
     @PermitAll
     @GET
-    @Path("/form-resource/{deployment-id}/{resource-key}")
+    @Path("/public-resource/{deployment-id}/{resource-key}")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of task resources")
     //TODO document it
@@ -227,21 +222,15 @@ public class DeploymentSvc {
             @Parameter(description = "The id of the deployment connected with resource requested.", required = true) @PathParam("deployment-id") @Valid @NotNull String deploymentId,
             @Parameter(description = "The requested resource path.", required = true) @PathParam("resource-key") @Valid @NotNull String resourceKey)
             throws UnsupportedEncodingException {
+        return getResource(deploymentId, resourceKey);
+    }
+
+    public InputStream getResource(String deploymentId, String resourceKey) throws UnsupportedEncodingException {
         return resourceLoader.getResource(deploymentId, URLDecoder.decode(resourceKey, "UTF-8"));
     }
 
-    public Map<String, String> listResources(String deploymentId, String formKey) {
-        String protocol = resourceLoader.getProtocol(formKey);
-        return resourceLoader.listResources(deploymentId, protocol, CUSTOM_COMPONENTS_FOLDER)
-                .stream()
-                .collect(Collectors.toMap(this::getComponentName, r -> r));
-    }
-
-    private String getComponentName(String resourceName) {
-        Matcher matcher = COMPONENT_NAME_PATTERN.matcher(resourceName);
-        return matcher.matches()
-                ? matcher.group(1)
-                : resourceName;
+    public List<String> listResourceNames(String deploymentId, String resourceKey) {
+        return resourceLoader.listResources(deploymentId, resourceKey);
     }
 
     private void registerInProcessApplication(Deployment deployment) {

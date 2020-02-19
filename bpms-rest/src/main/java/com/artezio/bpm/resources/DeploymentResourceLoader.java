@@ -39,10 +39,8 @@ public class DeploymentResourceLoader implements AbstractResourceLoader {
     }
 
     @Override
-    public List<String> listResources(String deploymentId, String initialPath) {
-        return getRepositoryService().getDeploymentResourceNames(deploymentId).stream()
-                .filter(resourceName -> resourceName.startsWith(initialPath))
-                .collect(Collectors.toList());
+    public List<String> listResourceNames(String deploymentId) {
+        return getRepositoryService().getDeploymentResourceNames(deploymentId);
     }
 
 }

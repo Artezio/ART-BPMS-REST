@@ -7,6 +7,6 @@ interface AbstractResourceLoader {
 
     InputStream getResource(String deploymentId, String resourceKey);
 
-    List<String> listResources(String deploymentId, String initialPath);
+    List<String> listResourceNames(String deploymentId);
 
 }

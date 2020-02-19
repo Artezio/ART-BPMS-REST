@@ -25,9 +25,13 @@ public class AppResourceLoader implements AbstractResourceLoader {
     }
 
     @Override
-    public List<String> listResources(String deploymentId, String initialPath) {
+    public List<String> listResourceNames(String deploymentId) {
+        return listResourceNames(deploymentId, "/");
+    }
+
+    private List<String> listResourceNames(String deploymentId, String initialPath) {
         try {
-            String resourcePath = (initialPath.startsWith("/") ?  initialPath : "/" + initialPath);
+            String resourcePath = initialPath.startsWith("/") ? initialPath : "/" + initialPath;
             URL url = servletContext.getResource(resourcePath);
             if (url == null) return Collections.emptyList();
             File resource = new File(url.toURI());
@@ -35,7 +39,7 @@ public class AppResourceLoader implements AbstractResourceLoader {
                     .flatMap(file -> {
                         String resourceName = initialPath + "/" + file.getName();
                         return file.isDirectory()
-                                ? listResources(deploymentId, resourceName).stream()
+                                ? listResourceNames(deploymentId, resourceName).stream()
                                 : Arrays.asList(resourceName).stream();
                     })
                     .collect(Collectors.toList());
