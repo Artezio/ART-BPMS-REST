@@ -715,7 +715,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testLoadForm() throws UnsupportedEncodingException {
+    public void testLoadForm() throws IOException {
         String taskId = "taskId";
         String callerId = "callerId";
         String taskFormDefinition = "taskFormDefinition";
@@ -781,7 +781,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testLoadForm_VariableDoesntExist_ExecutionVariableIsContainer_ContainerHasSimpleVariables() throws UnsupportedEncodingException {
+    public void testLoadForm_VariableDoesntExist_ExecutionVariableIsContainer_ContainerHasSimpleVariables() throws IOException {
         String taskId = "taskId";
         String callerId = "callerId";
         String formKey = "formKey";
@@ -868,7 +868,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test(expected = NotAuthorizedException.class)
-    public void testLoadForm_CallerHasNoAccess() throws UnsupportedEncodingException {
+    public void testLoadForm_CallerHasNoAccess() throws IOException {
         String taskId = "taskId";
         String callerId = "callerId";
         String candidateUserId = "candidateUserId";
