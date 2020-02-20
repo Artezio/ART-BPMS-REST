@@ -18,6 +18,9 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.core.MediaType;
+
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -308,6 +311,76 @@ public class DeploymentSvcTest extends ServiceTest {
 
     private String getExistingDeploymentId() {
         return getDeploymentList().get(0).getId();
+    }
+    
+    @Test
+    public void testExpandZipArchive() {
+        InputStream zipIn = Thread.currentThread().getContextClassLoader().getResourceAsStream("compressed-resources.zip");
+        
+        Map<String, InputStream> actuals = deploymentSvc.expandZipArchive(zipIn);
+        
+        assertEquals(2, actuals.size());
+        assertTrue(actuals.containsKey("first.txt"));
+        assertTrue(actuals.containsKey("subfolder/second.txt"));
+        assertNotNull(actuals.get("first.txt"));
+        assertNotNull(actuals.get("subfolder/second.txt"));
+    }
+    
+    @Test
+    public void testExpandIfArchive() throws IOException {
+        InputStream zipIn = Thread.currentThread().getContextClassLoader().getResourceAsStream("compressed-resources.zip");
+        InputPart zipInputPart = mock(InputPart.class);
+        when(zipInputPart.getBody(InputStream.class, null)).thenReturn(zipIn);
+        when(zipInputPart.getMediaType()).thenReturn(MediaType.valueOf("application/zip"));
+        
+        Map<String, InputStream> actuals = deploymentSvc.expandIfArchive("zipped part", zipInputPart);
+
+        assertEquals(2, actuals.size());
+        assertTrue(actuals.containsKey("first.txt"));
+        assertTrue(actuals.containsKey("subfolder/second.txt"));
+        assertNotNull(actuals.get("first.txt"));
+        assertNotNull(actuals.get("subfolder/second.txt"));
+    }
+
+    @Test
+    public void testExpandIfArchive_IfNonArchivePart() throws IOException {
+        InputStream stringIn = new ByteArrayInputStream("test input string".getBytes());
+        InputPart stringInputPart = mock(InputPart.class);
+        when(stringInputPart.getBody(InputStream.class, null)).thenReturn(stringIn);
+        when(stringInputPart.getMediaType()).thenReturn(MediaType.valueOf("text/plain"));
+        
+        Map<String, InputStream> actuals = deploymentSvc.expandIfArchive("string part", stringInputPart);
+
+        assertEquals(1, actuals.size());
+        assertNotNull(actuals.get("string part"));
+    }
+    
+    public void testGetFileParts() throws IOException {
+        InputStream zipIn = Thread.currentThread().getContextClassLoader().getResourceAsStream("compressed-resources.zip");
+        InputPart zipInputPart = mock(InputPart.class);
+        InputStream stringIn = new ByteArrayInputStream("test input string".getBytes());
+        InputPart stringInputPart = mock(InputPart.class);
+        MultipartFormDataInput formData = mock(MultipartFormDataInput.class);
+        Map<String, List<InputPart>> paramsMap = new HashMap<String, List<InputPart>>() {{
+            put("zip input", asList(zipInputPart));
+            put("string input", asList(stringInputPart));
+        }};
+
+        when(formData.getFormDataMap()).thenReturn(paramsMap);
+        when(zipInputPart.getBody(InputStream.class, null)).thenReturn(zipIn);
+        when(zipInputPart.getMediaType()).thenReturn(MediaType.valueOf("application/zip"));
+        when(stringInputPart.getBody(InputStream.class, null)).thenReturn(stringIn);
+        when(stringInputPart.getMediaType()).thenReturn(MediaType.valueOf("text/plain"));
+
+        Map<String, InputStream> actuals = deploymentSvc.getFileParts(formData);
+        
+        assertEquals(3, actuals.size());
+        assertTrue(actuals.containsKey("first.txt"));
+        assertTrue(actuals.containsKey("subfolder/second.txt"));
+        assertTrue(actuals.containsKey("string input"));
+        assertNotNull(actuals.get("first.txt"));
+        assertNotNull(actuals.get("subfolder/second.txt"));
+        assertNotNull(actuals.get("string input"));
     }
 
 }

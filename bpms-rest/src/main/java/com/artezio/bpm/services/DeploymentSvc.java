@@ -1,5 +1,70 @@
 package com.artezio.bpm.services;
 
+import static com.artezio.logging.Log.Level.CONFIG;
+import static de.otto.edison.hal.Link.linkBuilder;
+import static de.otto.edison.hal.Links.linkingTo;
+import static javax.ws.rs.core.HttpHeaders.ACCEPT_LANGUAGE;
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.ResourceBundle;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.logging.Logger;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.security.PermitAll;
+import javax.annotation.security.RolesAllowed;
+import javax.ejb.DependsOn;
+import javax.ejb.Singleton;
+import javax.ejb.Startup;
+import javax.inject.Inject;
+import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
+import org.camunda.bpm.application.ProcessApplicationInterface;
+import org.camunda.bpm.engine.ManagementService;
+import org.camunda.bpm.engine.RepositoryService;
+import org.camunda.bpm.engine.repository.CaseDefinition;
+import org.camunda.bpm.engine.repository.Deployment;
+import org.camunda.bpm.engine.repository.DeploymentBuilder;
+import org.camunda.bpm.engine.repository.ProcessDefinition;
+import org.camunda.bpm.engine.repository.ResourceDefinition;
+import org.jboss.resteasy.plugins.providers.multipart.InputPart;
+import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
+
 import com.artezio.bpm.localization.BpmResourceBundleControl;
 import com.artezio.bpm.resources.AbstractResourceLoader;
 import com.artezio.bpm.resources.AppResourceLoader;
@@ -15,45 +80,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import org.apache.commons.io.FilenameUtils;
-import org.camunda.bpm.application.ProcessApplicationInterface;
-import org.camunda.bpm.engine.ManagementService;
-import org.camunda.bpm.engine.RepositoryService;
-import org.camunda.bpm.engine.repository.*;
-import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.security.PermitAll;
-import javax.annotation.security.RolesAllowed;
-import javax.ejb.DependsOn;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
-import javax.inject.Inject;
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import javax.ws.rs.*;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import static com.artezio.logging.Log.Level.CONFIG;
-import static de.otto.edison.hal.Link.linkBuilder;
-import static de.otto.edison.hal.Links.linkingTo;
-import static javax.ws.rs.core.HttpHeaders.ACCEPT_LANGUAGE;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
 
 @Startup
 @DependsOn("DefaultEjbProcessApplication")
@@ -63,6 +89,8 @@ public class DeploymentSvc {
 
     private static final Map<String, ResourceBundle> RESOURCE_BUNDLE_CACHE = new ConcurrentHashMap<>();
     private final static Pattern COMPONENT_NAME_PATTERN = Pattern.compile("(?:\\w*:)?.*/(.*)(?:\\.[^\\.]*)$");
+    private final static MediaType MEDIA_TYPE_ZIP = MediaType.valueOf("application/zip");
+    
 
     @Inject
     private RepositoryService repositoryService;
@@ -74,6 +102,7 @@ public class DeploymentSvc {
     private HttpServletRequest httpRequest;
     @Inject
     private ServletContext servletContext;
+    private Logger log = Logger.getLogger(DeploymentSvc.class.getName());
 
     @PostConstruct
     public void registerDeployments() {
@@ -109,8 +138,10 @@ public class DeploymentSvc {
         DeploymentBuilder deploymentBuilder = repositoryService
                 .createDeployment()
                 .name(deploymentName);
-        getFormParts(input)
-                .forEach(deploymentBuilder::addInputStream);
+        getFormParts(input).entrySet()
+                .stream()
+                .peek(e -> log.info("Register to deploy: " + e.getKey()))
+                .forEach(e -> deploymentBuilder.addInputStream(e.getKey(), e.getValue()));
         Deployment deployment = deploymentBuilder.deploy();
         registerInProcessApplication(deployment);
         return DeploymentRepresentation.fromDeployment(deployment);
@@ -242,16 +273,7 @@ public class DeploymentSvc {
     }
 
     private Map<String, InputStream> getFormParts(MultipartFormDataInput input) {
-        return input.getFormDataMap()
-                .entrySet()
-                .stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, entry -> {
-                    try {
-                        return entry.getValue().get(0).getBody(InputStream.class, null);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                }));
+        return getFileParts(input);
     }
 
     private ResourceBundle getResourceBundle(ResourceDefinition resourceDefinition, String languageRange) {
@@ -313,4 +335,40 @@ public class DeploymentSvc {
         }
     }
 
+    Map<String, InputStream> getFileParts(MultipartFormDataInput input) {
+         return input.getFormDataMap()
+                .entrySet()
+                .stream()
+                .flatMap(e -> expandIfArchive(e.getKey(), e.getValue().get(0)).entrySet().stream())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+    
+    Map<String, InputStream> expandIfArchive(String partName, InputPart inputPart) {
+        try {
+            InputStream body = inputPart.getBody(InputStream.class, null);
+            return inputPart.getMediaType() != null && inputPart.getMediaType().isCompatible(MEDIA_TYPE_ZIP)
+                    ? expandZipArchive(body)
+                    : Collections.singletonMap(partName, body);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    
+    Map<String, InputStream> expandZipArchive(InputStream zipInput) {
+        try {
+            Map<String, InputStream> result = new HashMap<>();
+            ZipArchiveInputStream zip = new ZipArchiveInputStream(zipInput);
+            ZipArchiveEntry zipEntry;
+            while ((zipEntry = zip.getNextZipEntry()) != null) {
+                if (zipEntry.isDirectory())
+                    continue;
+                result.put(zipEntry.getName(), new ByteArrayInputStream(IOUtils.toByteArray(zip)));
+            }
+            zip.close();
+            return result;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+        
 }
