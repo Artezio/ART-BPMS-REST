@@ -3,7 +3,6 @@
 * [Get List](#get-list)
 * [Create](#create)
 * [Delete](#delete)
-* [Get Localization Resources](#get-localization-resources)
 
 ## Get List
 Get a list of all deployments.
@@ -148,45 +147,5 @@ This method returns no content.
 
 ### Response:
 Status 204 No Content.
-
-## Get Localization Resources
-Get localization resources in accordance with user preferences.
-
-### `GET /api/deployment/localization-resource`
-
-### Request Parameters:
-
-| Name                  | Type       | Description                                                                                           | Required |
-| --------------------- | ---------- | ----------------------------------------------------------------------------------------------------- | -------- |
-| process-definition-id | query      | The id of process definition which has the resources. Not required, if 'case-definition-id' is passed | No       |
-| case-definition-id    | query      | The id of case definition which has the resources. Not required, if 'process-definition-id' is passed | No       |
-| Accept-Language       | header     | User preferences of languages                                                                         | Yes      |
-
-**Note:** `process-definition-id` and `case-definition-id` are required despite being marked as `not required`.
-It is because the service expects one of them to be passed, but it is impossible to use disjunction in Bean Validation 2.0.
-Hence either `process-definition-id` or `case-definition-id` have to be passed. If both are passed, `process-definition-id` takes
-a precedence over `case-definition-id`.
-
-### Result:
-A JSON object which includes properties from corresponding localization resource bundle.
-
-### Response Codes:
-| Code | Media Type | Description |
-| ---- | ---------- | ----------- |
-| 200  | application/json | Request successful |
-
-### Example:
-
-#### Request:
-`GET -H "Accept-Language: ru,en;q=0.9,en-US;q=0.8" /api/deployment/localization-resource?process-definition-id=some-id`
-
-#### Response:
-Status 200 OK.
-```json
-{
-  "some_property1": "some_value_1",
-  "some_property2": "some_value_2"
-}
-```
 
 [Deployment Object description]: https://docs.camunda.org/manual/7.10/reference/rest/deployment/post-deployment/#result

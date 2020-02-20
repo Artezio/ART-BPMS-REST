@@ -139,164 +139,6 @@ public class DeploymentSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testGetLocalizationResource_CaseDefinitionIdIsNull_OneLanguageRangeIsPassed() throws IOException, URISyntaxException {
-        String baseName = "simple-test-process";
-        String resourceName = "i18n/" + baseName + "_fl_Tscr_TR_testv.properties";
-        createDeployment("test-deployment", "simple-test-process.bpmn", resourceName);
-        String processDefinitionId = getRepositoryService().createProcessDefinitionQuery().processDefinitionKey("myProcess").singleResult().getId();
-        String caseDefinitionId = null;
-        String languageRangePreferences = "fl-Tscr-TR-testv";
-        Map<String, String> expectedLocalizationResource = new HashMap<String, String>() {{
-            put("property_fl_Tscr_TR_testv1", "value1");
-            put("property_fl_Tscr_TR_testv2", "value2");
-        }};
-
-        Map<String, String> actualLocalizationResource = deploymentSvc.getLocalizationResource(processDefinitionId, caseDefinitionId, languageRangePreferences);
-
-        assertEquals(expectedLocalizationResource, actualLocalizationResource);
-    }
-
-    @Test
-    public void testGetLocalizationResource_ProcessDefinitionIdIsNull_OneLanguageRangeIsPassed() throws IOException, URISyntaxException {
-        String baseName = "simple-case-plan";
-        String resourceName = "i18n/" + baseName + "_fl_Tscr_TR_testv.properties";
-        createDeployment("test-deployment", "simple-case-plan.cmmn", resourceName);
-        String caseDefinitionId = getRepositoryService().createCaseDefinitionQuery().caseDefinitionKey("myCasePlan").singleResult().getId();
-        String processDefinitionId = null;
-        String languageRangePreferences = "fl-Tscr-TR-testv";
-        Map<String, String> expectedLocalizationResource = new HashMap<String, String>() {{
-            put("property_fl_Tscr_TR_testv1", "value1");
-            put("property_fl_Tscr_TR_testv2", "value2");
-        }};
-
-        Map<String, String> actualLocalizationResource = deploymentSvc.getLocalizationResource(processDefinitionId, caseDefinitionId, languageRangePreferences);
-
-        assertEquals(expectedLocalizationResource, actualLocalizationResource);
-    }
-
-    @Test
-    public void testGetLocalizationResource_CaseDefinitionIdIsNull_OneLanguageRangeIsPassed_ThereIsNoExactlyMatchingResourceBundle() throws IOException, URISyntaxException {
-        String baseName = "simple-test-process";
-        String resourceName1 = "i18n/" + baseName + "_fl.properties";
-        String resourceName2 = "i18n/" + baseName + "_fl_Tscr.properties";
-        String resourceName3 = "i18n/" + baseName + "_fl_Tscr_TR.properties";
-        String resourceName4 = "i18n/" + baseName + "_fl_Tscr_TR_testv.properties";
-        createDeployment("test-deployment", "simple-test-process.bpmn", resourceName1, resourceName2, resourceName3, resourceName4);
-        String processDefinitionId = getRepositoryService().createProcessDefinitionQuery().processDefinitionKey("myProcess").singleResult().getId();
-        String caseDefinitionId = null;
-        String languageRangePreferences = "fl-Tscr";
-        Map<String, String> expectedLocalizationResource = new HashMap<String, String>() {{
-            put("property_fl_Tscr1", "value1");
-            put("property_fl_Tscr2", "value2");
-        }};
-
-        Map<String, String> actualLocalizationResource = deploymentSvc.getLocalizationResource(processDefinitionId, caseDefinitionId, languageRangePreferences);
-
-        assertEquals(expectedLocalizationResource, actualLocalizationResource);
-    }
-
-    @Test
-    public void testGetLocalizationResource_ProcessDefinitionIdIsNull_OneLanguageRangeIsPassed_ThereIsNoExactlyMatchingResourceBundle() throws IOException, URISyntaxException {
-        String baseName = "simple-case-plan";
-        String resourceName1 = "i18n/" + baseName + "_fl.properties";
-        String resourceName2 = "i18n/" + baseName + "_fl_Tscr.properties";
-        String resourceName3 = "i18n/" + baseName + "_fl_Tscr_TR.properties";
-        String resourceName4 = "i18n/" + baseName + "_fl_Tscr_TR_testv.properties";
-        createDeployment("test-deployment", "simple-case-plan.cmmn", resourceName1, resourceName2, resourceName3, resourceName4);
-        String caseDefinitionId = getRepositoryService().createCaseDefinitionQuery().caseDefinitionKey("myCasePlan").singleResult().getId();
-        String processDefinitionId = null;
-        String languageRangePreferences = "fl-Tscr";
-        Map<String, String> expectedLocalizationResource = new HashMap<String, String>() {{
-            put("property_fl_Tscr1", "value1");
-            put("property_fl_Tscr2", "value2");
-        }};
-
-        Map<String, String> actualLocalizationResource = deploymentSvc.getLocalizationResource(processDefinitionId, caseDefinitionId, languageRangePreferences);
-
-        assertEquals(expectedLocalizationResource, actualLocalizationResource);
-    }
-
-    @Test
-    public void testGetLocalizationResource_CaseDefinitionIdIsNull_MultipleLanguageRangesArePassed_ThereAreBundlesForPassedLanguages() throws IOException, URISyntaxException {
-        String baseName = "simple-test-process";
-        String resourceName1 = "i18n/" + baseName + "_fl_Tscr_TR_testv.properties";
-        String resourceName2 = "i18n/" + baseName + "_sl.properties";
-        String resourceName3 = "i18n/" + baseName + "_tl.properties";
-        createDeployment("test-deployment", "simple-test-process.bpmn", resourceName1, resourceName2, resourceName3);
-        String processDefinitionId = getRepositoryService().createProcessDefinitionQuery().processDefinitionKey("myProcess").singleResult().getId();
-        String caseDefinitionId = null;
-        String languageRangePreferences = "sl;q=0.5, tl;q=0.1,fl-Tscr-TR-testv";
-        Map<String, String> expectedLocalizationResource = new HashMap<String, String>() {{
-            put("property_fl_Tscr_TR_testv1", "value1");
-            put("property_fl_Tscr_TR_testv2", "value2");
-        }};
-
-        Map<String, String> actualLocalizationResource = deploymentSvc.getLocalizationResource(processDefinitionId, caseDefinitionId, languageRangePreferences);
-
-        assertEquals(expectedLocalizationResource, actualLocalizationResource);
-    }
-
-    @Test
-    public void testGetLocalizationResource_ProcessDefinitionIdIsNull_MultipleLanguageRangesArePassed_ThereAreBundlesForPassedLanguages() throws IOException, URISyntaxException {
-        String baseName = "simple-case-plan";
-        String resourceName1 = "i18n/" + baseName + "_fl_Tscr_TR_testv.properties";
-        String resourceName2 = "i18n/" + baseName + "_sl.properties";
-        String resourceName3 = "i18n/" + baseName + "_tl.properties";
-        createDeployment("test-deployment", "simple-case-plan.cmmn", resourceName1, resourceName2, resourceName3);
-        String caseDefinitionId = getRepositoryService().createCaseDefinitionQuery().caseDefinitionKey("myCasePlan").singleResult().getId();
-        String processDefinitionId = null;
-        String languageRangePreferences = "sl;q=0.5, tl;q=0.1, fl-Tscr-TR-testv";
-        Map<String, String> expectedLocalizationResource = new HashMap<String, String>() {{
-            put("property_fl_Tscr_TR_testv1", "value1");
-            put("property_fl_Tscr_TR_testv2", "value2");
-        }};
-
-        Map<String, String> actualLocalizationResource = deploymentSvc.getLocalizationResource(processDefinitionId, caseDefinitionId, languageRangePreferences);
-
-        assertEquals(expectedLocalizationResource, actualLocalizationResource);
-    }
-
-    @Test
-    public void testGetLocalizationResource_CaseDefinitionIdIsNull_MultipleLanguageRangesArePassed_ThereAreNotAllBundlesMatchingExactlyToPassedLanguages() throws IOException, URISyntaxException {
-        String baseName = "simple-test-process";
-        String resourceName1 = "i18n/" + baseName + "_fl_Tscr_TR.properties";
-        String resourceName2 = "i18n/" + baseName + "_sl.properties";
-        String resourceName3 = "i18n/" + baseName + "_tl.properties";
-        createDeployment("test-deployment", "simple-test-process.bpmn", resourceName1, resourceName2, resourceName3);
-        String processDefinitionId = getRepositoryService().createProcessDefinitionQuery().processDefinitionKey("myProcess").singleResult().getId();
-        String caseDefinitionId = null;
-        String languageRangePreferences = "sl;q=0.5, tl;q=0.1, fl-Tscr-TR-testv";
-        Map<String, String> expectedLocalizationResource = new HashMap<String, String>() {{
-            put("property_fl_Tscr_TR1", "value1");
-            put("property_fl_Tscr_TR2", "value2");
-        }};
-
-        Map<String, String> actualLocalizationResource = deploymentSvc.getLocalizationResource(processDefinitionId, caseDefinitionId, languageRangePreferences);
-
-        assertEquals(expectedLocalizationResource, actualLocalizationResource);
-    }
-
-    @Test
-    public void testGetLocalizationResource_ProcessDefinitionIdIsNull_MultipleLanguageRangesArePassed_ThereAreNotAllBundlesMatchingExactlyToPassedLanguages() throws IOException, URISyntaxException {
-        String baseName = "simple-case-plan";
-        String resourceName1 = "i18n/" + baseName + "_fl_Tscr_TR.properties";
-        String resourceName2 = "i18n/" + baseName + "_sl.properties";
-        String resourceName3 = "i18n/" + baseName + "_tl.properties";
-        createDeployment("test-deployment", "simple-case-plan.cmmn", resourceName1, resourceName2, resourceName3);
-        String caseDefinitionId = getRepositoryService().createCaseDefinitionQuery().caseDefinitionKey("myCasePlan").singleResult().getId();
-        String processDefinitionId = null;
-        String languageRangePreferences = "sl;q=0.5, tl;q=0.1, fl-Tscr-TR-testv";
-        Map<String, String> expectedLocalizationResource = new HashMap<String, String>() {{
-            put("property_fl_Tscr_TR1", "value1");
-            put("property_fl_Tscr_TR2", "value2");
-        }};
-
-        Map<String, String> actualLocalizationResource = deploymentSvc.getLocalizationResource(processDefinitionId, caseDefinitionId, languageRangePreferences);
-
-        assertEquals(expectedLocalizationResource, actualLocalizationResource);
-    }
-
-    @Test
     @Ignore
     public void listFormResources() throws IOException, URISyntaxException {
         createDeployment("Form resources load test", "forms-with-embedded-deployment-protocol.bpmn", "bpm-resources/texteditor.js");
@@ -307,10 +149,6 @@ public class DeploymentSvcTest extends ServiceTest {
 
         String actualHref = actual.getLinks().getLinkBy("items").get().getHref();
         assertTrue(actualHref.matches("http://localhost:8080/bpms-rest/deployment/form-resource/.*/embedded%3Adeployment%3Acustom-components%2Ftexteditor.js"));
-    }
-
-    private String getExistingDeploymentId() {
-        return getDeploymentList().get(0).getId();
     }
     
     @Test
@@ -381,6 +219,10 @@ public class DeploymentSvcTest extends ServiceTest {
         assertNotNull(actuals.get("first.txt"));
         assertNotNull(actuals.get("subfolder/second.txt"));
         assertNotNull(actuals.get("string input"));
+    }
+
+    private String getExistingDeploymentId() {
+        return getDeploymentList().get(0).getId();
     }
 
 }

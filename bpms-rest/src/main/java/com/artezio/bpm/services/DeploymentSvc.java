@@ -1,31 +1,27 @@
 package com.artezio.bpm.services;
 
-import static com.artezio.logging.Log.Level.CONFIG;
-import static de.otto.edison.hal.Link.linkBuilder;
-import static de.otto.edison.hal.Links.linkingTo;
-import static javax.ws.rs.core.HttpHeaders.ACCEPT_LANGUAGE;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.ResourceBundle;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.logging.Logger;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+import com.artezio.bpm.resources.AbstractResourceLoader;
+import com.artezio.bpm.resources.AppResourceLoader;
+import com.artezio.bpm.resources.DeploymentResourceLoader;
+import com.artezio.bpm.resources.ResourceLoader;
+import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
+import com.artezio.logging.Log;
+import de.otto.edison.hal.HalRepresentation;
+import io.swagger.v3.oas.annotations.ExternalDocumentation;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
+import org.apache.commons.io.IOUtils;
+import org.camunda.bpm.application.ProcessApplicationInterface;
+import org.camunda.bpm.engine.ManagementService;
+import org.camunda.bpm.engine.RepositoryService;
+import org.camunda.bpm.engine.repository.*;
+import org.jboss.resteasy.plugins.providers.multipart.InputPart;
+import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.security.PermitAll;
@@ -38,48 +34,26 @@ import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
+import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
-import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
-import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.io.IOUtils;
-import org.camunda.bpm.application.ProcessApplicationInterface;
-import org.camunda.bpm.engine.ManagementService;
-import org.camunda.bpm.engine.RepositoryService;
-import org.camunda.bpm.engine.repository.CaseDefinition;
-import org.camunda.bpm.engine.repository.Deployment;
-import org.camunda.bpm.engine.repository.DeploymentBuilder;
-import org.camunda.bpm.engine.repository.ProcessDefinition;
-import org.camunda.bpm.engine.repository.ResourceDefinition;
-import org.jboss.resteasy.plugins.providers.multipart.InputPart;
-import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
-
-import com.artezio.bpm.localization.BpmResourceBundleControl;
-import com.artezio.bpm.resources.AbstractResourceLoader;
-import com.artezio.bpm.resources.AppResourceLoader;
-import com.artezio.bpm.resources.DeploymentResourceLoader;
-import com.artezio.bpm.resources.ResourceLoader;
-import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
-import com.artezio.logging.Log;
-
-import de.otto.edison.hal.HalRepresentation;
-import io.swagger.v3.oas.annotations.ExternalDocumentation;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import static com.artezio.logging.Log.Level.CONFIG;
+import static de.otto.edison.hal.Link.linkBuilder;
+import static de.otto.edison.hal.Links.linkingTo;
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
 
 @Startup
 @DependsOn("DefaultEjbProcessApplication")
@@ -87,7 +61,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 @Path("/deployment")
 public class DeploymentSvc {
 
-    private static final Map<String, ResourceBundle> RESOURCE_BUNDLE_CACHE = new ConcurrentHashMap<>();
     private final static Pattern COMPONENT_NAME_PATTERN = Pattern.compile("(?:\\w*:)?.*/(.*)(?:\\.[^\\.]*)$");
     private final static MediaType MEDIA_TYPE_ZIP = MediaType.valueOf("application/zip");
     
@@ -172,39 +145,6 @@ public class DeploymentSvc {
                 .collect(Collectors.toList());
     }
 
-    @PermitAll
-    @GET
-    @Path("/localization-resource")
-    @Produces(APPLICATION_JSON)
-    @Operation(
-            description = "Get localization resources in accordance with user preferences.",
-            externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/deployment-service-api-docs.md"),
-            responses = {
-                    @ApiResponse(
-                            responseCode = "200",
-                            description = "Request successful.",
-                            content = @Content(mediaType = APPLICATION_JSON)
-                    )
-            }
-    )
-    public Map<String, String> getLocalizationResource(
-            @Parameter(description = "The id of process definition which has the resources. Not required, if 'case-definition-id' is passed.", allowEmptyValue = true) @QueryParam("process-definition-id") String processDefinitionId,
-            @Parameter(description = "The id of case definition which has the resources. Not required, if 'process-definition-id' is passed.", allowEmptyValue = true) @QueryParam("case-definition-id") String caseDefinitionId,
-            @Parameter(
-                    description = "User preferences of languages",
-                    example = "ru,en;q=0.9,en-US;q=0.8") @NotNull @HeaderParam(ACCEPT_LANGUAGE) String languageRangePreferences) {
-        String[] preferredLanguageRanges = languageRangePreferences.replace(" ", "").split(",");
-        ResourceDefinition resourceDefinition = getResourceDefinition(processDefinitionId, caseDefinitionId);
-
-        ResourceBundle resourceBundle = Arrays.stream(preferredLanguageRanges)
-                .sorted(getLanguageRangeComparator())
-                .map(languageRange -> getResourceBundle(resourceDefinition, languageRange))
-                .findFirst()
-                .get();
-
-        return toMap(resourceBundle);
-    }
-
     @RolesAllowed("BPMSAdmin")
     @DELETE
     @Path("/{deployment-id}")
@@ -276,38 +216,10 @@ public class DeploymentSvc {
         return getFileParts(input);
     }
 
-    private ResourceBundle getResourceBundle(ResourceDefinition resourceDefinition, String languageRange) {
-        String deploymentId = resourceDefinition.getDeploymentId();
-        String diagramResourceName = FilenameUtils.getBaseName(resourceDefinition.getResourceName());
-        String languageTag = extractLanguageTag(languageRange);
-        String resourceBundleCacheKey = String.format("%s.%s.%s", deploymentId, diagramResourceName, languageTag);
-
-        return RESOURCE_BUNDLE_CACHE.computeIfAbsent(resourceBundleCacheKey, cacheKey ->
-                ResourceBundle.getBundle(
-                        diagramResourceName,
-                        Locale.forLanguageTag(languageTag),
-                        new BpmResourceBundleControl(deploymentId, repositoryService)));
-    }
-
-    private Comparator<String> getLanguageRangeComparator() {
-        return Comparator.comparing(
-                str -> (str.contains(";q=") ? str : "1").replaceAll("[\\D&&[^.]]", ""),
-                Comparator.comparing((Function<String, Double>) Double::valueOf).reversed());
-    }
-
-    private String extractLanguageTag(String languageRange) {
-        return languageRange.split(";")[0];
-    }
-
     private ResourceDefinition getResourceDefinition(String processDefinitionId, String caseDefinitionId) {
         return processDefinitionId != null
                 ? getProcessDefinition(processDefinitionId)
                 : getCaseDefinition(caseDefinitionId);
-    }
-
-    private Map<String, String> toMap(ResourceBundle resourceBundle) {
-        return resourceBundle.keySet().stream()
-                .collect(Collectors.toMap(propKey -> propKey, resourceBundle::getString));
     }
 
     private CaseDefinition getCaseDefinition(String caseDefinitionId) {
