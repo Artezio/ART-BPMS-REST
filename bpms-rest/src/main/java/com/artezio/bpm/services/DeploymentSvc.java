@@ -171,39 +171,6 @@ public class DeploymentSvc {
                 .collect(Collectors.toList());
     }
 
-    @PermitAll
-    @GET
-    @Path("/localization-resource")
-    @Produces(APPLICATION_JSON)
-    @Operation(
-            description = "Get localization resources in accordance with user preferences.",
-            externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/deployment-service-api-docs.md"),
-            responses = {
-                    @ApiResponse(
-                            responseCode = "200",
-                            description = "Request successful.",
-                            content = @Content(mediaType = APPLICATION_JSON)
-                    )
-            }
-    )
-    public Map<String, String> getLocalizationResource(
-            @Parameter(description = "The id of process definition which has the resources. Not required, if 'case-definition-id' is passed.", allowEmptyValue = true) @QueryParam("process-definition-id") String processDefinitionId,
-            @Parameter(description = "The id of case definition which has the resources. Not required, if 'process-definition-id' is passed.", allowEmptyValue = true) @QueryParam("case-definition-id") String caseDefinitionId,
-            @Parameter(
-                    description = "User preferences of languages",
-                    example = "ru,en;q=0.9,en-US;q=0.8") @NotNull @HeaderParam(ACCEPT_LANGUAGE) String languageRangePreferences) {
-        String[] preferredLanguageRanges = languageRangePreferences.replace(" ", "").split(",");
-        ResourceDefinition resourceDefinition = getResourceDefinition(processDefinitionId, caseDefinitionId);
-
-        ResourceBundle resourceBundle = Arrays.stream(preferredLanguageRanges)
-                .sorted(getLanguageRangeComparator())
-                .map(languageRange -> getResourceBundle(resourceDefinition, languageRange))
-                .findFirst()
-                .get();
-
-        return toMap(resourceBundle);
-    }
-
     @RolesAllowed("BPMSAdmin")
     @DELETE
     @Path("/{deployment-id}")
@@ -280,38 +247,10 @@ public class DeploymentSvc {
         return getFileParts(input);
     }
 
-    private ResourceBundle getResourceBundle(ResourceDefinition resourceDefinition, String languageRange) {
-        String deploymentId = resourceDefinition.getDeploymentId();
-        String diagramResourceName = FilenameUtils.getBaseName(resourceDefinition.getResourceName());
-        String languageTag = extractLanguageTag(languageRange);
-        String resourceBundleCacheKey = String.format("%s.%s.%s", deploymentId, diagramResourceName, languageTag);
-
-        return RESOURCE_BUNDLE_CACHE.computeIfAbsent(resourceBundleCacheKey, cacheKey ->
-                ResourceBundle.getBundle(
-                        diagramResourceName,
-                        Locale.forLanguageTag(languageTag),
-                        new BpmResourceBundleControl(deploymentId, repositoryService)));
-    }
-
-    private Comparator<String> getLanguageRangeComparator() {
-        return Comparator.comparing(
-                str -> (str.contains(";q=") ? str : "1").replaceAll("[\\D&&[^.]]", ""),
-                Comparator.comparing((Function<String, Double>) Double::valueOf).reversed());
-    }
-
-    private String extractLanguageTag(String languageRange) {
-        return languageRange.split(";")[0];
-    }
-
     private ResourceDefinition getResourceDefinition(String processDefinitionId, String caseDefinitionId) {
         return processDefinitionId != null
                 ? getProcessDefinition(processDefinitionId)
                 : getCaseDefinition(caseDefinitionId);
-    }
-
-    private Map<String, String> toMap(ResourceBundle resourceBundle) {
-        return resourceBundle.keySet().stream()
-                .collect(Collectors.toMap(propKey -> propKey, resourceBundle::getString));
     }
 
     private CaseDefinition getCaseDefinition(String caseDefinitionId) {

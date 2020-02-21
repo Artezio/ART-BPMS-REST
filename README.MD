@@ -37,7 +37,6 @@ Features:
     * [How To Work With Forms](#how-to-work-with-forms)
     * [Validation](#validation)
     * [Mapping submitted data to Java Classes](#mapping-submitted-data-to-java-classes)
-    * [Internationalization and Localization](#internationalization-and-localization)
    * [Steps to create and use forms in BPMN](#steps-to-create-and-use-forms-in-bpmn)
    * [Form Client](#form-client)
    * [File storage](#file-storage)
@@ -291,36 +290,6 @@ Let's assume the following data is submitted with Process Extensions set as in t
 ```
 
 Process variable `userInfo` will be stored as class `com.artezio.bpm.model.UserInfo`, and process variable `marriageInfo` will be stored as `Map`.
-
-### Internationalization and Localization
-
-With ART-BPMS-REST it is possible to ship deployment with process (or case) specific l10n resources which can be fetched and used later.
-Here is an explanation of how ART-BPMS-REST chooses language-related resources:
-
-1. With process definition (or case definition) id also language range preferences are provided. Language range preferences
-consist of language ranges which are RFC standardized set of language tags having info about country, language, locale and so on.
-(For more info about language tags and language ranges see [RFC 5646] and [RFC 4647])
-2. Basing on provided language ranges ART-BPMS-REST does the following:
-    * tries to find a resource with name formed of the filename of the diagram without extension and language range
-    (the rule of forming the resource name is [here](#forming-the-resource-name)):
-        * if the resource is found, the next language range is processed
-        * if the resource is not found, ART-BPMS-REST tries to find the most appropriate resource basing on the rule:
-          *sequentially cut off the underscore-separated parts of the wished resource name until they run out*
-    * if at the end no resource is found, empty `java.util.ResourceBundle` is returned
-
-#### Forming the resource name:
-The resource name is formed of `i18n/` prefix, the filename of the diagram, which it belongs to, and language tags. The filename and language
-tags are separated by underscore (e.g. `i18n/some-file-name_en_Us`). Language tags are also underscore-separated from each other
-(e.g. `zh-Hant-HK`) .   
-    
-#### Example:
-Suppose a deployment has resource with name `some-diagram-name_en.properties` and we are passing `en-US` language range.
-In accordance with the first step ART-BPMS-REST will try to find the resource with name `some-diagram-name_en_US.properties`.
-But the deployment does not have the resource with such a name, so ART-BPMS-REST will remove 'US' part from `some-diagram-name_en_US.properties`
-(extension .properties is ignored) and will search `some-diagram-name_en.properties` resource. As the deployment has such
-a resource, `java.util.ResourceBundle` with info from this resource will be returned.
-
-**Note**: Language ranges are dash-separated, while suffixes in a resource name are underscore-separated.
 
 ### Steps to create and use forms in BPMN
 
