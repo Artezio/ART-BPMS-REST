@@ -21,6 +21,7 @@ public class DeploymentResourceLoader extends AbstractResourceLoader {
 
     @Override
     public InputStream getResource(String resourceKey) {
+        resourceKey = getResourcePath(resourceKey);
         return getRepositoryService().getResourceAsStream(deploymentId, resourceKey);
     }
 

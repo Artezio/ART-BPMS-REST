@@ -21,7 +21,7 @@ public class DeploymentResourceLoaderTest {
     @Deployment(resources = {"forms/formWithState.json"})
     public void testGetResource() throws IOException {
         ResourceLoader loader = new DeploymentResourceLoader(getLatestDeploymentId());
-        InputStream actual = loader.getResource("forms/formWithState.json");
+        InputStream actual = loader.getResource("embedded:deployment:forms/formWithState.json");
 
         assertNotNull(actual);
         assertTrue(actual.available() > 0);

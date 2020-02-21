@@ -1,7 +1,5 @@
 package com.artezio.bpm.resources;
 
-import javax.inject.Inject;
-import javax.inject.Named;
 import javax.servlet.ServletContext;
 import java.io.File;
 import java.io.InputStream;
@@ -26,6 +24,7 @@ public class AppResourceLoader extends AbstractResourceLoader {
 
     @Override
     public InputStream getResource(String resourceKey) {
+        resourceKey = getResourcePath(resourceKey);
         return servletContext.getResourceAsStream(resourceKey);
     }
 
