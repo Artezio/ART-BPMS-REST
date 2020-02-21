@@ -1,9 +1,9 @@
 package com.artezio.bpm.services;
 
 import static com.artezio.logging.Log.Level.CONFIG;
-import static de.otto.edison.hal.Link.*;
-import static de.otto.edison.hal.Links.*;
-import static javax.ws.rs.core.HttpHeaders.ACCEPT_LANGUAGE;
+import static de.otto.edison.hal.Link.link;
+import static de.otto.edison.hal.Link.linkBuilder;
+import static de.otto.edison.hal.Links.linkingTo;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
 
@@ -13,18 +13,11 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.ResourceBundle;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
@@ -41,7 +34,6 @@ import javax.validation.constraints.NotNull;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -52,7 +44,6 @@ import javax.ws.rs.core.MediaType;
 
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.camunda.bpm.application.ProcessApplicationInterface;
 import org.camunda.bpm.engine.ManagementService;
@@ -65,7 +56,6 @@ import org.camunda.bpm.engine.repository.ResourceDefinition;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
-import com.artezio.bpm.localization.BpmResourceBundleControl;
 import com.artezio.bpm.resources.AbstractResourceLoader;
 import com.artezio.bpm.resources.AppResourceLoader;
 import com.artezio.bpm.resources.DeploymentResourceLoader;
@@ -87,7 +77,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 @Path("/deployment")
 public class DeploymentSvc {
 
-    private static final Map<String, ResourceBundle> RESOURCE_BUNDLE_CACHE = new ConcurrentHashMap<>();
     private final static MediaType MEDIA_TYPE_ZIP = MediaType.valueOf("application/zip");
     private final static String PUBLIC_RESOURCES_DIRECTORY = "forms/";
 
