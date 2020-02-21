@@ -1,27 +1,24 @@
 package com.artezio.bpm.services;
 
-import com.artezio.bpm.resources.AbstractResourceLoader;
-import com.artezio.bpm.resources.AppResourceLoader;
-import com.artezio.bpm.resources.DeploymentResourceLoader;
-import com.artezio.bpm.resources.ResourceLoader;
-import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
-import com.artezio.logging.Log;
-import de.otto.edison.hal.HalRepresentation;
-import io.swagger.v3.oas.annotations.ExternalDocumentation;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
-import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
-import org.apache.commons.io.IOUtils;
-import org.camunda.bpm.application.ProcessApplicationInterface;
-import org.camunda.bpm.engine.ManagementService;
-import org.camunda.bpm.engine.RepositoryService;
-import org.camunda.bpm.engine.repository.*;
-import org.jboss.resteasy.plugins.providers.multipart.InputPart;
-import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
+import static com.artezio.logging.Log.Level.CONFIG;
+import static de.otto.edison.hal.Link.link;
+import static de.otto.edison.hal.Link.linkBuilder;
+import static de.otto.edison.hal.Links.linkingTo;
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.security.PermitAll;
@@ -34,26 +31,45 @@ import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import javax.ws.rs.*;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
-import static com.artezio.logging.Log.Level.CONFIG;
-import static de.otto.edison.hal.Link.linkBuilder;
-import static de.otto.edison.hal.Links.linkingTo;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
+import org.apache.commons.io.IOUtils;
+import org.camunda.bpm.application.ProcessApplicationInterface;
+import org.camunda.bpm.engine.ManagementService;
+import org.camunda.bpm.engine.RepositoryService;
+import org.camunda.bpm.engine.repository.CaseDefinition;
+import org.camunda.bpm.engine.repository.Deployment;
+import org.camunda.bpm.engine.repository.DeploymentBuilder;
+import org.camunda.bpm.engine.repository.ProcessDefinition;
+import org.camunda.bpm.engine.repository.ResourceDefinition;
+import org.jboss.resteasy.plugins.providers.multipart.InputPart;
+import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
+
+import com.artezio.bpm.resources.AbstractResourceLoader;
+import com.artezio.bpm.resources.AppResourceLoader;
+import com.artezio.bpm.resources.DeploymentResourceLoader;
+import com.artezio.bpm.resources.ResourceLoader;
+import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
+import com.artezio.logging.Log;
+
+import de.otto.edison.hal.HalRepresentation;
+import io.swagger.v3.oas.annotations.ExternalDocumentation;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
 @Startup
 @DependsOn("DefaultEjbProcessApplication")
@@ -61,9 +77,8 @@ import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
 @Path("/deployment")
 public class DeploymentSvc {
 
-    private final static Pattern COMPONENT_NAME_PATTERN = Pattern.compile("(?:\\w*:)?.*/(.*)(?:\\.[^\\.]*)$");
     private final static MediaType MEDIA_TYPE_ZIP = MediaType.valueOf("application/zip");
-    
+    private final static String PUBLIC_RESOURCES_DIRECTORY = "forms/";
 
     @Inject
     private RepositoryService repositoryService;
@@ -174,15 +189,19 @@ public class DeploymentSvc {
             @Parameter(description = "The key of a form for which resources are requested.", allowEmptyValue = false) @QueryParam("form-key") String resourceKey) {
         String deploymentId =  getResourceDefinition(processDefinitionId, caseDefinitionId).getDeploymentId();
         ResourceLoader resourceLoader = getResourceLoader(deploymentId, resourceKey);
-        List<String> resources = resourceLoader.listResourceNames("");
+        String deploymentProtocol = AbstractResourceLoader.getProtocol(resourceKey);
+        List<String> resources = resourceLoader.listResourceNames(PUBLIC_RESOURCES_DIRECTORY);
         String baseUrl = getBaseUrl();
         return new HalRepresentation(
                 linkingTo()
+                        .single(link("resourcesBaseUrl", 
+                                String.format(String.format("%s/deployment/public-resource/%s/%s/", baseUrl, deploymentProtocol, deploymentId))))
                         .array(resources
                                 .stream()
-                                .map(resource -> linkBuilder("items",
-                                        baseUrl + "/deployment/public-resource/"  + deploymentId + "/"+ encodeUrl(resource))
-                                        .withRel(resource)
+                                .map(resource -> resource.replaceFirst(PUBLIC_RESOURCES_DIRECTORY, ""))
+                                .map(resource -> linkBuilder("items", 
+                                        String.format("%s/deployment/public-resource/%s/%s/%s", baseUrl, deploymentProtocol, deploymentId, encodeUrl(resource)))
+                                        .withName(resource)
                                         .build())
                                 .collect(Collectors.toList()))
                         .build());
@@ -190,16 +209,17 @@ public class DeploymentSvc {
 
     @PermitAll
     @GET
-    @Path("/public-resource/{deployment-id}/{resource-key}")
+    @Path("/public-resource/{deployment-protocol}/{deployment-id}/{resource-key}")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of task resources")
     //TODO document it
     public InputStream getPublicResource(
+            @Parameter(description = "Deployment protocol of the requested resource ('embedded:app:' or 'embedded:deployment:').", required = true) @PathParam("deployment-protocol") @Valid @NotNull String deploymentProtocol,
             @Parameter(description = "The id of the deployment connected with resource requested.", required = true) @PathParam("deployment-id") @Valid @NotNull String deploymentId,
-            @Parameter(description = "The requested resource path.", required = true) @PathParam("resource-key") @Valid @NotNull String resourceKey)
+            @Parameter(description = "The requested resource path. No deployment protocol needed.", required = true) @PathParam("resource-key") @Valid @NotNull String resourceKey)
             throws UnsupportedEncodingException {
-        ResourceLoader resourceLoader = getResourceLoader(deploymentId, resourceKey);
-        return resourceLoader.getResource(URLDecoder.decode(resourceKey, "UTF-8"));
+        ResourceLoader resourceLoader = getResourceLoader(deploymentId, deploymentProtocol + resourceKey);
+        return resourceLoader.getResource(PUBLIC_RESOURCES_DIRECTORY + URLDecoder.decode(resourceKey, "UTF-8"));
     }
 
     private ResourceLoader getResourceLoader(String deploymentId, String resourceKey) {
