@@ -218,7 +218,7 @@ public class DeploymentSvcTest extends ServiceTest {
     }
     
     @Test
-    @org.camunda.bpm.engine.test.Deployment(resources = {"process-with-froms-from-deployment.bpmn", "forms/simpleStartForm.json", "forms/simpleTaskForm.json"})
+    @org.camunda.bpm.engine.test.Deployment(resources = {"process-with-froms-from-deployment.bpmn", "public/simpleStartForm.json", "public/simpleTaskForm.json"})
     public void testListPublicResources() {
         ProcessDefinition processDefinition = getLastProcessDefinition("processWithFormsFromDeployment");
         String startFormKey = getFormService().getStartFormKey(processDefinition.getId());
@@ -236,7 +236,7 @@ public class DeploymentSvcTest extends ServiceTest {
     }
     
     @Test
-    @org.camunda.bpm.engine.test.Deployment(resources = {"process-with-froms-from-deployment.bpmn", "forms/simpleStartForm.json"})
+    @org.camunda.bpm.engine.test.Deployment(resources = {"process-with-froms-from-deployment.bpmn", "public/simpleStartForm.json"})
     public void testGetPublicResource() throws UnsupportedEncodingException {
         ProcessDefinition processDefinition = getLastProcessDefinition("processWithFormsFromDeployment");
         
