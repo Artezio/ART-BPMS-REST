@@ -308,7 +308,7 @@ var ProcessStartForms = {
             .then(_ =>
                 $.ajax({
                     method: 'GET',
-                    url: bpmsRestApi + '/process-definition/key/' + processDefinitionKey + '/form',
+                    url: bpmsRestApi + '/process-definition/key/' + processDefinitionKey + '/rendered-form',
                     headers: {
                         'Authorization': 'Bearer ' + keycloak.token
                     },
@@ -406,7 +406,7 @@ var TaskForms = {
             .then(_ =>
                 $.ajax({
                     method: 'GET',
-                    url: bpmsRestApi + '/task/' + taskId + '/form',
+                    url: bpmsRestApi + '/task/' + taskId + '/rendered-form',
                     headers: {
                         'Authorization': 'Bearer ' + keycloak.token
                     }
