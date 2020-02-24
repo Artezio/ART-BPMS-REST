@@ -182,7 +182,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
             return null;
         });
         expect(taskSvc.getNextAssignedTask(anyObject(String.class))).andReturn(null);
-        expect(formSvc.dryValidationAndCleanupStartForm(anyString(), eq(submittedFormValues)))
+        expect(formSvc.dryValidationAndCleanupStartForm(anyString(), eq(submittedFormValues), eq(PUBLIC_RESOURCES_DIRECTORY)))
                 .andReturn(validatedVariablesJson);
         expect(variablesMapper.convertVariablesToEntities(capture(processVariablesCapture), anyObject(Map.class)))
                 .andStubAnswer(processVariablesCapture::getValue);
@@ -227,7 +227,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
             processVariablesCapture.getValue().put("testFiles", expectedFileValues);
             return null;
         });
-        expect(formSvc.dryValidationAndCleanupStartForm(anyString(), eq(submittedFormValues)))
+        expect(formSvc.dryValidationAndCleanupStartForm(anyString(), eq(submittedFormValues), eq(PUBLIC_RESOURCES_DIRECTORY)))
                 .andReturn(validatedVariablesJson);
         expect(taskSvc.getNextAssignedTask(anyObject(String.class))).andReturn(null);
         expect(identitySvc.userGroups()).andReturn(asList(TEST_GROUP_ID));
@@ -260,7 +260,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
                 "\"stringFormVariable\":null," +
                 "\"stringFormVariableWithDefaultValue\":\"default-string-value\"," +
                 "\"booleanFormVariable\":null}}";
-        expect(formSvc.getStartFormWithData(EasyMock.anyString(), eq(expectedInitialFormVariables)))
+        expect(formSvc.getStartFormWithData(EasyMock.anyString(), eq(expectedInitialFormVariables), eq(PUBLIC_RESOURCES_DIRECTORY)))
                 .andReturn(formWithData);
         expect(identitySvc.userGroups()).andReturn(asList(TEST_GROUP_ID));
         replay(formSvc, identitySvc);

@@ -34,12 +34,12 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.artezio.bpm.services.DeploymentSvc.PUBLIC_RESOURCES_DIRECTORY;
 import static com.artezio.bpm.services.VariablesMapper.EXTENSION_NAME_PREFIX;
 import static com.artezio.logging.Log.Level.CONFIG;
 import static java.util.Collections.emptyMap;
@@ -165,7 +165,7 @@ public class ProcessDefinitionSvc {
         ensureStartableByUser(processDefinition);
         FormData formData = camundaFormService.getStartFormData(processDefinition.getId());
         Map<String, Object> startFormVariables = getStartFormVariables(formData);
-        return formService.getStartFormWithData(processDefinition.getId(), startFormVariables);
+        return formService.getStartFormWithData(processDefinition.getId(), startFormVariables, PUBLIC_RESOURCES_DIRECTORY);
     }
 
     protected boolean isStartableByUser(ProcessDefinition processDefinition) {
@@ -200,7 +200,7 @@ public class ProcessDefinitionSvc {
         if (formKey == null) {
             throw new RuntimeException("Process has no start form");
         } else {
-            String validatedVariablesJson = formService.dryValidationAndCleanupStartForm(processDefinitionId, inputVariables);
+            String validatedVariablesJson = formService.dryValidationAndCleanupStartForm(processDefinitionId, inputVariables, PUBLIC_RESOURCES_DIRECTORY);
             Map<String, Object> formVariables = getStartFormVariables(formData);
             variablesMapper.updateVariables(formVariables, validatedVariablesJson);
             return formVariables;

@@ -15,20 +15,21 @@ public class DeploymentResourceLoader extends AbstractResourceLoader {
     private final static String PROCESS_ENGINE_NAME = System.getenv("PROCESS_ENGINE_NAME");
     protected String deploymentId;
 
-    public DeploymentResourceLoader(String deploymentId) {
+    public DeploymentResourceLoader(String deploymentId, String rootDir) {
+        super(rootDir);
         this.deploymentId = deploymentId;
     }
 
     @Override
     public InputStream getResource(String resourceKey) {
         resourceKey = getResourcePath(resourceKey);
-        return getRepositoryService().getResourceAsStream(deploymentId, resourceKey);
+        return getRepositoryService().getResourceAsStream(deploymentId, rootDirectory + "/" + resourceKey);
     }
 
     @Override
-    public List<String> listResourceNames(String initialPath) {
+    public List<String> listResourceNames() {
         return getRepositoryService().getDeploymentResourceNames(deploymentId).stream()
-                .filter(resourceName -> resourceName.startsWith(initialPath))
+                .filter(resourceName -> resourceName.startsWith(rootDirectory))
                 .collect(Collectors.toList());
     }
 

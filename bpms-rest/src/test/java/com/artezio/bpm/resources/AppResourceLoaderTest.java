@@ -1,11 +1,14 @@
 package com.artezio.bpm.resources;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import javax.enterprise.inject.Instance;
+import javax.enterprise.inject.spi.CDI;
 import javax.servlet.ServletContext;
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,35 +17,46 @@ import java.util.List;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @RunWith(PowerMockRunner.class)
+@PrepareForTest(CDI.class)
 public class AppResourceLoaderTest {
 
-    @InjectMocks
-    private AppResourceLoader loader = new AppResourceLoader();
+    private static final String PUBLIC_RESOURCES_DIRECTORY = "public";
 
-    @Mock
     private ServletContext servletContext;
+    private AppResourceLoader loader;
+
+    @Before
+    public void init() {
+        PowerMockito.mockStatic(CDI.class);
+        CDI cdiContext = mock(CDI.class);
+        Instance<ServletContext> servletContextInstance = mock(Instance.class);
+        servletContext = mock(ServletContext.class);
+        when(CDI.current()).thenReturn(cdiContext);
+        when(cdiContext.select(ServletContext.class)).thenReturn(servletContextInstance);
+        when(servletContextInstance.get()).thenReturn(servletContext);
+
+        loader = new AppResourceLoader(PUBLIC_RESOURCES_DIRECTORY);
+    }
 
     @Test
     public void testListResourceNames() throws MalformedURLException {
-        String resourcesPath = "bpm-resources";
+        when(servletContext.getResource("/" + PUBLIC_RESOURCES_DIRECTORY))
+                .thenReturn(Thread.currentThread().getContextClassLoader().getResource(PUBLIC_RESOURCES_DIRECTORY));
 
-        when(servletContext.getResource(any()))
-                .thenReturn(Thread.currentThread().getContextClassLoader().getResource(resourcesPath));
+        List<String> actuals = loader.listResourceNames();
 
-        List<String> actuals = loader.listResourceNames(resourcesPath);
-
-        assertTrue(actuals.contains("bpm-resources/component.js"));
+        assertTrue(actuals.contains(PUBLIC_RESOURCES_DIRECTORY + "/component.js"));
     }
-    
+
     @Test
     public void testGetResource() throws IOException {
-        String resourcesKey = "bpm-resources/component.js";
-        when(servletContext.getResourceAsStream(resourcesKey))
-                .thenReturn(Thread.currentThread().getContextClassLoader().getResourceAsStream(resourcesKey));
+        String resourcesKey = "component.js";
+
+        when(servletContext.getResourceAsStream(PUBLIC_RESOURCES_DIRECTORY + "/" + resourcesKey))
+                .thenReturn(Thread.currentThread().getContextClassLoader().getResourceAsStream(PUBLIC_RESOURCES_DIRECTORY + "/" + resourcesKey));
 
         InputStream actual = loader.getResource(resourcesKey);
 
@@ -53,14 +67,13 @@ public class AppResourceLoaderTest {
     @Test
     public void testListResourceNames_IfResourcePathNotExists() throws MalformedURLException {
         String resourcesPath = "non-existent-path";
-        when(servletContext.getResource(any()))
-                .thenReturn(null);
+        ResourceLoader resourceLoader = new AppResourceLoader(resourcesPath);
 
-        List<String> actuals = loader.listResourceNames(resourcesPath);
+        when(servletContext.getResource(anyString())).thenReturn(null);
+
+        List<String> actuals = resourceLoader.listResourceNames();
 
         assertTrue(actuals.isEmpty());
     }
-    
-    
-    
+
 }

@@ -5,8 +5,6 @@ import com.artezio.bpm.rest.query.task.TaskQueryParams;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.bpm.services.integration.FileStorage;
-import com.artezio.bpm.services.integration.cdi.ConcreteImplementation;
-import com.artezio.bpm.utils.Base64Utils;
 import com.artezio.bpm.validation.VariableValidator;
 import com.artezio.logging.Log;
 import com.jayway.jsonpath.JsonPath;
@@ -19,7 +17,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import net.minidev.json.JSONArray;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.camunda.bpm.engine.CaseService;
 import org.camunda.bpm.engine.FormService;
@@ -38,7 +35,6 @@ import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperty;
 
 import javax.annotation.security.PermitAll;
 import javax.ejb.Stateless;
-import javax.enterprise.inject.Default;
 import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -47,11 +43,11 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static com.artezio.bpm.services.DeploymentSvc.PUBLIC_RESOURCES_DIRECTORY;
 import static com.artezio.bpm.services.VariablesMapper.EXTENSION_NAME_PREFIX;
 import static com.artezio.logging.Log.Level.CONFIG;
 import static io.swagger.v3.oas.annotations.enums.ParameterIn.QUERY;
@@ -345,7 +341,7 @@ public class TaskSvc {
             @Parameter(description = "The id of the task which form is requested for.", required = true) @PathParam("task-id") @Valid @NotNull String taskId) throws IOException {
         ensureUserHasAccess(taskId);
         VariableMap taskVariables = taskService.getVariablesTyped(taskId);
-        return formService.getTaskFormWithData(taskId, taskVariables);
+        return formService.getTaskFormWithData(taskId, taskVariables, PUBLIC_RESOURCES_DIRECTORY);
     }
 
     @GET
@@ -504,7 +500,7 @@ public class TaskSvc {
     }
 
     private Map<String, Object> getVariablesRegardingDecision(String taskId, Map<String, Object> inputVariables, String decision) throws IOException {
-        inputVariables = formService.shouldProcessSubmittedData(taskId, decision)
+        inputVariables = formService.shouldProcessSubmittedData(taskId, decision, PUBLIC_RESOURCES_DIRECTORY)
                 ? validateAndMergeToTaskVariables(inputVariables, taskId)
                 : new HashMap<>();
         inputVariables.put(DECISION_VARIABLE_NAME, decision);
@@ -567,7 +563,7 @@ public class TaskSvc {
             throws IOException {
         String formKey = camundaFormService.getTaskFormData(taskId).getFormKey();
         if (formKey != null) {
-            String cleanDataJson = formService.dryValidationAndCleanupTaskForm(taskId, inputVariables);
+            String cleanDataJson = formService.dryValidationAndCleanupTaskForm(taskId, inputVariables, PUBLIC_RESOURCES_DIRECTORY);
             Map<String, Object> taskVariables = taskService.getVariables(taskId);
             variablesMapper.updateVariables(taskVariables, cleanDataJson);
             return taskVariables;
