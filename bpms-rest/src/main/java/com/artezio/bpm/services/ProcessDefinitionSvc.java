@@ -1,6 +1,7 @@
 package com.artezio.bpm.services;
 
 import com.artezio.bpm.rest.dto.repository.ProcessDefinitionRepresentation;
+import com.artezio.bpm.rest.dto.task.FormDto;
 import com.artezio.bpm.rest.dto.task.TaskRepresentation;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.validation.VariableValidator;
@@ -134,7 +135,42 @@ public class ProcessDefinitionSvc {
     }
 
     @GET
-    @Path("/key/{process-definition-key}/form")
+    @Path("key/{process-definition-key}/rendered-form")
+    @Produces(APPLICATION_JSON)
+    @PermitAll
+    @Operation(
+            description = "Load the start form definition in formio format with data for the process, if any.",
+            externalDocs = @ExternalDocumentation(
+                    url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/process-definition-service-api-docs.md"
+            ),
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Request successful.",
+                            content = @Content(mediaType = APPLICATION_JSON)
+                    ),
+                    @ApiResponse(
+                            responseCode = "403",
+                            description = "The user doesn't have an access to load start form for the process."
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "No deployed form for a given process definition exists."
+                    )
+            }
+    )
+    @Log(beforeExecuteMessage = "Loading start form for process '{0}'", afterExecuteMessage = "Start form for process '{0}' successfully loaded")
+    public String loadRenderedStartForm(
+            @Parameter(description = "The key of the process definition, which form is loaded for.") @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey) throws IOException {
+        ProcessDefinition processDefinition = getLastProcessDefinition(processDefinitionKey);
+        ensureStartableByUser(processDefinition);
+        FormData formData = camundaFormService.getStartFormData(processDefinition.getId());
+        Map<String, Object> startFormVariables = getStartFormVariables(formData);
+        return formService.getStartFormWithData(processDefinition.getId(), startFormVariables, PUBLIC_RESOURCES_DIRECTORY);
+    }
+
+    @GET
+    @Path("key/{process-definition-key}/form")
     @Produces(APPLICATION_JSON)
     @PermitAll
     @Operation(
@@ -158,16 +194,14 @@ public class ProcessDefinitionSvc {
                     )
             }
     )
-    @Log(beforeExecuteMessage = "Loading start form for process '{0}'", afterExecuteMessage = "Start form for process '{0}' successfully loaded")
-    public String loadStartForm(
+    public FormDto loadStartForm( 
             @Parameter(description = "The key of the process definition, which form is loaded for.") @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey) throws IOException {
         ProcessDefinition processDefinition = getLastProcessDefinition(processDefinitionKey);
         ensureStartableByUser(processDefinition);
         FormData formData = camundaFormService.getStartFormData(processDefinition.getId());
-        Map<String, Object> startFormVariables = getStartFormVariables(formData);
-        return formService.getStartFormWithData(processDefinition.getId(), startFormVariables, PUBLIC_RESOURCES_DIRECTORY);
+        return FormDto.fromFormData(formData);
     }
-
+    
     protected boolean isStartableByUser(ProcessDefinition processDefinition) {
         List<IdentityLink> links = repositoryService.getIdentityLinksForProcessDefinition(processDefinition.getId());
         return userHasAccess(links);

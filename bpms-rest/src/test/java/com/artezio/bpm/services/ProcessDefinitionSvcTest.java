@@ -249,7 +249,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testLoadStartForm() throws IOException, URISyntaxException {
+    public void testLoadRenderedStartForm() throws IOException, URISyntaxException {
         createDeployment("test-deployment",
                 "test-process-with-start-form.bpmn");
         Map<String, Object> expectedInitialFormVariables = new HashMap<>();
@@ -265,20 +265,20 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
         expect(identitySvc.userGroups()).andReturn(asList(TEST_GROUP_ID));
         replay(formSvc, identitySvc);
 
-        String actualFormWithData = processDefinitionSvc.loadStartForm("testProcessWithStartForm");
+        String actualFormWithData = processDefinitionSvc.loadRenderedStartForm("testProcessWithStartForm");
 
         assertEquals(actualFormWithData, formWithData);
         verify(formSvc);
     }
 
     @Test(expected = NotAuthorizedException.class)
-    public void testLoadStartForm_notAuthorized() throws IOException, URISyntaxException {
+    public void testLoadRenderedStartForm_notAuthorized() throws IOException, URISyntaxException {
         createDeployment("test-deployment",
                 "test-process-startable-by-testUser.bpmn");
         expect(identitySvc.userId()).andReturn(ANOTHER_USER_ID);
         replay(identitySvc);
 
-        processDefinitionSvc.loadStartForm("testProcessStartableByTestUser");
+        processDefinitionSvc.loadRenderedStartForm("testProcessStartableByTestUser");
     }
 
     @Test
