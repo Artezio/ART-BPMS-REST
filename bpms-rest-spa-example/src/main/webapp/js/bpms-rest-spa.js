@@ -53,9 +53,13 @@ function closeCurrentForm() {
 
 function loadProcessesAndTasks() {
     closeCurrentForm();
-    loadStartableProcesses();
+    loadResources();
+}
+
+function loadResources() {
     loadAssignedTasks();
     loadAvailableTasks();
+    loadStartableProcesses();
 }
 
 function loadNextTaskOrCloseForm(response) {
@@ -67,9 +71,7 @@ function loadNextTaskOrCloseForm(response) {
     } else {
         closeCurrentForm();
     }
-    loadAssignedTasks();
-    loadAvailableTasks();
-    loadStartableProcesses();
+    loadResources();
 }
 
 function startProcessWithoutStartForm(processDefinitionKey) {
@@ -85,15 +87,15 @@ function startProcessWithoutStartForm(processDefinitionKey) {
             },
             data: "{}"
         })).then(
-        response => {
-            loadNextTaskOrCloseForm(response);
-        }, (xhr, textStatus) => {
-            if (xhr.status === 401) {
-                keycloak.login();
-            } else {
-                showError(xhr.responseJSON);
-            }
-        });
+            response => {
+                loadNextTaskOrCloseForm(response);
+            }, (xhr, textStatus) => {
+                if (xhr.status === 401) {
+                    keycloak.login();
+                } else {
+                    showError(xhr.responseJSON);
+                }
+            });
 }
 
 function parseProcessDefinitions(processDefinitions) {
@@ -101,13 +103,14 @@ function parseProcessDefinitions(processDefinitions) {
     processDefinitionList.empty();
     $.each(processDefinitions, function () {
         var key = this.key;
+        var id = this.id;
         var name = this.name;
         var startProcessFunction;
         if (this.hasStartFormKey === true) {
             startProcessFunction = function () {
                 closeCurrentForm();
                 $('#current-form .title').text(name);
-                ProcessStartForms.load(key);
+                ProcessStartForms.load(id, key);
             }
         } else {
             startProcessFunction = function () {
@@ -143,14 +146,14 @@ function loadStartableProcesses() {
                 'Authorization': 'Bearer ' + keycloak.token
             }
         })).then(
-        processDefinitions => parseProcessDefinitions(processDefinitions),
-        (xhr, textStatus) => {
-            if (xhr.status === 401) {
-                keycloak.login();
-            } else {
-                showError(xhr.responseJSON);
-            }
-        });
+            processDefinitions => parseProcessDefinitions(processDefinitions),
+            (xhr, textStatus) => {
+                if (xhr.status === 401) {
+                    keycloak.login();
+                } else {
+                    showError(xhr.responseJSON);
+                }
+            });
 }
 
 function setAssignedTasks(tasks) {
@@ -185,14 +188,14 @@ function loadAssignedTasks() {
             },
             cors: true
         })).then(
-        tasks => setAssignedTasks(tasks),
-        (xhr, textStatus) => {
-            if (xhr.status === 401) {
-                keycloak.login();
-            } else {
-                showError(xhr.responseJSON);
-            }
-        });
+            tasks => setAssignedTasks(tasks),
+            (xhr, textStatus) => {
+                if (xhr.status === 401) {
+                    keycloak.login();
+                } else {
+                    showError(xhr.responseJSON);
+                }
+            });
 }
 
 function setAvailableTasks(tasks) {
@@ -224,10 +227,10 @@ function loadAvailableTasks() {
                 'Authorization': 'Bearer ' + keycloak.token
             }
         })).then(
-        tasks => setAvailableTasks(tasks),
-        (xhr) => {
-            showError(xhr.responseJSON);
-        });
+            tasks => setAvailableTasks(tasks),
+            (xhr) => {
+                showError(xhr.responseJSON);
+            });
 }
 
 function claimTask(taskId) {
@@ -239,14 +242,46 @@ function claimTask(taskId) {
                 'Authorization': 'Bearer ' + keycloak.token
             }
         })).then(_ => {
-        loadProcessesAndTasks();
-    }, (xhr, textStatus) => {
-        if (xhr.status === 401) {
-            keycloak.login();
-        } else {
-            showError(xhr.responseJSON);
+            loadProcessesAndTasks();
+        }, (xhr, textStatus) => {
+            if (xhr.status === 401) {
+                keycloak.login();
+            } else {
+                showError(xhr.responseJSON);
+            }
+        });
+}
+
+function prepareEnvironmentForFormio(processDefinitionId, processDefinitionKey) {
+    return loadBaseUrl(processDefinitionId, processDefinitionKey)
+        .then(setBaseUrl)
+    // .then(loadCustomComponents)
+    // .then(registerCustomComponents)
+}
+
+function loadBaseUrl(processDefinitionId, processDefinitionKey) {
+    return $.ajax({
+        method: 'GET',
+        url: `${bpmsRestApi}/deployment/public-resources?process-definition-id=${processDefinitionId}&form-key=${processDefinitionKey}`,
+        headers: {
+            'Authorization': 'Bearer ' + keycloak.token
         }
-    });
+    }).then(data => {
+        if (data && data._links && data._links.resourcesBaseUrl && data._links.resourcesBaseUrl.href) {
+            return data._links.resourcesBaseUrl.href;
+        }
+        throw new Error('Not a hal format');
+    })
+}
+
+function setBaseUrl(url) {
+    const base = document.createElement('base');
+    base.href = url[url.length - 1] === '/' ? url : url + '/';
+    document.head.append(base);
+}
+
+function registerCustomComponents() {
+
 }
 
 var ProcessStartForms = {
@@ -266,81 +301,84 @@ var ProcessStartForms = {
                 }));
     },
 
-    load: function (processDefinitionKey, errorCallback) {
+    load: function (processDefinitionId, processDefinitionKey, errorCallback) {
         clearErrors();
-        refreshToken().then(_ =>
-            $.ajax({
-                method: 'GET',
-                url: bpmsRestApi + '/process-definition/key/' + processDefinitionKey + '/form',
-                headers: {
-                    'Authorization': 'Bearer ' + keycloak.token
-                }
-            })).then(data => {
-            Formio
-                .createForm(
-                    document.getElementById('formio'),
-                    data, {readOnly: false, noAlerts: true})
-                .then(form => {
-					form.submission = {
-                            data: data.data
-                    };
-                    window.form = form;
-                    let fileComponentNames = findFileComponentNames(form);
-                    merge(data.data, form.data, fileComponentNames);
-                    internationalize(form.components);
+        refreshToken()
+            .then(prepareEnvironmentForFormio(processDefinitionId, processDefinitionKey))
+            .then(_ =>
+                $.ajax({
+                    method: 'GET',
+                    url: bpmsRestApi + '/process-definition/key/' + processDefinitionKey + '/form',
+                    headers: {
+                        'Authorization': 'Bearer ' + keycloak.token
+                    },
 
-                    form.redraw();
+                })).then(data => {
+                    Formio
+                        .createForm(
+                            document.getElementById('formio'),
+                            data, { readOnly: false, noAlerts: true })
+                        .then(form => {
+                            form.submission = {
+                                data: data.data
+                            };
+                            window.form = form;
+                            let fileComponentNames = findFileComponentNames(form);
+                            merge(data.data, form.data, fileComponentNames);
+                            internationalize(form.components);
 
-                    let submitValidation = form.checkValidity;
-                    let rejectValidation = () => true;
+                            form.redraw();
 
-                    form.components
-                        .filter(comp => comp.originalComponent.action === 'saveState')
-                        .forEach(comp => {
-                            let formioButtonClickHandler = comp.eventHandlers.find(handler => handler.type === 'click').func;
-                            comp.removeEventListener(comp.buttonElement, 'click');
-                            let isNoValidationFlow = comp.originalComponent.properties['skipValidation'] === 'true';
-                            comp.addEventListener(comp.buttonElement, 'click', event => {
-                                form.checkValidity = isNoValidationFlow ? rejectValidation : submitValidation;
-                                formioButtonClickHandler(event);
+                            let submitValidation = form.checkValidity;
+                            let rejectValidation = () => true;
+
+                            form.components
+                                .filter(comp => comp.originalComponent.action === 'saveState')
+                                .forEach(comp => {
+                                    let formioButtonClickHandler = comp.eventHandlers.find(handler => handler.type === 'click').func;
+                                    comp.removeEventListener(comp.buttonElement, 'click');
+                                    let isNoValidationFlow = comp.originalComponent.properties['skipValidation'] === 'true';
+                                    comp.addEventListener(comp.buttonElement, 'click', event => {
+                                        form.checkValidity = isNoValidationFlow ? rejectValidation : submitValidation;
+                                        formioButtonClickHandler(event);
+                                    });
+                                });
+
+                            form.on('submit', submission => {
+                                submission.saved = true;
+                                let preparedToSubmissionData = {};
+                                if (submission.state === 'submitted') {
+                                    preparedToSubmissionData = submission.data;
+                                }
+                                preparedToSubmissionData.state = submission.state;
+                                console.log('submission', submission);
+                                ProcessStartForms.submit(processDefinitionKey, preparedToSubmissionData)
+                                    .then(response => {
+                                        loadNextTaskOrCloseForm(response);
+                                    },
+                                        (xhr, textStatus) => {
+                                            if (xhr.status === 401) {
+                                                keycloak.login();
+                                            } else {
+                                                showError(xhr.responseJSON);
+                                                form.triggerRedraw();
+                                            }
+                                        }
+                                    );
+                                return submission;
                             });
                         });
-
-                    form.on('submit', submission => {
-                        submission.saved = true;
-                        let preparedToSubmissionData = {};
-                        if (submission.state === 'submitted') {
-                            preparedToSubmissionData = submission.data;
+                }, (xhr, textStatus) => {
+                    if (xhr.status === 401) {
+                        keycloak.login();
+                    } else {
+                        if (errorCallback !== undefined) {
+                            errorCallback(xhr);
+                        } else {
+                            showError(xhr.responseJSON);
                         }
-                        preparedToSubmissionData.state = submission.state;
-                        console.log('submission', submission);
-                        ProcessStartForms.submit(processDefinitionKey, preparedToSubmissionData)
-                            .then(response => {
-                                    loadNextTaskOrCloseForm(response);
-                                },
-                                (xhr, textStatus) => {
-                                    if (xhr.status === 401) {
-                                        keycloak.login();
-                                    } else {
-                                        showError(xhr.responseJSON);
-                                        form.triggerRedraw();
-                                    }
-                                }
-                            );
-                        return submission;
-                    });
+                    }
                 });
-        }, (xhr, textStatus) => {
-            if (xhr.status === 401) {
-                keycloak.login();
-            } else {
-                if (errorCallback !== undefined) {
-                    errorCallback(xhr);
-                } else {
-                    showError(xhr.responseJSON);
-                }
-            }
-        });
     }
 };
 
@@ -364,6 +402,7 @@ var TaskForms = {
     load: function (taskId) {
         clearErrors();
         refreshToken()
+            .then(prepareEnvironmentForFormio)
             .then(_ =>
                 $.ajax({
                     method: 'GET',
@@ -376,11 +415,11 @@ var TaskForms = {
                 Formio
                     .createForm(
                         document.getElementById('formio'),
-                        data, {readOnly: false, noAlerts: true})
+                        data, { readOnly: false, noAlerts: true })
                     .then(form => {
-						form.submission = {
-								data: data.data
-						}
+                        form.submission = {
+                            data: data.data
+                        }
                         window.form = form;
                         let fileComponentNames = findFileComponentNames(form);
                         merge(data.data, form.data, fileComponentNames);
@@ -409,8 +448,8 @@ var TaskForms = {
                             console.log('submission', preparedToSubmissionData);
                             TaskForms.submit(taskId, preparedToSubmissionData)
                                 .then(response => {
-                                        loadNextTaskOrCloseForm(response);
-                                    },
+                                    loadNextTaskOrCloseForm(response);
+                                },
                                     (xhr, textStatus) => {
                                         form.triggerRedraw();
                                         showError(xhr.responseJSON);
@@ -473,7 +512,7 @@ function findFileComponentNames(container) {
     if (container.components) {
         return container.components
             .map(component => {
-                switch(component.type) {
+                switch (component.type) {
                     case 'form': {
                         return component.components
                             ? findFileComponentNames(component.components)
@@ -483,7 +522,8 @@ function findFileComponentNames(container) {
                     case 'container': return findFileComponentNames(component);
                     case 'file': return component.key;
                     default: [];
-                }})
+                }
+            })
             .flat()
             .filter(distinctAndNonUndefinedFilter);
     }
@@ -496,7 +536,7 @@ const distinctAndNonUndefinedFilter = (value, index, array) => {
 function internationalize(components) {
     if (components) {
         components.forEach(component => {
-            switch(component.type) {
+            switch (component.type) {
                 case 'form': {
                     component.components
                         ? internationalize(component.components)
@@ -517,7 +557,7 @@ function applyI18nRuToDateTimeComponent(fullDateTimeComponent) {
     let calendar = fullDateTimeComponent._widget.calendar;
     let res = i18n_ru.resources.ru.translation;
     calendar.l10n.months.longhand = [res.january, res.february, res.march, res.april, res.may, res.june, res.july, res.august,
-        res.september, res.october, res.november, res.december];
+    res.september, res.october, res.november, res.december];
     calendar.l10n.weekdays.shorthand = [res.sun, res.mon, res.tue, res.wed, res.thu, res.fri, res.sat]
 }
 

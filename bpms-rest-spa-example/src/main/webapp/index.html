@@ -1,23 +1,23 @@
-<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
-<%@ taglib uri="http://java.sun.com/jstl/core" prefix="c" %>
+<!-- <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib uri="http://java.sun.com/jstl/core" prefix="c" %> -->
 
 <!doctype html>
 <html lang="ru">
 
-<%
+<!-- <%
     final String KEYCLOAK_SERVER_URL = System.getProperty("KEYCLOAK_SERVER_URL", "http://localhost:8180/auth");
     final String BPMS_REST_API = System.getProperty("BPMS_REST_API", "http://localhost:8080/bpms-rest/api");
     final String KEYCLOAK_REALM = System.getProperty("KEYCLOAK_REALM", "master");
     final String KEYCLOAK_CLIENT_ID = System.getProperty("KEYCLOAK_CLIENT_ID", "bpms-rest");
     final String FILE_STORAGE_URL = System.getenv("FILE_STORAGE_URL");
-%>
+%> -->
 
 <head>
     <title>Dashboard</title>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <link rel='stylesheet' href='css/bootstrap-3.3.7.min.css'>
     <link rel='stylesheet' href='css/formio.full-3.22.9.min.css'>
-    <script src="<%=KEYCLOAK_SERVER_URL%>/js/keycloak.js" type="application/javascript"></script>
+    <script src="http://37.17.58.29:8180/auth/js/keycloak.js" type="application/javascript"></script>
     <script src="js/lib/jquery-3.3.1.min.js" type="application/javascript"></script>
     <script src='js/lib/formio.full-3.22.9.min.js' type="application/javascript"></script>
     <script src='js/bpms-rest-spa.js' type="application/javascript"></script>
@@ -80,12 +80,12 @@
 
 <script type="text/javascript">
 
-    let fileStorageUrl = '<%=FILE_STORAGE_URL%>';
-    let bpmsRestApi = '<%=BPMS_REST_API%>';
+    let fileStorageUrl = '';
+    let bpmsRestApi = 'http://37.17.58.29:8080/bpms-rest/api';
     let keycloakConfig = {
-        'url': '<%=KEYCLOAK_SERVER_URL%>',
-        'realm': '<%=KEYCLOAK_REALM%>',
-        'clientId': '<%=KEYCLOAK_CLIENT_ID%>'
+        'url': 'http://37.17.58.29:8180/auth',
+        'realm': 'master',
+        'clientId': 'bpms-rest'
     };
 
     let keycloak = Keycloak(keycloakConfig);
