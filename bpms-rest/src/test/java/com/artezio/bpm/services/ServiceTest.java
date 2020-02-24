@@ -11,6 +11,7 @@ import org.camunda.bpm.engine.identity.User;
 import org.camunda.bpm.engine.impl.persistence.entity.ResourceEntity;
 import org.camunda.bpm.engine.repository.Deployment;
 import org.camunda.bpm.engine.repository.DeploymentBuilder;
+import org.camunda.bpm.engine.repository.ProcessDefinition;
 import org.camunda.bpm.engine.task.Task;
 import org.camunda.bpm.engine.test.ProcessEngineRule;
 import org.camunda.bpm.engine.variable.impl.value.builder.FileValueBuilderImpl;
@@ -213,6 +214,13 @@ abstract public class ServiceTest {
 
     byte[] decodeFromBase64(String encodedString) {
         return Base64.getMimeDecoder().decode(encodedString);
+    }
+    
+    protected ProcessDefinition getLastProcessDefinition(String processDefinitionKey) {
+        return getRepositoryService().createProcessDefinitionQuery()
+                .latestVersion()
+                .processDefinitionKey(processDefinitionKey)
+                .singleResult();
     }
 
 }
