@@ -85,11 +85,11 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
     @Test
     public void testListStartableByUser() throws IOException, URISyntaxException {
         createDeployment("test-deployment",
-                "test-process-not-startable-by-anyone.bpmn");
+                "test-process-startable-by-anyone.bpmn");
 
         List<ProcessDefinitionRepresentation> startableProcesses = processDefinitionSvc.listStartableByUser();
 
-        assertTrue(startableProcesses.isEmpty());
+        assertFalse(startableProcesses.isEmpty());
     }
 
     @Test

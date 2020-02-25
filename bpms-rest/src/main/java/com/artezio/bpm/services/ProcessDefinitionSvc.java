@@ -208,7 +208,8 @@ public class ProcessDefinitionSvc {
     }
 
     protected boolean userHasAccess(List<IdentityLink> links) {
-        return userIsInCandidateGroup(links)
+        return links.isEmpty() 
+                || userIsInCandidateGroup(links)
                 || userIsCandidate(links);
     }
 
