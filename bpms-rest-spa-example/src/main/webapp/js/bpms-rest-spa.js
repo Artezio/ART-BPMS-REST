@@ -1,5 +1,7 @@
 Formio.icons = 'fontawesome';
 
+const FORMIO_CUSTOM_COMPONENTS = 'FormioCC';
+
 function refreshToken() {
     return new Promise(function (resolve, reject) {
         keycloak.updateToken(180)
@@ -252,36 +254,81 @@ function claimTask(taskId) {
         });
 }
 
-function prepareEnvironmentForFormio(processDefinitionId, processDefinitionKey) {
-    return loadBaseUrl(processDefinitionId, processDefinitionKey)
+function prepareEnvironmentForFormio({ processDefinitionId, processDefinitionKey }) {
+    return () => getFormKey({ processDefinitionId, processDefinitionKey })
+        .then(loadBaseUrl)
         .then(setBaseUrl)
-    // .then(loadCustomComponents)
-    // .then(registerCustomComponents)
+        .then(loadCustomComponents)
 }
 
-function loadBaseUrl(processDefinitionId, processDefinitionKey) {
+function getFormKey({ processDefinitionKey, ...rest }) {
     return $.ajax({
         method: 'GET',
-        url: `${bpmsRestApi}/deployment/public-resources?process-definition-id=${processDefinitionId}&form-key=${processDefinitionKey}`,
+        url: `${bpmsRestApi}/process-definition/key/${processDefinitionKey}/form`,
         headers: {
             'Authorization': 'Bearer ' + keycloak.token
         }
-    }).then(data => {
-        if (data && data._links && data._links.resourcesBaseUrl && data._links.resourcesBaseUrl.href) {
-            return data._links.resourcesBaseUrl.href;
+    }).then(data => ({ ...rest, processDefinitionKey, formKey: data.key }))
+}
+
+function loadBaseUrl({ processDefinitionId, formKey, ...rest }) {
+    return $.ajax({
+        method: 'GET',
+        url: `${bpmsRestApi}/deployment/public-resources?process-definition-id=${processDefinitionId}&form-key=${formKey}`,
+        headers: {
+            'Authorization': 'Bearer ' + keycloak.token
         }
-        throw new Error('Not a hal format');
+    }).then(resources => {
+        return { ...rest, processDefinitionId, formKey, resources };
     })
 }
 
-function setBaseUrl(url) {
+function setBaseUrl({ resources, ...rest }) {
+    if (!(resources && resources._links && resources._links.resourcesBaseUrl && resources._links.resourcesBaseUrl.href)) {
+        console.error('Base URL not provided!');
+        return { ...rest, resources };
+    }
+    const url = resources._links.resourcesBaseUrl.href;
     const base = document.createElement('base');
     base.href = url[url.length - 1] === '/' ? url : url + '/';
     document.head.append(base);
+    return Promise.resolve({ ...rest, resources });
 }
 
-function registerCustomComponents() {
+function loadCustomComponents({ resources, ...rest }) {
+    if (!(resources && resources._links && Array.isArray(resources._links.items))) {
+        console.info('No items provided!');
+    }
+    const customComponentsSources = resources._links.items
+        .map(item => item.href)
+        .filter(href => /custom-components.*\.js$/.test(href));
+    window[FORMIO_CUSTOM_COMPONENTS] = {};
+    return Promise.all(customComponentsSources.map(customComponentSource => loadCustomComponent(customComponentSource)))
+        .then(registerCustomComponents)
+        .then(() => ({ ...rest, resources }))
+}
 
+function loadCustomComponent(customComponentSource) {
+    const script = document.createElement('script');
+    script.src = customComponentSource;
+    return new Promise((resolve, reject) => {
+        script.onload = () => {
+            resolve()
+        };
+        document.body.append(script)
+    })
+}
+
+function registerCustomComponents(customComponents) {
+    for (let key in window[FORMIO_CUSTOM_COMPONENTS]) {
+        try {
+            const Component = window[FORMIO_CUSTOM_COMPONENTS][key];
+            const name = Component.schema().type;
+            Formio.registerComponent(name, Component);
+        } catch (err) {
+            console.info(err);
+        }
+    }
 }
 
 var ProcessStartForms = {
@@ -304,7 +351,7 @@ var ProcessStartForms = {
     load: function (processDefinitionId, processDefinitionKey, errorCallback) {
         clearErrors();
         refreshToken()
-            .then(prepareEnvironmentForFormio(processDefinitionId, processDefinitionKey))
+            .then(prepareEnvironmentForFormio({ processDefinitionId, processDefinitionKey }))
             .then(_ =>
                 $.ajax({
                     method: 'GET',
