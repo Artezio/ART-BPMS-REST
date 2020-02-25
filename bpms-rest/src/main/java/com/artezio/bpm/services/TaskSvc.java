@@ -340,7 +340,8 @@ public class TaskSvc {
     public String loadForm(
             @Parameter(description = "The id of the task which form is requested for.", required = true) @PathParam("task-id") @Valid @NotNull String taskId) throws IOException {
         ensureUserHasAccess(taskId);
-        VariableMap taskVariables = taskService.getVariablesTyped(taskId);
+        List<String> formFieldsNames = formService.getTaskFormFieldsNames(taskId, PUBLIC_RESOURCES_DIRECTORY);
+        VariableMap taskVariables = taskService.getVariablesTyped(taskId, formFieldsNames, true);
         return formService.getTaskFormWithData(taskId, taskVariables, PUBLIC_RESOURCES_DIRECTORY);
     }
 
@@ -563,8 +564,9 @@ public class TaskSvc {
             throws IOException {
         String formKey = camundaFormService.getTaskFormData(taskId).getFormKey();
         if (formKey != null) {
-            String cleanDataJson = formService.dryValidationAndCleanupTaskForm(taskId, inputVariables, PUBLIC_RESOURCES_DIRECTORY);
-            Map<String, Object> taskVariables = taskService.getVariables(taskId);
+            List<String> formFieldsNames = formService.getTaskFormFieldsNames(taskId, PUBLIC_RESOURCES_DIRECTORY);
+            Map<String, Object> taskVariables = taskService.getVariables(taskId, formFieldsNames);
+            String cleanDataJson = formService.dryValidationAndCleanupTaskForm(taskId, inputVariables, taskVariables, PUBLIC_RESOURCES_DIRECTORY);
             variablesMapper.updateVariables(taskVariables, cleanDataJson);
             return taskVariables;
         } else {

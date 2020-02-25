@@ -9,11 +9,11 @@ import com.artezio.bpm.services.integration.FileStorage;
 import com.artezio.bpm.validation.VariableValidator;
 import junitx.framework.ListAssert;
 import junitx.util.PrivateAccessor;
-import org.camunda.bpm.engine.*;
+import org.camunda.bpm.engine.FormService;
+import org.camunda.bpm.engine.RepositoryService;
+import org.camunda.bpm.engine.RuntimeService;
+import org.camunda.bpm.engine.TaskService;
 import org.camunda.bpm.engine.history.HistoricTaskInstance;
-import org.camunda.bpm.engine.repository.Deployment;
-import org.camunda.bpm.engine.runtime.CaseExecution;
-import org.camunda.bpm.engine.runtime.CaseExecutionQuery;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.runtime.ProcessInstanceQuery;
 import org.camunda.bpm.engine.task.Task;
@@ -29,7 +29,6 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -763,6 +762,7 @@ public class TaskSvcTest extends ServiceTest {
 
         when(identityService.userId()).thenReturn(callerId);
         when(identityService.userGroups()).thenReturn(callerGroups);
+        when(formSvc.getTaskFormFieldsNames(taskId, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(asList(fileVariableName));
         when(formSvc.getTaskFormWithData(eq(taskId), convertedTaskVariablesCaptor.capture(), eq(PUBLIC_RESOURCES_DIRECTORY))).thenReturn(expected);
 
         String actual = taskSvc.loadForm(taskId);
@@ -775,7 +775,6 @@ public class TaskSvcTest extends ServiceTest {
     public void testLoadForm_VariableDoesntExist_ExecutionVariableIsContainer_ContainerHasSimpleVariables() throws IOException {
         String taskId = "taskId";
         String callerId = "callerId";
-        String formKey = "formKey";
         String expected = "{ \"title\": \"form\", { \"container1\": { \"container2\": { \"var\": \"val\" } } } }";
         List<String> callerGroups = asList("callerGroup");
         Map<String, Object> container1 = new HashMap<>();
@@ -789,6 +788,7 @@ public class TaskSvcTest extends ServiceTest {
 
         when(identityService.userId()).thenReturn(callerId);
         when(identityService.userGroups()).thenReturn(callerGroups);
+        when(formSvc.getTaskFormFieldsNames(taskId, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(asList("container1"));
         when(formSvc.getTaskFormWithData(taskId, taskVariables, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(expected);
 
         String actual = taskSvc.loadForm(taskId);
@@ -801,7 +801,6 @@ public class TaskSvcTest extends ServiceTest {
         String taskId = "taskId";
         String callerId = "callerId";
         List<String> callerGroups = asList("callerGroup");
-        String formKey = "formKey";
         String container1VariableName = "container1";
         String container2VariableName = "container2";
         String fileVariableName = "testFile";
@@ -830,9 +829,9 @@ public class TaskSvcTest extends ServiceTest {
         createTask(taskId, callerId, callerId, callerGroups);
         setVariablesToTask(taskId, taskVariables);
 
-        when(formService.getTaskFormData(taskId).getFormKey()).thenReturn(formKey);
         when(identityService.userId()).thenReturn(callerId);
         when(identityService.userGroups()).thenReturn(callerGroups);
+        when(formSvc.getTaskFormFieldsNames(taskId, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(asList(container1VariableName));
         when(formSvc.getTaskFormWithData(eq(taskId), convertedTaskVariablesCaptor.capture(), eq(PUBLIC_RESOURCES_DIRECTORY))).thenReturn(expected);
 
         String actual = taskSvc.loadForm(taskId);
@@ -885,7 +884,7 @@ public class TaskSvcTest extends ServiceTest {
 
         when(identityService.userId()).thenReturn(callerId);
         when(formSvc.shouldProcessSubmittedData(taskId, decision, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(false);
-        when(formSvc.dryValidationAndCleanupTaskForm(taskId, inputVariables, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(cleanDataJson);
+        when(formSvc.dryValidationAndCleanupTaskForm(taskId, inputVariables, taskVariables, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(cleanDataJson);
         when(formService
                 .getTaskFormData(taskId)
                 .getFormKey())
@@ -1185,7 +1184,7 @@ public class TaskSvcTest extends ServiceTest {
     @Test
     public void testGetNextAssignedTask() throws IOException, URISyntaxException {
         when(identityService.userId()).thenReturn("testUser");
-        Deployment deployment = createDeployment("tasks", "process-with-assigned-task.bpmn");
+        createDeployment("tasks", "process-with-assigned-task.bpmn");
         ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("Process_with_assigned_task");
 
         Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance.getProcessInstanceId());
@@ -1197,7 +1196,7 @@ public class TaskSvcTest extends ServiceTest {
     @Test
     public void testGetNextAssignedTask_multipleTasks() throws IOException, URISyntaxException {
         when(identityService.userId()).thenReturn("testUser");
-        Deployment deployment = createDeployment("tasks", "process-with-two-simultaneous-assigned-tasks.bpmn");
+        createDeployment("tasks", "process-with-two-simultaneous-assigned-tasks.bpmn");
         ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("Process_with_two_simultaneous_assigned_tasks");
 
         Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance.getProcessInstanceId());
@@ -1208,7 +1207,7 @@ public class TaskSvcTest extends ServiceTest {
     @Test
     public void testGetNextAssignedTask_noTasks() throws IOException, URISyntaxException {
         when(identityService.userId()).thenReturn("testUser");
-        Deployment deployment = createDeployment("tasks", "test-process-startable-by-testUser.bpmn");
+        createDeployment("tasks", "test-process-startable-by-testUser.bpmn");
         ProcessInstance processInstance = getRuntimeService().startProcessInstanceByKey("testProcessStartableByTestUser");
 
         Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance.getProcessInstanceId());
