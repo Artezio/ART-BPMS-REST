@@ -64,19 +64,19 @@ function loadResources() {
     loadStartableProcesses();
 }
 
-function loadNextTaskOrCloseForm(response) {
-    console.log(response);
-    if ((response !== undefined) && (response.id)) {
-        console.log("Current form title will be " + response.name);
-        $('#current-form .title').text(response.name);
-        TaskForms.load(response.id);
+function loadNextTaskOrCloseForm(task) {
+    console.log(task);
+    if ((task !== undefined) && (task.id)) {
+        console.log("Current form title will be " + task.name);
+        $('#current-form .title').text(task.name);
+        TaskForms.load(task);
     } else {
         closeCurrentForm();
     }
     loadResources();
 }
 
-function startProcessWithoutStartForm(processDefinitionKey) {
+function startProcessWithoutStartForm(processDefinitionId, processDefinitionKey) {
     clearErrors();
     refreshToken().then(
         $.ajax({
@@ -122,7 +122,7 @@ function parseProcessDefinitions(processDefinitions) {
                     $('<button>')
                         .attr('class', 'btn btn-primary')
                         .text('Start the process')
-                        .click(() => startProcessWithoutStartForm(key))
+                        .click(() => startProcessWithoutStartForm(id, key))
                 );
             }
         }
@@ -161,9 +161,8 @@ function loadStartableProcesses() {
 function setAssignedTasks(tasks) {
     var taskList = $('#assigned-tasks');
     taskList.empty();
-    tasks.forEach(def => {
-        var taskName = def.name || '';
-        var taskId = def.id;
+    tasks.forEach(task => {
+        var taskName = task.name || '';
         taskList.append(
             $('<button>')
                 .attr('class', 'list-group-item list-group-item-info')
@@ -172,7 +171,7 @@ function setAssignedTasks(tasks) {
                     function () {
                         closeCurrentForm();
                         $('#current-form .title').text(taskName.replace(/^(\D+?)"(\d{7})"$/, fullUserNameReplacer));
-                        TaskForms.load(taskId);
+                        TaskForms.load(task);
                     }
                 ));
     });
@@ -203,9 +202,9 @@ function loadAssignedTasks() {
 function setAvailableTasks(tasks) {
     var taskList = $('#available-tasks');
     taskList.empty();
-    tasks.forEach(def => {
-        var taskName = def.name || '';
-        var taskId = def.id;
+    tasks.forEach(task => {
+        var taskName = task.name || '';
+        var taskId = task.id;
         taskList.append(
             $('<button>')
                 .attr('class', 'list-group-item list-group-item-info')
@@ -254,21 +253,36 @@ function claimTask(taskId) {
         });
 }
 
-function prepareEnvironmentForFormio({ processDefinitionId, processDefinitionKey }) {
+function prepareEnvironmentForFormio({ processDefinitionId, processDefinitionKey, formKey }) {
+    return async () => {
+        let _formKey;
+        if (formKey) {
+            _formKey = formKey;
+        } else if (processDefinitionKey) {
+            _formKey = await getFormKey(processDefinitionKey);
+        } else {
+            throw new Error('Either formKey or processDefinitionKey not provided');
+        }
+        return loadBaseUrl({ processDefinitionId, processDefinitionKey, formKey: _formKey })
+            .then(setBaseUrl)
+            .then(loadCustomComponents)
+    }
     return () => getFormKey({ processDefinitionId, processDefinitionKey })
         .then(loadBaseUrl)
         .then(setBaseUrl)
         .then(loadCustomComponents)
 }
 
-function getFormKey({ processDefinitionKey, ...rest }) {
+function getFormKey(processDefinitionKey) {
     return $.ajax({
         method: 'GET',
         url: `${bpmsRestApi}/process-definition/key/${processDefinitionKey}/form`,
         headers: {
             'Authorization': 'Bearer ' + keycloak.token
         }
-    }).then(data => ({ ...rest, processDefinitionKey, formKey: data.key }))
+    }).then(data => {
+        return data.key
+    })
 }
 
 function loadBaseUrl({ processDefinitionId, formKey, ...rest }) {
@@ -401,7 +415,7 @@ var ProcessStartForms = {
                                 console.log('submission', submission);
                                 ProcessStartForms.submit(processDefinitionKey, preparedToSubmissionData)
                                     .then(response => {
-                                        loadNextTaskOrCloseForm(response);
+                                        loadNextTaskOrCloseForm(processDefinitionId, processDefinitionKey, response);
                                     },
                                         (xhr, textStatus) => {
                                             if (xhr.status === 401) {
@@ -446,14 +460,17 @@ var TaskForms = {
                 }));
     },
 
-    load: function (taskId) {
+    load: function (task) {
+        const taskId = task.id;
+        const formKey = task.formKey;
+        const processDefinitionId = task.processDefinitionId;
         clearErrors();
         refreshToken()
-            .then(prepareEnvironmentForFormio)
+            .then(prepareEnvironmentForFormio({ processDefinitionId: processDefinitionId, formKey: formKey }))
             .then(_ =>
                 $.ajax({
                     method: 'GET',
-                    url: bpmsRestApi + '/task/' + taskId + '/rendered-form',
+                    url: bpmsRestApi + '/task/' + taskId + '/form',
                     headers: {
                         'Authorization': 'Bearer ' + keycloak.token
                     }
