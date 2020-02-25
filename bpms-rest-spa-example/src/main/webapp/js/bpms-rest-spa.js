@@ -162,7 +162,7 @@ function setAssignedTasks(tasks) {
     var taskList = $('#assigned-tasks');
     taskList.empty();
     tasks.forEach(def => {
-        var taskName = def.name;
+        var taskName = def.name || '';
         var taskId = def.id;
         taskList.append(
             $('<button>')
@@ -204,7 +204,7 @@ function setAvailableTasks(tasks) {
     var taskList = $('#available-tasks');
     taskList.empty();
     tasks.forEach(def => {
-        var taskName = def.name;
+        var taskName = def.name || '';
         var taskId = def.id;
         taskList.append(
             $('<button>')
