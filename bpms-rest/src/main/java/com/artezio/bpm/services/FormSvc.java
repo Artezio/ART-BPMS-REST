@@ -11,7 +11,6 @@ import org.camunda.bpm.engine.task.Task;
 
 import javax.inject.Inject;
 import javax.inject.Named;
-import javax.servlet.ServletContext;
 import java.util.List;
 import java.util.Map;
 
@@ -31,7 +30,7 @@ public class FormSvc {
 
     public String getTaskFormWithData(String taskId, Map<String, Object> variables, String formResourcesDirectory) {
         String formKey = getTaskFormKey(taskId);
-        String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
+        String deploymentId = getDeploymentIdFromTask(taskId);
         ObjectNode data = variablesMapper.toJsonNode(variables);
         ResourceLoader resourceLoader = AbstractResourceLoader.getResourceLoader(deploymentId, formKey, formResourcesDirectory);
         return formClient.getFormWithData(formKey, data, resourceLoader);
@@ -39,35 +38,50 @@ public class FormSvc {
 
     public String getStartFormWithData(String processDefinitionId, Map<String, Object> variables, String formResourcesDirectory) {
         String formKey = getStartFormKey(processDefinitionId);
-        String deploymentId = formService.getStartFormData(processDefinitionId).getDeploymentId();
+        String deploymentId = getDeploymentIdFromProcessDefinition(processDefinitionId);
         ObjectNode data = variablesMapper.toJsonNode(variables);
         ResourceLoader resourceLoader = AbstractResourceLoader.getResourceLoader(deploymentId, formKey, formResourcesDirectory);
         return formClient.getFormWithData(formKey, data, resourceLoader);
     }
 
-    public String dryValidationAndCleanupTaskForm(String taskId, Map<String, Object> formVariables, String formResourcesDir) {
+    public String dryValidationAndCleanupTaskForm(String taskId, Map<String, Object> formVariables, Map<String, Object> taskVariables,
+                                                  String formResourcesDir) {
         String formKey = getTaskFormKey(taskId);
-        String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
+        String deploymentId = getDeploymentIdFromTask(taskId);
         ResourceLoader resourceLoader = AbstractResourceLoader.getResourceLoader(deploymentId, formKey, formResourcesDir);
-        List<String> formVariableNames = formClient.getFormVariableNames(formKey, resourceLoader);
-        ObjectNode processVariablesJson = variablesMapper.toJsonNode(taskService.getVariables(taskId, formVariableNames));
+        ObjectNode processVariablesJson = variablesMapper.toJsonNode(taskVariables);
         ObjectNode formVariablesJson = variablesMapper.toJsonNode(formVariables);
         return formClient.dryValidationAndCleanup(formKey, formVariablesJson, processVariablesJson, resourceLoader);
     }
 
     public String dryValidationAndCleanupStartForm(String processDefinitionId, Map<String, Object> formVariables, String formResourcesDir) {
         String formKey = getStartFormKey(processDefinitionId);
-        String deploymentId = formService.getStartFormData(processDefinitionId).getDeploymentId();
+        String deploymentId = getDeploymentIdFromProcessDefinition(processDefinitionId);
         ObjectNode formVariablesJson = variablesMapper.toJsonNode(formVariables);
         ResourceLoader resourceLoader = AbstractResourceLoader.getResourceLoader(deploymentId, formKey, formResourcesDir);
         return formClient.dryValidationAndCleanup(formKey, formVariablesJson, JSON_MAPPER.createObjectNode(), resourceLoader);
     }
 
+    private String getDeploymentIdFromProcessDefinition(String processDefinitionId) {
+        return formService.getStartFormData(processDefinitionId).getDeploymentId();
+    }
+
     public boolean shouldProcessSubmittedData(String taskId, String decision, String formResourcesDir) {
         String formKey = getTaskFormKey(taskId);
-        String deploymentId = formService.getTaskFormData(taskId).getDeploymentId();
+        String deploymentId = getDeploymentIdFromTask(taskId);
         ResourceLoader resourceLoader = AbstractResourceLoader.getResourceLoader(deploymentId, formKey, formResourcesDir);
         return formClient.shouldProcessSubmission(formKey, decision, resourceLoader);
+    }
+
+    public List<String> getTaskFormFieldsNames(String taskId, String formResourcesDir) {
+        String formKey = getTaskFormKey(taskId);
+        String deploymentId = getDeploymentIdFromTask(taskId);
+        ResourceLoader resourceLoader = AbstractResourceLoader.getResourceLoader(deploymentId, formKey, formResourcesDir);
+        return formClient.getFormVariableNames(formKey, resourceLoader);
+    }
+
+    private String getDeploymentIdFromTask(String taskId) {
+        return formService.getTaskFormData(taskId).getDeploymentId();
     }
 
     private String getTaskFormKey(String taskId) {
