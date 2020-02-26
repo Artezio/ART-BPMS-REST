@@ -19,7 +19,7 @@
     <link rel='stylesheet' href='css/formio.full-3.22.9.min.css'>
     <script src="<%=KEYCLOAK_SERVER_URL%>/js/keycloak.js" type="application/javascript"></script>
     <script src="js/lib/jquery-3.3.1.min.js" type="application/javascript"></script>
-    <script src='js/lib/formio.full-3.22.9.min.js' type="application/javascript"></script>
+    <script src="js/lib/formio.full-4.9.0-rc.2.min.js" type="application/javascript"></script>
     <script src='js/bpms-rest-spa.js' type="application/javascript"></script>
     <style type="text/css">
         .table-borderless table,
