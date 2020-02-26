@@ -17,6 +17,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.ext.Provider;
 import java.util.HashMap;
 import java.util.Map;
+import org.camunda.bpm.engine.exception.DeploymentResourceNotFoundException;
 
 import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 
@@ -35,6 +36,7 @@ public class ExceptionMapper implements javax.ws.rs.ext.ExceptionMapper<Throwabl
             put(EJBAccessException.class, Status.FORBIDDEN);
             put(NotFoundException.class, Status.NOT_FOUND);
             put(NotAuthorizedException.class, Status.FORBIDDEN);
+            put(DeploymentResourceNotFoundException.class, Status.NOT_FOUND);
         }
     };
 

@@ -11,12 +11,18 @@ import org.camunda.bpm.engine.identity.User;
 import org.camunda.bpm.engine.impl.persistence.entity.ResourceEntity;
 import org.camunda.bpm.engine.repository.Deployment;
 import org.camunda.bpm.engine.repository.DeploymentBuilder;
+import org.camunda.bpm.engine.repository.ProcessDefinition;
 import org.camunda.bpm.engine.task.Task;
 import org.camunda.bpm.engine.test.ProcessEngineRule;
 import org.camunda.bpm.engine.variable.impl.value.builder.FileValueBuilderImpl;
 import org.camunda.bpm.engine.variable.value.FileValue;
 import org.junit.Rule;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
 
+import javax.enterprise.inject.Instance;
+import javax.enterprise.inject.spi.CDI;
+import javax.servlet.ServletContext;
 import javax.ws.rs.core.Response;
 import java.io.File;
 import java.io.FileInputStream;
@@ -30,8 +36,13 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 abstract public class ServiceTest {
+
+    protected static final String PUBLIC_RESOURCES_DIRECTORY = "public";
+
     @Rule
     public ProcessEngineRule processEngineRule = new ProcessEngineRule();
 
@@ -203,6 +214,13 @@ abstract public class ServiceTest {
 
     byte[] decodeFromBase64(String encodedString) {
         return Base64.getMimeDecoder().decode(encodedString);
+    }
+    
+    protected ProcessDefinition getLastProcessDefinition(String processDefinitionKey) {
+        return getRepositoryService().createProcessDefinitionQuery()
+                .latestVersion()
+                .processDefinitionKey(processDefinitionKey)
+                .singleResult();
     }
 
 }

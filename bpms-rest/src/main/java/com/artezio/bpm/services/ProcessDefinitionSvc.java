@@ -1,6 +1,7 @@
 package com.artezio.bpm.services;
 
 import com.artezio.bpm.rest.dto.repository.ProcessDefinitionRepresentation;
+import com.artezio.bpm.rest.dto.task.FormDto;
 import com.artezio.bpm.rest.dto.task.TaskRepresentation;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.validation.VariableValidator;
@@ -34,12 +35,12 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.artezio.bpm.services.DeploymentSvc.PUBLIC_RESOURCES_DIRECTORY;
 import static com.artezio.bpm.services.VariablesMapper.EXTENSION_NAME_PREFIX;
 import static com.artezio.logging.Log.Level.CONFIG;
 import static java.util.Collections.emptyMap;
@@ -134,7 +135,42 @@ public class ProcessDefinitionSvc {
     }
 
     @GET
-    @Path("/key/{process-definition-key}/form")
+    @Path("key/{process-definition-key}/rendered-form")
+    @Produces(APPLICATION_JSON)
+    @PermitAll
+    @Operation(
+            description = "Load the start form definition in formio format with data for the process, if any.",
+            externalDocs = @ExternalDocumentation(
+                    url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/process-definition-service-api-docs.md"
+            ),
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Request successful.",
+                            content = @Content(mediaType = APPLICATION_JSON)
+                    ),
+                    @ApiResponse(
+                            responseCode = "403",
+                            description = "The user doesn't have an access to load start form for the process."
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "No deployed form for a given process definition exists."
+                    )
+            }
+    )
+    @Log(beforeExecuteMessage = "Loading start form for process '{0}'", afterExecuteMessage = "Start form for process '{0}' successfully loaded")
+    public String loadRenderedStartForm(
+            @Parameter(description = "The key of the process definition, which form is loaded for.") @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey) throws IOException {
+        ProcessDefinition processDefinition = getLastProcessDefinition(processDefinitionKey);
+        ensureStartableByUser(processDefinition);
+        FormData formData = camundaFormService.getStartFormData(processDefinition.getId());
+        Map<String, Object> startFormVariables = getStartFormVariables(formData);
+        return formService.getStartFormWithData(processDefinition.getId(), startFormVariables, PUBLIC_RESOURCES_DIRECTORY);
+    }
+
+    @GET
+    @Path("key/{process-definition-key}/form")
     @Produces(APPLICATION_JSON)
     @PermitAll
     @Operation(
@@ -158,23 +194,22 @@ public class ProcessDefinitionSvc {
                     )
             }
     )
-    @Log(beforeExecuteMessage = "Loading start form for process '{0}'", afterExecuteMessage = "Start form for process '{0}' successfully loaded")
-    public String loadStartForm(
+    public FormDto loadStartForm( 
             @Parameter(description = "The key of the process definition, which form is loaded for.") @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey) throws IOException {
         ProcessDefinition processDefinition = getLastProcessDefinition(processDefinitionKey);
         ensureStartableByUser(processDefinition);
         FormData formData = camundaFormService.getStartFormData(processDefinition.getId());
-        Map<String, Object> startFormVariables = getStartFormVariables(formData);
-        return formService.getStartFormWithData(processDefinition.getId(), startFormVariables);
+        return FormDto.fromFormData(formData);
     }
-
+    
     protected boolean isStartableByUser(ProcessDefinition processDefinition) {
         List<IdentityLink> links = repositoryService.getIdentityLinksForProcessDefinition(processDefinition.getId());
         return userHasAccess(links);
     }
 
     protected boolean userHasAccess(List<IdentityLink> links) {
-        return userIsInCandidateGroup(links)
+        return links.isEmpty() 
+                || userIsInCandidateGroup(links)
                 || userIsCandidate(links);
     }
 
@@ -200,7 +235,7 @@ public class ProcessDefinitionSvc {
         if (formKey == null) {
             throw new RuntimeException("Process has no start form");
         } else {
-            String validatedVariablesJson = formService.dryValidationAndCleanupStartForm(processDefinitionId, inputVariables);
+            String validatedVariablesJson = formService.dryValidationAndCleanupStartForm(processDefinitionId, inputVariables, PUBLIC_RESOURCES_DIRECTORY);
             Map<String, Object> formVariables = getStartFormVariables(formData);
             variablesMapper.updateVariables(formVariables, validatedVariablesJson);
             return formVariables;

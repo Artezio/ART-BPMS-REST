@@ -4,8 +4,8 @@ import com.artezio.bpm.resources.ResourceLoader;
 import com.artezio.forms.FormClient;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import junitx.framework.ListAssert;
 import org.camunda.bpm.engine.TaskService;
-import org.camunda.bpm.engine.repository.Deployment;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.task.Task;
 import org.junit.After;
@@ -14,30 +14,37 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
+import javax.enterprise.inject.Instance;
+import javax.enterprise.inject.spi.CDI;
+import javax.servlet.ServletContext;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.URISyntaxException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static java.util.Arrays.asList;
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.internal.util.reflection.FieldSetter.setField;
 
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(CDI.class)
 public class FormSvcTest extends ServiceTest {
 
     @InjectMocks
     private FormSvc formSvc = new FormSvc();
     @Mock
-    private FormClient formioClient;
+    private FormClient formClient;
     @Mock
     private VariablesMapper variablesMapper;
 
@@ -47,6 +54,12 @@ public class FormSvcTest extends ServiceTest {
         Field taskServiceField = formSvc.getClass().getDeclaredField("taskService");
         setField(formSvc, formServiceField, getFormService());
         setField(formSvc, taskServiceField, getTaskService());
+        PowerMockito.mockStatic(CDI.class);
+        CDI cdiContext = mock(CDI.class);
+        Instance<ServletContext> servletContextInstance = mock(Instance.class);
+        when(CDI.current()).thenReturn(cdiContext);
+        when(cdiContext.select(ServletContext.class)).thenReturn(servletContextInstance);
+        when(servletContextInstance.get()).thenReturn(null);
     }
 
     @After
@@ -83,9 +96,9 @@ public class FormSvcTest extends ServiceTest {
         String expected = "{someFormWithData}";
 
         when(variablesMapper.toJsonNode(taskVariables)).thenReturn(taskVariablesNode);
-        when(formioClient.getFormWithData(eq(formKey), eq(taskVariablesNode), any(ResourceLoader.class))).thenReturn(expected);
+        when(formClient.getFormWithData(eq(formKey), eq(taskVariablesNode), any(ResourceLoader.class))).thenReturn(expected);
 
-        String actual = formSvc.getTaskFormWithData(task.getId(), taskVariables);
+        String actual = formSvc.getTaskFormWithData(task.getId(), taskVariables, PUBLIC_RESOURCES_DIRECTORY);
 
         assertEquals(expected, actual);
     }
@@ -100,9 +113,9 @@ public class FormSvcTest extends ServiceTest {
         ObjectNode taskVariablesNode = JsonNodeFactory.instance.objectNode();
 
         when(variablesMapper.toJsonNode(taskVariables)).thenReturn(taskVariablesNode);
-        when(formioClient.getFormWithData(eq(formKey), eq(taskVariablesNode), any(ResourceLoader.class))).thenReturn(expected);
+        when(formClient.getFormWithData(eq(formKey), eq(taskVariablesNode), any(ResourceLoader.class))).thenReturn(expected);
 
-        String actual = formSvc.getStartFormWithData(processInstance.getProcessDefinitionId(), taskVariables);
+        String actual = formSvc.getStartFormWithData(processInstance.getProcessDefinitionId(), taskVariables, PUBLIC_RESOURCES_DIRECTORY);
 
         assertEquals(expected, actual);
     }
@@ -116,9 +129,9 @@ public class FormSvcTest extends ServiceTest {
         String decision = "submitted";
         String formKey = "Form_1";
 
-        when(formioClient.shouldProcessSubmission(eq(formKey), eq(decision), any(ResourceLoader.class))).thenReturn(true);
+        when(formClient.shouldProcessSubmission(eq(formKey), eq(decision), any(ResourceLoader.class))).thenReturn(true);
 
-        boolean shouldSkipValidation = formSvc.shouldProcessSubmittedData(taskId, decision);
+        boolean shouldSkipValidation = formSvc.shouldProcessSubmittedData(taskId, decision, PUBLIC_RESOURCES_DIRECTORY);
 
         assertTrue(shouldSkipValidation);
     }
@@ -132,11 +145,26 @@ public class FormSvcTest extends ServiceTest {
         String decision = "canceled";
         String formKey = "Form_1";
 
-        when(formioClient.shouldProcessSubmission(eq(formKey), eq(decision), any(ResourceLoader.class))).thenReturn(false);
+        when(formClient.shouldProcessSubmission(eq(formKey), eq(decision), any(ResourceLoader.class))).thenReturn(false);
 
-        boolean actual = formSvc.shouldProcessSubmittedData(taskId, decision);
+        boolean actual = formSvc.shouldProcessSubmittedData(taskId, decision, PUBLIC_RESOURCES_DIRECTORY);
 
         assertFalse(actual);
+    }
+
+    @Test
+    public void testGetFormFieldsNames() throws IOException, URISyntaxException {
+        createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
+        getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
+        String taskId = getTaskService().createTaskQuery().taskDefinitionKey("Task_1").singleResult().getId();
+        String formKey = "Form_1";
+        List<String> expected = asList("formField1", "formField2");
+
+        when(formClient.getFormVariableNames(eq(formKey), any(ResourceLoader.class))).thenReturn(expected);
+
+        List<String> actual = formSvc.getTaskFormFieldsNames(taskId, PUBLIC_RESOURCES_DIRECTORY);
+
+        ListAssert.assertEquals(expected, actual);
     }
 
 }

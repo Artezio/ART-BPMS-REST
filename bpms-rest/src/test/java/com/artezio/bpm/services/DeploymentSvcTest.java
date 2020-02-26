@@ -2,10 +2,13 @@ package com.artezio.bpm.services;
 
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
 import de.otto.edison.hal.HalRepresentation;
+import de.otto.edison.hal.Link;
+
 import org.camunda.bpm.application.ProcessApplicationInterface;
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.impl.persistence.entity.ResourceEntity;
 import org.camunda.bpm.engine.repository.Deployment;
+import org.camunda.bpm.engine.repository.ProcessDefinition;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 import org.junit.After;
@@ -25,12 +28,14 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
@@ -139,19 +144,6 @@ public class DeploymentSvcTest extends ServiceTest {
     }
 
     @Test
-    @Ignore
-    public void listFormResources() throws IOException, URISyntaxException {
-        createDeployment("Form resources load test", "forms-with-embedded-deployment-protocol.bpmn", "bpm-resources/texteditor.js");
-        String processDefinitionId = getRepositoryService().createProcessDefinitionQuery().processDefinitionKey("formResourcesLoadTest").singleResult().getId();
-        when(httpRequest.getRequestURL()).thenReturn(new StringBuffer("http://localhost:8080/bpms-rest/deployment/form-resources"));
-
-        HalRepresentation actual =  deploymentSvc.listPublicResources(processDefinitionId, null, "embedded:deployment:/startForm");
-
-        String actualHref = actual.getLinks().getLinkBy("items").get().getHref();
-        assertTrue(actualHref.matches("http://localhost:8080/bpms-rest/deployment/form-resource/.*/embedded%3Adeployment%3Acustom-components%2Ftexteditor.js"));
-    }
-    
-    @Test
     public void testExpandZipArchive() {
         InputStream zipIn = Thread.currentThread().getContextClassLoader().getResourceAsStream("compressed-resources.zip");
         
@@ -223,6 +215,34 @@ public class DeploymentSvcTest extends ServiceTest {
 
     private String getExistingDeploymentId() {
         return getDeploymentList().get(0).getId();
+    }
+    
+    @Test
+    @org.camunda.bpm.engine.test.Deployment(resources = {"process-with-froms-from-deployment.bpmn", "public/simpleStartForm.json", "public/simpleTaskForm.json"})
+    public void testListPublicResources() {
+        ProcessDefinition processDefinition = getLastProcessDefinition("processWithFormsFromDeployment");
+        String startFormKey = getFormService().getStartFormKey(processDefinition.getId());
+        when(httpRequest.getRequestURL()).thenReturn(new StringBuffer("http://localhost:8080/bpms-rest/api/deployment/public-resources"));
+        
+        HalRepresentation actual = deploymentSvc.listPublicResources(processDefinition.getId(), null, startFormKey);
+        
+        Link baseUrl = actual.getLinks().getLinkBy("resourcesBaseUrl").get();
+        List<String> actualItemNames = actual.getLinks().getLinksBy("items").stream().map(Link::getName).collect(Collectors.toList());
+        List<String> actualHrefs = actual.getLinks().getLinksBy("items").stream().map(Link::getHref).collect(Collectors.toList());
+        
+        assertEquals(String.format("http://localhost:8080/bpms-rest/api/deployment/public-resource/embedded:deployment:/%s/", processDefinition.getDeploymentId()), baseUrl.getHref());
+        assertTrue(actualItemNames.contains("simpleStartForm.json"));
+        assertTrue(actualHrefs.contains(String.format("http://localhost:8080/bpms-rest/api/deployment/public-resource/embedded:deployment:/%s/simpleStartForm.json", processDefinition.getDeploymentId())));
+    }
+    
+    @Test
+    @org.camunda.bpm.engine.test.Deployment(resources = {"process-with-froms-from-deployment.bpmn", "public/simpleStartForm.json"})
+    public void testGetPublicResource() throws UnsupportedEncodingException {
+        ProcessDefinition processDefinition = getLastProcessDefinition("processWithFormsFromDeployment");
+        
+        InputStream actual = deploymentSvc.getPublicResource("embedded:deployment:", processDefinition.getDeploymentId(), "simpleStartForm.json");
+        
+        assertNotNull(actual);
     }
 
 }
