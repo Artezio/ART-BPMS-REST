@@ -33,6 +33,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -63,6 +64,7 @@ import static org.camunda.bpm.engine.test.assertions.ProcessEngineTests.*;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({CDI.class})
+@PowerMockIgnore({"com.sun.org.apache.*", "javax.xml.*", "java.xml.*", "org.xml.*", "org.w3c.dom.*"})
 public class TaskSvcTest extends ServiceTest {
 
     @InjectMocks
@@ -83,12 +85,10 @@ public class TaskSvcTest extends ServiceTest {
     private FileStorage fileStorage = new Base64UrlFileStorage();
 
     @Before
-    public void init() throws NoSuchFieldException {
+    public void init() {
         setupMockFileStorage();
-        Field taskServiceField = taskSvc.getClass().getDeclaredField("taskService");
-        setField(taskSvc, taskServiceField, getTaskService());
-        Field fileStorageField = taskSvc.getClass().getDeclaredField("fileStorage");
-        setField(taskSvc, fileStorageField, fileStorage);
+        setInternalState(taskSvc, "taskService", getTaskService());
+        setInternalState(taskSvc, "fileStorage", fileStorage);
     }
 
     private void setupMockFileStorage() {

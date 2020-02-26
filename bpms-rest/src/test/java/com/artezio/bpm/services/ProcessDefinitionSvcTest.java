@@ -22,7 +22,6 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.net.URISyntaxException;
 import java.util.*;
 
@@ -30,10 +29,10 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
 import static junit.framework.TestCase.*;
 import static org.easymock.EasyMock.*;
-import static org.mockito.internal.util.reflection.FieldSetter.setField;
+import static org.powermock.reflect.Whitebox.setInternalState;
 
 @RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"javax.net.ssl.*"})
+@PowerMockIgnore({"com.sun.org.apache.*", "javax.xml.*", "java.xml.*", "org.xml.*", "org.w3c.dom.*"})
 public class ProcessDefinitionSvcTest extends ServiceTest {
 
     private final String TEST_USER_ID = "testUser";
@@ -55,16 +54,12 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
     private ProcessDefinitionSvc processDefinitionSvc = new ProcessDefinitionSvc();
 
     @Before
-    public void init() throws NoSuchFieldException {
+    public void init() {
         EasyMockSupport.injectMocks(this);
-        Field repositoryServiceField = processDefinitionSvc.getClass().getDeclaredField("repositoryService");
-        Field camundaFormServiceField = processDefinitionSvc.getClass().getDeclaredField("camundaFormService");
-        Field runtimeServiceField = processDefinitionSvc.getClass().getDeclaredField("runtimeService");
-        Field taskServiceField = processDefinitionSvc.getClass().getDeclaredField("taskService");
-        setField(processDefinitionSvc, repositoryServiceField, getRepositoryService());
-        setField(processDefinitionSvc, runtimeServiceField, getRuntimeService());
-        setField(processDefinitionSvc, camundaFormServiceField, getFormService());
-        setField(processDefinitionSvc, taskServiceField, taskSvc);
+        setInternalState(processDefinitionSvc, "repositoryService", getRepositoryService());
+        setInternalState(processDefinitionSvc, "camundaFormService", getFormService());
+        setInternalState(processDefinitionSvc, "runtimeService", getRuntimeService());
+        setInternalState(processDefinitionSvc, "taskService", taskSvc);
     }
 
     @After

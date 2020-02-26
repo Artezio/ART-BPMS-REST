@@ -25,6 +25,7 @@
 		<maven-war-plugin.version>3.2.2</maven-war-plugin.version>
 		<replacer.version>1.5.3</replacer.version>
 		<swagger-ui.version>3.17.0</swagger-ui.version>
+		<powermock.version>2.0.5</powermock.version>
 	</properties>
 
 	<dependencyManagement>
@@ -217,25 +218,25 @@
 		<dependency>
 			<groupId>org.powermock</groupId>
 			<artifactId>powermock-module-junit4</artifactId>
-			<version>1.7.3</version>
+			<version>${powermock.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.powermock</groupId>
 			<artifactId>powermock-api-mockito2</artifactId>
-			<version>1.7.3</version>
+			<version>${powermock.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.powermock</groupId>
 			<artifactId>powermock-api-easymock</artifactId>
-			<version>1.7.3</version>
+			<version>${powermock.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.easymock</groupId>
 			<artifactId>easymock</artifactId>
-			<version>3.5.1</version>
+			<version>4.0.2</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -262,6 +263,12 @@
 			<version>2.4.6.Final</version>
 			<scope>test</scope>
 		</dependency>
+        <dependency>
+            <groupId>org.javassist</groupId>
+            <artifactId>javassist</artifactId>
+            <version>3.25.0-GA</version>
+            <scope>test</scope>
+        </dependency>
 		<dependency>
 			<groupId>org.codehaus.groovy</groupId>
 			<artifactId>groovy-all</artifactId>
