@@ -440,6 +440,7 @@ public class TaskSvc {
         List<Task> assignedTasks = taskService.createTaskQuery()
                 .processInstanceId(processInstanceId)
                 .taskAssignee(identityService.userId())
+                .initializeFormKeys()
                 .list();
         return assignedTasks.size() == 1
                 ? assignedTasks.get(0)
@@ -452,6 +453,7 @@ public class TaskSvc {
         List<Task> assignedTasks = taskService.createTaskQuery()
                 .caseInstanceId(caseExecution.getCaseInstanceId())
                 .taskAssignee(identityService.userId())
+                .initializeFormKeys()
                 .list();
         return assignedTasks.size() == 1
                 ? assignedTasks.get(0)
