@@ -61,6 +61,7 @@ import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.*;
 import static org.mockito.internal.util.reflection.FieldSetter.setField;
 import static org.camunda.bpm.engine.test.assertions.ProcessEngineTests.*;
+import static org.powermock.reflect.Whitebox.setInternalState;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({CDI.class})
