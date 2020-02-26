@@ -165,7 +165,7 @@ function setAssignedTasks(tasks) {
         var taskName = task.name || '';
         taskList.append(
             $('<button>')
-                .attr('class', 'list-group-item list-group-item-info')
+                .attr('class', 'list-group-item sidebar__tab__task')
                 .text(taskName.replace(/^(\D+?)"(\d{7})"$/, fullUserNameReplacer))
                 .click(
                     function () {
@@ -267,10 +267,6 @@ function prepareEnvironmentForFormio({ processDefinitionId, processDefinitionKey
             .then(setBaseUrl)
             .then(loadCustomComponents)
     }
-    return () => getFormKey({ processDefinitionId, processDefinitionKey })
-        .then(loadBaseUrl)
-        .then(setBaseUrl)
-        .then(loadCustomComponents)
 }
 
 function getFormKey(processDefinitionKey) {
@@ -312,6 +308,7 @@ function setBaseUrl({ resources, ...rest }) {
 function loadCustomComponents({ resources, ...rest }) {
     if (!(resources && resources._links && Array.isArray(resources._links.items))) {
         console.info('No items provided!');
+        return Promise.resolve();
     }
     const customComponentsSources = resources._links.items
         .map(item => item.href)
