@@ -194,7 +194,6 @@ public class ProcessDefinitionSvc {
                     )
             }
     )
-    //TODO: Test me
     public FormDto loadStartForm( 
             @Parameter(description = "The key of the process definition, which form is loaded for.") @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey) throws IOException {
         ProcessDefinition processDefinition = getLastProcessDefinition(processDefinitionKey);
@@ -209,7 +208,8 @@ public class ProcessDefinitionSvc {
     }
 
     protected boolean userHasAccess(List<IdentityLink> links) {
-        return userIsInCandidateGroup(links)
+        return links.isEmpty() 
+                || userIsInCandidateGroup(links)
                 || userIsCandidate(links);
     }
 

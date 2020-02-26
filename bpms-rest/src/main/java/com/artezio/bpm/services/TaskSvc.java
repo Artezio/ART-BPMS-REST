@@ -206,7 +206,8 @@ public class TaskSvc {
                 .or()
                 .taskCandidateGroupIn(identityService.userGroups())
                 .taskCandidateUser(identityService.userId())
-                .endOr();
+                .endOr()
+                .initializeFormKeys();
 
         return taskQuery
                 .list()
@@ -281,7 +282,8 @@ public class TaskSvc {
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of assigned task")
     public List<TaskRepresentation> listAssigned(@BeanParam TaskQueryParams queryParams) {
         TaskQuery taskQuery = createTaskQuery(queryParams)
-                .taskAssignee(identityService.userId());
+                .taskAssignee(identityService.userId())
+                .initializeFormKeys();
 
         return taskQuery
                 .list()
