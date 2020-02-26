@@ -165,7 +165,7 @@ function setAssignedTasks(tasks) {
         var taskName = task.name || '';
         taskList.append(
             $('<button>')
-                .attr('class', 'list-group-item sidebar__tab__task')
+                .attr('class', 'list-group-item list-group-item-info')
                 .text(taskName.replace(/^(\D+?)"(\d{7})"$/, fullUserNameReplacer))
                 .click(
                     function () {
