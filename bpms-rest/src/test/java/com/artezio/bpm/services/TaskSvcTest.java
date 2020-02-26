@@ -17,10 +17,13 @@ import org.camunda.bpm.engine.history.HistoricTaskInstance;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.runtime.ProcessInstanceQuery;
 import org.camunda.bpm.engine.task.Task;
+import org.camunda.bpm.engine.test.Deployment;
 import org.camunda.bpm.engine.variable.Variables;
 import org.camunda.bpm.engine.variable.value.FileValue;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.instance.Process;
+import org.camunda.bpm.scenario.ProcessScenario;
+import org.camunda.bpm.scenario.Scenario;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -56,6 +59,7 @@ import static org.junit.Assert.*;
 import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.*;
 import static org.mockito.internal.util.reflection.FieldSetter.setField;
+import static org.camunda.bpm.engine.test.assertions.ProcessEngineTests.*;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({CDI.class})
@@ -1213,6 +1217,41 @@ public class TaskSvcTest extends ServiceTest {
         Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance.getProcessInstanceId());
 
         assertNull(nextAssignedTask);
+    }
+    
+    @Test
+    @Deployment(resources = "process-with-froms-from-deployment.bpmn")
+    public void testInitializeFormKeyForAvailableList() {
+        String processInstanceId = runtimeService()
+                .startProcessInstanceByKey("processWithFormsFromDeployment")
+                .getId();
+        when(identityService.userGroups()).thenReturn(Arrays.asList(""));
+        when(identityService.userId()).thenReturn("testUser");
+        
+        TaskRepresentation actual = taskSvc.listAvailable(new TaskQueryParams())
+            .stream()
+            .filter(task -> task.getProcessInstanceId().equals(processInstanceId))
+            .findAny()
+            .get();
+        
+        assertEquals("embedded:deployment:forms/simpleTaskForm", actual.getFormKey());
+    }
+
+    @Test
+    @Deployment(resources = "process-with-froms-from-deployment.bpmn")
+    public void testInitializeFormKeyForAssignedList() {
+        ProcessInstance processInstance = runtimeService()
+                .startProcessInstanceByKey("processWithFormsFromDeployment");
+        taskService().claim(task(processInstance).getId(), "testUser");
+        when(identityService.userId()).thenReturn("testUser");
+        
+        TaskRepresentation actual = taskSvc.listAssigned(new TaskQueryParams())
+                .stream()
+                .filter(task -> task.getProcessInstanceId().equals(processInstance.getId()))
+                .findAny()
+                .get();
+        
+        assertEquals("embedded:deployment:forms/simpleTaskForm", actual.getFormKey());
     }
 
 }

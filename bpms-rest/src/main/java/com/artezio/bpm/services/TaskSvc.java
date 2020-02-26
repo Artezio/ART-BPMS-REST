@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import net.minidev.json.JSONArray;
+
 import org.apache.commons.lang3.StringUtils;
 import org.camunda.bpm.engine.CaseService;
 import org.camunda.bpm.engine.FormService;
@@ -46,6 +47,7 @@ import java.io.InputStream;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.artezio.bpm.services.DeploymentSvc.PUBLIC_RESOURCES_DIRECTORY;
 import static com.artezio.bpm.services.VariablesMapper.EXTENSION_NAME_PREFIX;
@@ -203,10 +205,13 @@ public class TaskSvc {
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of available tasks")
     public @ApiResponse List<TaskRepresentation> listAvailable(@BeanParam TaskQueryParams queryParams) {
         TaskQuery taskQuery = createTaskQuery(queryParams)
+                .withoutCandidateGroups()
+                .withoutCandidateUsers()
                 .or()
                 .taskCandidateGroupIn(identityService.userGroups())
                 .taskCandidateUser(identityService.userId())
                 .endOr()
+                .taskUnassigned()
                 .initializeFormKeys();
 
         return taskQuery

@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_100vj7d" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="3.2.3">
   <bpmn:process id="processWithFormsFromDeployment" isExecutable="true">
-    <bpmn:startEvent id="StartEvent_1" camunda:formKey="embedded:deployment:/forms/simpleStartForm">
+    <bpmn:startEvent id="StartEvent_1" camunda:formKey="embedded:deployment:forms/simpleStartForm">
       <bpmn:outgoing>SequenceFlow_0cpauwz</bpmn:outgoing>
     </bpmn:startEvent>
-    <bpmn:sequenceFlow id="SequenceFlow_0cpauwz" sourceRef="StartEvent_1" targetRef="Task_11pyajx" />
+    <bpmn:sequenceFlow id="SequenceFlow_0cpauwz" sourceRef="StartEvent_1" targetRef="simpleTaskWithForm" />
     <bpmn:endEvent id="EndEvent_0wgaot5">
       <bpmn:incoming>SequenceFlow_1vd1rt8</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:sequenceFlow id="SequenceFlow_1vd1rt8" sourceRef="Task_11pyajx" targetRef="EndEvent_0wgaot5" />
-    <bpmn:userTask id="Task_11pyajx" camunda:formKey="embedded:deployment:/forms/simpleTaskForm">
+    <bpmn:sequenceFlow id="SequenceFlow_1vd1rt8" sourceRef="simpleTaskWithForm" targetRef="EndEvent_0wgaot5" />
+    <bpmn:userTask id="simpleTaskWithForm" name="Simple task with form" camunda:formKey="embedded:deployment:forms/simpleTaskForm" camunda:candidateUsers="testUser">
       <bpmn:incoming>SequenceFlow_0cpauwz</bpmn:incoming>
       <bpmn:outgoing>SequenceFlow_1vd1rt8</bpmn:outgoing>
     </bpmn:userTask>
@@ -30,7 +30,7 @@
         <di:waypoint x="370" y="117" />
         <di:waypoint x="432" y="117" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNShape id="UserTask_18494lf_di" bpmnElement="Task_11pyajx">
+      <bpmndi:BPMNShape id="UserTask_18494lf_di" bpmnElement="simpleTaskWithForm">
         <dc:Bounds x="270" y="77" width="100" height="80" />
       </bpmndi:BPMNShape>
     </bpmndi:BPMNPlane>
