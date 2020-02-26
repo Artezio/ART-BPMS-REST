@@ -4,6 +4,7 @@ import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
 import de.otto.edison.hal.HalRepresentation;
 import de.otto.edison.hal.Link;
 
+import org.assertj.core.util.Arrays;
 import org.camunda.bpm.application.ProcessApplicationInterface;
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.impl.persistence.entity.ResourceEntity;
@@ -22,6 +23,8 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.PathSegment;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -31,11 +34,13 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
@@ -240,9 +245,28 @@ public class DeploymentSvcTest extends ServiceTest {
     public void testGetPublicResource() throws UnsupportedEncodingException {
         ProcessDefinition processDefinition = getLastProcessDefinition("processWithFormsFromDeployment");
         
-        InputStream actual = deploymentSvc.getPublicResource("embedded:deployment:", processDefinition.getDeploymentId(), "simpleStartForm.json");
+        InputStream actual = deploymentSvc.getPublicResource("embedded:deployment:", processDefinition.getDeploymentId(), asPathSegments("simpleStartForm.json"));
         
         assertNotNull(actual);
+    }
+    
+    private List<PathSegment> asPathSegments(String path) {
+        return Stream.of(path.split("/"))
+            .map(p -> {
+                return new PathSegment() {
+                    
+                    @Override
+                    public String getPath() {
+                        return p;
+                    }
+                    
+                    @Override
+                    public MultivaluedMap<String, String> getMatrixParameters() {
+                        return null;
+                    }
+                };
+            })
+            .collect(Collectors.toList());
     }
 
 }
