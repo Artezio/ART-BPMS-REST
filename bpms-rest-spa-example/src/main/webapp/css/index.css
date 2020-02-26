@@ -44,6 +44,7 @@ body {
   padding-top: 10px;
   border-right: solid 1px #d6d6d6;
   height: 100%;
+  font-weight: normal;
 }
 
 .sidebar__tab__tab-link {
@@ -59,4 +60,26 @@ body {
   background: transparent;
   font-size: 16px;
   font-weight: 500;
+  color: #000000;
+}
+
+.sidebar__tab__tab-content .list-group .list-group-item {
+  border-radius: 0;
+  border: none;
+  margin: 0;
+  border-bottom: solid 1px #dddddd;
+  line-height: 16px;
+  font-size: 14px;
+  padding-left: 32px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  cursor: pointer;
+}
+
+.sidebar__tab__tab-content .list-group .list-group-item:hover {
+  background-color: rgba(0, 94, 109, 0.08);
+}
+
+.sidebar__tab__tab-content .list-group .list-group-item:active {
+  background-color: rgba(0, 94, 109, 0.16);
 }
