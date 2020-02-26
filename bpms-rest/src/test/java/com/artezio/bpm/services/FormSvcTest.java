@@ -15,6 +15,7 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -39,6 +40,7 @@ import static org.mockito.internal.util.reflection.FieldSetter.setField;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(CDI.class)
+@PowerMockIgnore({"com.sun.org.apache.*", "javax.xml.*", "java.xml.*", "org.xml.*", "org.w3c.dom.*"})
 public class FormSvcTest extends ServiceTest {
 
     @InjectMocks
