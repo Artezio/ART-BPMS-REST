@@ -30,6 +30,11 @@ public abstract class AbstractResourceLoader implements ResourceLoader {
                 : new AppResourceLoader(rootDirectory);
     }
 
+    @Override
+    public String getResourcesDirectory() {
+        return rootDirectory;
+    }
+
     protected String getResourcePath(String resourceKey) {
         Matcher matcher = RESOURCE_KEY_PATTERN.matcher(resourceKey);
         matcher.matches();
