@@ -34,6 +34,8 @@ import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.PathSegment;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -182,7 +184,7 @@ public class DeploymentSvc {
                                 .stream()
                                 .map(resource -> resource.replaceFirst(PUBLIC_RESOURCES_DIRECTORY + "/", ""))
                                 .map(resource -> linkBuilder("items", 
-                                        String.format("%s/deployment/public-resource/%s/%s/%s", baseUrl, deploymentProtocol, deploymentId, encodeUrl(resource)))
+                                        String.format("%s/deployment/public-resource/%s/%s/%s", baseUrl, deploymentProtocol, deploymentId, resource))
                                         .withName(resource)
                                         .build())
                                 .collect(Collectors.toList()))
@@ -191,18 +193,19 @@ public class DeploymentSvc {
 
     @PermitAll
     @GET
-    @Path("/public-resource/{deployment-protocol}/{deployment-id}/{resource-key}")
+    @Path("/public-resource/{deployment-protocol}/{deployment-id}/{resource-key: .*}")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of task resources")
     //TODO document it
     public InputStream getPublicResource(
             @Parameter(description = "Deployment protocol of the requested resource ('embedded:app:' or 'embedded:deployment:').", required = true) @PathParam("deployment-protocol") @Valid @NotNull String deploymentProtocol,
             @Parameter(description = "The id of the deployment connected with resource requested.", required = true) @PathParam("deployment-id") @Valid @NotNull String deploymentId,
-            @Parameter(description = "The requested resource path. No deployment protocol needed.", required = true) @PathParam("resource-key") @Valid @NotNull String resourceKey)
+            @Parameter(description = "The requested resource path. No deployment protocol needed.", required = true) @PathParam("resource-key") @Valid @NotNull List<PathSegment> resourceKey)
             throws UnsupportedEncodingException {
         ResourceLoader resourceLoader = AbstractResourceLoader
                 .getResourceLoader(deploymentId, deploymentProtocol + resourceKey, PUBLIC_RESOURCES_DIRECTORY);
-        return resourceLoader.getResource(URLDecoder.decode(resourceKey, "UTF-8"));
+        String resourcePath = resourceKey.stream().map(PathSegment::getPath).collect(Collectors.joining("/"));
+        return resourceLoader.getResource(resourcePath);
     }
 
     private void registerInProcessApplication(Deployment deployment) {
@@ -236,14 +239,6 @@ public class DeploymentSvc {
         return requestUrl.toString().replaceFirst("/deployment.*", "");
     }
     
-    private String encodeUrl(String unsafeUrl) {
-        try {
-            return URLEncoder.encode(unsafeUrl, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     Map<String, InputStream> getFileParts(MultipartFormDataInput input) {
          return input.getFormDataMap()
                 .entrySet()
