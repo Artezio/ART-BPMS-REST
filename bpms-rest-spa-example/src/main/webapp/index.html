@@ -43,24 +43,25 @@
             <img src="assets/logo.svg" alt="">
         </div>
         <div class="navbar-head__right-nav">
-            <div><span id="username" class="navbar-head-text"></span></div>
-            <div><a onclick="keycloak.logout()"><img src="assets/logout.svg" alt=""></a></div>
+            <div><span id="username" class="greeting">Welcome, clinician</span></div>
+            <div><a onclick="keycloak.logout()"><img src="assets/logout.svg" alt="Logout"></a></div>
         </div>
     </nav>
 
     <div class="main-content">
         <div class="sidebar">
             <div class="accordion sidebar__tab" id="sidebar__assigned-tasks">
-                <div class="sidebar__tab__tab-link" data-toggle="collapse" data-target="#sidebar__assigned-tasks__tab"
-                    aria-expanded="true" aria-controls="sidebar__assigned-tasks__tab">
+                <div class="sidebar__tab-item sidebar__tab__tab-link" data-toggle="collapse"
+                    data-target="#sidebar__assigned-tasks__tab" aria-expanded="true"
+                    aria-controls="sidebar__assigned-tasks__tab">
                     My tasks</div>
                 <div class="sidebar__tab__tab-content collapse show" id="sidebar__assigned-tasks__tab"
                     aria-labelledby="headline__assigned-tasks" data-parent="#sidebar__assigned-tasks">
                     <div id="assigned-tasks" class="list-group">
-                        <div class="list-group-item">
+                        <div class="sidebar__tab-item list-group-item">
                             Task_1
                         </div>
-                        <div class="list-group-item">
+                        <div class="sidebar__tab-item list-group-item">
                             Task_2
                         </div>
                     </div>
@@ -68,17 +69,18 @@
             </div>
             <div class="accordion" id="sidebar__available-tasks">
                 <div class="sidebar__tab">
-                    <div class="sidebar__tab__tab-link" data-toggle="collapse" data-target="#sidebar__available-tasks__tab"
-                        aria-expanded="true" aria-controls="sidebar__available-tasks__tab">
+                    <div class="sidebar__tab-item sidebar__tab__tab-link" data-toggle="collapse"
+                        data-target="#sidebar__available-tasks__tab" aria-expanded="true"
+                        aria-controls="sidebar__available-tasks__tab">
                         Available tasks</div>
                 </div>
                 <div class="sidebar__tab__tab-content collapse" id="sidebar__available-tasks__tab"
                     aria-labelledby="headline__assigned-tasks" data-parent="#sidebar__available-tasks">
                     <div id="available-tasks" class="list-group">
-                        <div class="list-group-item">
+                        <div class="sidebar__tab-item list-group-item">
                             Task_1
                         </div>
-                        <div class="list-group-item">
+                        <div class="sidebar__tab-item list-group-item">
                             Task_2
                         </div>
                     </div>
@@ -86,30 +88,23 @@
             </div>
             <div class="accordion" id="sidebar__startable-processes">
                 <div class="sidebar__tab">
-                    <div class="sidebar__tab__tab-link" data-toggle="collapse" data-target="#sidebar__startable-processes__process"
-                        aria-expanded="true" aria-controls="sidebar__startable-processes__process">
+                    <div class="sidebar__tab-item sidebar__tab__tab-link" data-toggle="collapse"
+                        data-target="#sidebar__startable-processes__process" aria-expanded="true"
+                        aria-controls="sidebar__startable-processes__process">
                         Processes available to start</div>
                 </div>
                 <div class="sidebar__tab__tab-content collapse" id="sidebar__startable-processes__process"
                     aria-labelledby="headline__assigned-tasks" data-parent="#sidebar__startable-processes">
                     <div id="startable-processes" class="list-group">
-                        <div class="list-group-item">
+                        <div class="sidebar__tab-item list-group-item">
                             Task_1
                         </div>
-                        <div class="list-group-item">
+                        <div class="sidebar__tab-item list-group-item">
                             Task_2
                         </div>
                     </div>
                 </div>
             </div>
-            <!-- <div>
-                <span>Available tasks</span>
-                <div id="available-tasks" class="list-group"></div>
-            </div>
-            <div>
-                <span>Processes available to start</span>
-                <div id="startable-processes" class="list-group"></div>
-            </div> -->
         </div>
 
         <div id="current-form">
@@ -117,11 +112,13 @@
                 <div id="error" class="alert alert-danger" style="display: none;"></div>
                 <div class="col">
                     <h3 class="title" style="margin-top: 0"></h3>
-                    <div id="formio"></div>
+                    <!-- <div id="formio"></div> -->
+                    <div id="form-mock"></div>
                 </div>
             </div>
         </div>
     </div>
+    <script src="js/formMock.js"></script>
 </body>
 
 <!-- <script type="text/javascript">

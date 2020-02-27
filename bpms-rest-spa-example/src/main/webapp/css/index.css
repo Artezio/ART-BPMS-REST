@@ -7,6 +7,7 @@ body {
   font-family: "Roboto";
   height: 100vh;
   font-style: normal;
+  font-weight: normal;
   line-height: 16px;
   color: #1a1f29;
   margin: 0;
@@ -32,6 +33,17 @@ body {
 
 .navbar-head__right-nav {
   display: flex;
+  align-items: center;
+}
+.navbar-head__right-nav a {
+  cursor: pointer;
+
+}
+
+.navbar-head__right-nav .greeting {
+  font-size: 14px;
+  line-height: 16px;
+  margin-right: 19px;
 }
 
 .main-content {
@@ -44,7 +56,6 @@ body {
   padding-top: 10px;
   border-right: solid 1px #d6d6d6;
   height: 100%;
-  font-weight: normal;
 }
 
 .sidebar__tab__tab-link {
@@ -82,4 +93,10 @@ body {
 
 .sidebar__tab__tab-content .list-group .list-group-item:active {
   background-color: rgba(0, 94, 109, 0.16);
+}
+
+.sidebar__tab-item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

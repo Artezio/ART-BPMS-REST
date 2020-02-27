@@ -380,7 +380,7 @@ var ProcessStartForms = {
                             form.submission = {
                                 data: data.data
                             };
-                            window.form = form;
+                            window.formMock = form;
                             let fileComponentNames = findFileComponentNames(form);
                             merge(data.data, form.data, fileComponentNames);
                             internationalize(form.components);
@@ -481,7 +481,7 @@ var TaskForms = {
                         form.submission = {
                             data: data.data
                         }
-                        window.form = form;
+                        window.formMock = form;
                         let fileComponentNames = findFileComponentNames(form);
                         merge(data.data, form.data, fileComponentNames);
                         form.redraw();
