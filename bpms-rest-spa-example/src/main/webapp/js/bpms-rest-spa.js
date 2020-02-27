@@ -362,6 +362,7 @@ var ProcessStartForms = {
     load: function (processDefinitionId, processDefinitionKey, errorCallback) {
         clearErrors();
         refreshToken()
+            .then(() => Promise.reject('Error'))
             .then(prepareEnvironmentForFormio({ processDefinitionId, processDefinitionKey }))
             .then(_ =>
                 $.ajax({

@@ -37,7 +37,6 @@ body {
 }
 .navbar-head__right-nav a {
   cursor: pointer;
-
 }
 
 .navbar-head__right-nav .greeting {
@@ -99,4 +98,47 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.form-container {
+  padding: 22px 16px;
+}
+
+.form-container .form-name {
+  height: 24px;
+  line-height: 23px;
+  font-weight: 500;
+  color: #000000;
+  font-size: 20px;
+  margin-bottom: 20px;
+}
+
+.btn,
+.btn:hover,
+.btn:active,
+.btn:focus {
+  border: none;
+  box-shadow: none !important;
+  border-radius: 2px;
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 14px;
+  text-align: center;
+  letter-spacing: 0.125em;
+  text-transform: uppercase;
+}
+
+.btn.btn-primary {
+  background-color: #005e6d !important;
+  color: #ffffff !important;
+}
+
+.btn.btn-primary:hover {
+  background-color: #005664 !important;
+}
+.btn.btn-primary:active {
+  background-color: #004F5C !important;
+}
+
+.btn.btn-secondary {
 }
