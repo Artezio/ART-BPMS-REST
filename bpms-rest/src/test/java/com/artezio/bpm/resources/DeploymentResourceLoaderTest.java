@@ -36,8 +36,8 @@ public class DeploymentResourceLoaderTest {
         List<String> actuals = loader.listResourceNames();
 
         assertEquals(2, actuals.size());
-        assertTrue(actuals.contains("public/forms/formWithState.json"));
-        assertTrue(actuals.contains("public/forms/formWithSubform.json"));
+        assertTrue(actuals.contains("forms/formWithState.json"));
+        assertTrue(actuals.contains("forms/formWithSubform.json"));
     }
 
     private String getLatestDeploymentId() {

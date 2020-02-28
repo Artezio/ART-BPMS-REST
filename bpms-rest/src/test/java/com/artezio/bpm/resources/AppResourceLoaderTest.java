@@ -48,7 +48,7 @@ public class AppResourceLoaderTest {
 
         List<String> actuals = loader.listResourceNames();
 
-        assertTrue(actuals.contains(PUBLIC_RESOURCES_DIRECTORY + "/component.js"));
+        assertTrue(actuals.contains("component.js"));
     }
 
     @Test
