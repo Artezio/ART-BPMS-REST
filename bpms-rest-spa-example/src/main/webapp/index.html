@@ -135,7 +135,7 @@
             keycloak.loadUserInfo()
                 .success(info => {
                     let fullUserName = getFullUserName(info.preferred_username);
-                    $('#username').html('<strong>Welcome, ' + fullUserName + '!</strong>')
+                    $('#username').text(`Welcome, ${fullUserName}!`)
                 })
         })
         .error(function (e) {
