@@ -1,0 +1,57 @@
+.form-control {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #dddddd;
+  box-sizing: border-box;
+  border-radius: 4px;
+  height: 48px;
+  font-size: 16px;
+  line-height: 19px;
+  color: #000000;
+}
+
+.form-group label {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  color: #76797f;
+  font-weight: normal;
+  font-size: 14px;
+  line-height: 16px;
+}
+
+ul li:not(:first-child) {
+  font-weight: normal;
+  font-size: 14px;
+  line-height: 16px;
+}
+
+ul li:first-child {
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 16px;
+}
+
+.formio-component-file > ul li:first-child:last-child {
+  display: none;
+}
+
+.formio-component-file > ul li:not(:first-child) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom: none;
+}
+
+.formio-component-file > ul li:not(:first-child) .row :not(:last-child):not(:first-child) {
+  color: #005e6d;
+}
+
+.formio-component-file > ul li .row :first-child {
+  order: 3;
+}
+
+.formio-component-file > ul li:not(:first-child) .row :first-child > i {
+  cursor: pointer;
+  content: url("../../assets/trashBin.svg");
+}
