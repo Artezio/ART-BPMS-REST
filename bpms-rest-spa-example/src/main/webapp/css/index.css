@@ -3,6 +3,10 @@
   src: url("./fonts/Roboto-Medium.ttf");
 }
 
+:root {
+  --sidebar__tab-item_leftPadding: 32px;
+}
+
 body {
   font-family: "Roboto";
   height: 100vh;
@@ -64,6 +68,7 @@ body {
   padding-top: 13px;
   padding-bottom: 13px;
   padding-left: 10px;
+  padding-right: 22px;
   border-bottom: solid 1px #dddddd;
   line-height: 19px;
   cursor: pointer;
@@ -73,6 +78,19 @@ body {
   color: #000000;
 }
 
+.sidebar__tab__tab-link::after {
+  margin-left: auto;
+  padding-left: 22px;
+}
+
+.sidebar__tab__tab-link[aria-expanded="false"]::after {
+  content: url("../assets/vector/VectorDown.svg");
+}
+
+.sidebar__tab__tab-link[aria-expanded="true"]::after {
+  content: url("../assets/vector/VectorUp.svg");
+}
+
 .sidebar__tab__tab-content .list-group .list-group-item {
   border-radius: 0;
   border: none;
@@ -80,7 +98,7 @@ body {
   border-bottom: solid 1px #dddddd;
   line-height: 16px;
   font-size: 14px;
-  padding-left: 32px;
+  padding-left: var(--sidebar__tab-item_leftPadding);
   padding-top: 16px;
   padding-bottom: 16px;
   cursor: pointer;
@@ -90,11 +108,18 @@ body {
   background-color: rgba(0, 94, 109, 0.08);
 }
 
-.sidebar__tab__tab-content .list-group .list-group-item:active {
+.sidebar__tab__tab-content .list-group .list-group-item:active,
+.sidebar__tab__tab-content .list-group .list-group-item.active-tab {
   background-color: rgba(0, 94, 109, 0.16);
+  padding-left: calc(var(--sidebar__tab-item_leftPadding) - 4px);
+  border-left: 4px solid #005e6d;
 }
 
 .sidebar__tab-item {
+  padding-right: 56px;
+}
+
+.sidebar__tab-item-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -137,7 +162,7 @@ body {
   background-color: #005664 !important;
 }
 .btn.btn-primary:active {
-  background-color: #004F5C !important;
+  background-color: #004f5c !important;
 }
 
 .btn.btn-secondary {
