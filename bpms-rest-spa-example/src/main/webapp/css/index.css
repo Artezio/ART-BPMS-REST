@@ -18,6 +18,11 @@ body {
   flex-direction: column;
 }
 
+strong,
+b {
+  font-weight: 500 !important;
+}
+
 .navbar-head {
   display: flex;
   align-items: center;

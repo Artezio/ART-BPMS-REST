@@ -66,7 +66,7 @@ function clearErrors() {
 }
 
 function closeCurrentForm() {
-    $('#current-form .title').text("");
+    // $('#current-form .title').text("");
     $('#current-form .form-name').text("");
     $('#formio').empty();
 }
@@ -86,16 +86,12 @@ function loadNextTaskOrCloseForm(task) {
     console.log(task);
     if ((task !== undefined) && (task.id)) {
         console.log("Current form title will be " + task.name);
-        $('#current-form .title').text(task.name);
+        // $('#current-form .title').text(task.name);
         TaskForms.load(task);
     } else {
         closeCurrentForm();
     }
     loadResources();
-}
-
-function setCurrentProcess(name) {
-    $('#current-form .title').text(name);
 }
 
 function startProcessWithoutStartForm(processDefinitionId, processDefinitionKey) {
@@ -133,7 +129,7 @@ function parseProcessDefinitions(processDefinitions) {
         if (this.hasStartFormKey === true) {
             startProcessFunction = function () {
                 closeCurrentForm();
-                $('#current-form .title').text(name);
+                // $('#current-form .title').text(name);
                 $('.sidebar .active-tab').removeClass('active-tab');
                 $(this).addClass('active-tab');
                 ProcessStartForms.load(id, key);
@@ -141,7 +137,7 @@ function parseProcessDefinitions(processDefinitions) {
         } else {
             startProcessFunction = function () {
                 closeCurrentForm();
-                $('#current-form .title').text(name);
+                // $('#current-form .title').text(name);
                 $('#formio').append(
                     $('<button>')
                         .attr('class', 'btn btn-primary')
@@ -196,7 +192,7 @@ function setAssignedTasks(tasks) {
                         closeCurrentForm();
                         $('.sidebar .active-tab').removeClass('active-tab');
                         $(this).addClass('active-tab');
-                        $('#current-form .title').text(taskName.replace(/^(\D+?)"(\d{7})"$/, fullUserNameReplacer));
+                        // $('#current-form .title').text(taskName.replace(/^(\D+?)"(\d{7})"$/, fullUserNameReplacer));
                         TaskForms.load(task);
                     }
                 ));
