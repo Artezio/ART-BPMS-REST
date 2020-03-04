@@ -15,67 +15,88 @@
 <head>
     <title>Dashboard</title>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <link rel='stylesheet' href='css/bootstrap-3.3.7.min.css'>
-    <link rel='stylesheet' href='css/formio.full-3.22.9.min.css'>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel='stylesheet' href='css/bootstrap-4.1.3.min.css'>
+    <link rel="stylesheet" href="css/formio.full-4.7.8.min.css">
+    <link rel="stylesheet" href="css/index.css">
     <script src="<%=KEYCLOAK_SERVER_URL%>/js/keycloak.js" type="application/javascript"></script>
     <script src="js/lib/jquery-3.3.1.min.js" type="application/javascript"></script>
-    <script src="js/lib/formio.full-4.9.0-rc.2.min.js" type="application/javascript"></script>
+    <script src="js/lib/formio.full-4.7.8.min.js" type="application/javascript"></script>
+    <script src="js/lib/bootstrap-4.1.3.min.js" type="application/javascript"></script>
     <script src='js/bpms-rest-spa.js' type="application/javascript"></script>
     <style type="text/css">
         .table-borderless table,
-        .table-borderless tbody > tr > td,
-        .table-borderless tbody > tr > th,
-        .table-borderless tfoot > tr > td,
-        .table-borderless tfoot > tr > th,
-        .table-borderless thead > tr > td,
-        .table-borderless thead > tr > th {
+        .table-borderless tbody>tr>td,
+        .table-borderless tbody>tr>th,
+        .table-borderless tfoot>tr>td,
+        .table-borderless tfoot>tr>th,
+        .table-borderless thead>tr>td,
+        .table-borderless thead>tr>th {
             border: none;
         }
     </style>
 </head>
 
 <body>
-<nav class="navbar navbar-default" style="background-color: #d9edf7">
-    <div class="container-fluid">
-        <div class="navbar-header">
-            <span class="navbar-brand">
-                <strong>BPMS-REST SPA</strong>
-            </span>
+    <nav class="navbar-head">
+        <div class="navbar-head__logo">
+            <img src="assets/logo.svg" alt="">
         </div>
-        <ul class="nav navbar-nav navbar-right">
-            <li><span id="username" class="navbar-text"></span></li>
-            <li><a class="btn btn-default" onclick="keycloak.logout()">Logout</a></li>
-        </ul>
-    </div>
-</nav>
-<div class="container-flued">
-    <div class="col col-sm-3">
-        <div>
-            <h4>My tasks</h4>
-            <div id="assigned-tasks" class="list-group"></div>
+        <div class="navbar-head__right-nav">
+            <div><span id="username" class="greeting">Welcome, clinician</span></div>
+            <div><a onclick="keycloak.logout()"><img src="assets/logout.svg" alt="Logout"></a></div>
         </div>
-        <hr/>
-        <div>
-            <h4>Available tasks</h4>
-            <div id="available-tasks" class="list-group"></div>
-        </div>
-        <hr/>
-        <div>
-            <h4>Processes available to start</h4>
-            <div id="startable-processes" class="list-group"></div>
-        </div>
-        <hr/>
-    </div>
-    <div id="current-form" class="col-sm-5">
-        <div class="row">
-            <div id="error" class="alert alert-danger" style="display: none;"></div>
-            <div class="col">
-                <h3 class="title" style="margin-top: 0"></h3>
-                <div id="formio"></div>
+    </nav>
+
+    <div class="main-content">
+        <div class="sidebar">
+            <div class="accordion sidebar__tab" id="sidebar__assigned-tasks">
+                <div class="sidebar__tab__tab-link" data-toggle="collapse" data-target="#sidebar__assigned-tasks__tab"
+                    aria-expanded="true" aria-controls="sidebar__assigned-tasks__tab" title="My tasks">
+                    <span class="sidebar__tab-item-text" title="">My tasks</span></div>
+                <div class="sidebar__tab__tab-content collapse show" id="sidebar__assigned-tasks__tab"
+                    aria-labelledby="headline__assigned-tasks" data-parent="#sidebar__assigned-tasks">
+                    <div id="assigned-tasks" class="list-group"></div>
+                </div>
+            </div>
+            <div class="accordion" id="sidebar__available-tasks">
+                <div class="sidebar__tab">
+                    <div class="sidebar__tab__tab-link" data-toggle="collapse"
+                        data-target="#sidebar__available-tasks__tab" aria-expanded="true"
+                        aria-controls="sidebar__available-tasks__tab" title="Available tasks">
+                        <span class="sidebar__tab-item-text">Available tasks</span></div>
+                </div>
+                <div class="sidebar__tab__tab-content collapse show" id="sidebar__available-tasks__tab"
+                    aria-labelledby="headline__assigned-tasks" data-parent="#sidebar__available-tasks">
+                    <div id="available-tasks" class="list-group"></div>
+                </div>
+            </div>
+            <div class="accordion" id="sidebar__startable-processes">
+                <div class="sidebar__tab">
+                    <div class="sidebar__tab__tab-link" data-toggle="collapse"
+                        data-target="#sidebar__startable-processes__process" aria-expanded="true"
+                        aria-controls="sidebar__startable-processes__process" title="Processes available to start">
+                        <span class="sidebar__tab-item-text">Processes available to start</span></div>
+                </div>
+                <div class="sidebar__tab__tab-content collapse show" id="sidebar__startable-processes__process"
+                    aria-labelledby="headline__assigned-tasks" data-parent="#sidebar__startable-processes">
+                    <div id="startable-processes" class="list-group"></div>
+                </div>
             </div>
         </div>
+
+        <div id="error" style="display: none;">
+            <div class="error-header">
+                <img src="./assets/error.svg" alt="error">
+                <span class="error-header__text">Internal server error</span>
+            </div>
+            <div id="error-text"></div>
+        </div>
+        <div id="current-form" class="form-container">
+            <h2 class="form-name">Form name</h2>
+            <div id="formio"></div>
+        </div>
     </div>
-</div>
 </body>
 
 <script type="text/javascript">
@@ -89,17 +110,18 @@
     };
 
     let keycloak = Keycloak(keycloakConfig);
-    keycloak.init({onLoad: 'login-required', "checkLoginIframe": false})
-        .success(function() {
+    keycloak.init({ onLoad: 'login-required', "checkLoginIframe": false })
+        .success(function () {
             loadProcessesAndTasks();
             keycloak.loadUserInfo()
                 .success(info => {
                     let fullUserName = getFullUserName(info.preferred_username);
                     $('#username').html('<strong>Welcome, ' + fullUserName + '!</strong>')
-            })
+                })
         })
-        .error(function(e) {
+        .error(function (e) {
             alert('Authentication error ' + e);
         });
 </script>
+
 </html>
