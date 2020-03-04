@@ -149,3 +149,32 @@ body {
   line-height: 19px;
   margin-bottom: 24px;
 }
+
+#error {
+  height: 104px;
+  margin: 22px 16px;
+  width: 680px;
+  background: rgba(255, 87, 34, 0.1);
+  border: 1px solid #ff5722;
+  box-sizing: border-box;
+  border-radius: 2px;
+  color: #000000;
+}
+
+.error-header {
+  padding: 16px 16px 0 17px;
+  display: flex;
+  align-items: center;
+}
+
+.error-header__text {
+  font-style: normal;
+  font-weight: 500;
+  font-size: 20px;
+  line-height: 23px;
+  margin-left: 9px;
+}
+
+#error-text {
+  padding: 16px;
+}

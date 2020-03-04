@@ -56,7 +56,9 @@ function showError(response) {
     //let serverErrorMessage = window.form
     //    ? window.form.i18next.getDataByLanguage('ru').translation['Internal server error']
     //    : "";
-    $('#error').show().text("Internal server error: " + errorMessage);
+    closeCurrentForm();
+    $('#error').show()
+    $('#error-text').text(errorMessage);
 }
 
 function clearErrors() {
