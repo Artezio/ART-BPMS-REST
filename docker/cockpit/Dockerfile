@@ -1,4 +1,4 @@
-FROM camunda/camunda-bpm-platform:7.12.0
+FROM camunda/camunda-bpm-platform:7.10.0
 
 ENV BPMS_REST_DB_HOST host.docker.internal
 ENV BPMS_REST_DB_PORT 5432
