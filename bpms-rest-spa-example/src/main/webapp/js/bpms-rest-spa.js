@@ -1,6 +1,21 @@
 Formio.icons = 'fontawesome';
 
 const FORMIO_CUSTOM_COMPONENTS = 'FormioCC';
+let metaData = { _originalBaseUrl: undefined };
+Object.defineProperty(metaData, 'originalBaseUrl', {
+    get() {
+        return metaData._originalBaseUrl;
+    },
+    set(url) {
+        const regExp = /\.html$/;
+        if (regExp.test(url)) {
+            const index = url.lastIndexOf('/');
+            metaData._originalBaseUrl = url.slice(0, index);
+            return;
+        }
+        metaData._originalBaseUrl = url;
+    }
+});
 
 function refreshToken() {
     return new Promise(function (resolve, reject) {
@@ -273,7 +288,7 @@ function prepareEnvironmentForFormio({ processDefinitionId, processDefinitionKey
             throw new Error('Either formKey or processDefinitionKey not provided');
         }
         return loadBaseUrl({ processDefinitionId, processDefinitionKey, formKey: _formKey })
-            .then(setBaseUrl)
+            .then(handleBaseUrl)
             .then(loadCustomComponents)
     }
 }
@@ -302,16 +317,22 @@ function loadBaseUrl({ processDefinitionId, formKey, ...rest }) {
     })
 }
 
-function setBaseUrl({ resources, ...rest }) {
+function handleBaseUrl({ resources, ...rest }) {
     if (!(resources && resources._links && resources._links.resourcesBaseUrl && resources._links.resourcesBaseUrl.href)) {
         console.error('Base URL not provided!');
         return { ...rest, resources };
     }
+    metaData.originalBaseUrl = document.baseURI;
     const url = resources._links.resourcesBaseUrl.href;
+    setBaseUrl(url);
+    return Promise.resolve({ ...rest, resources });
+}
+
+function setBaseUrl(url) {
+    document.querySelectorAll('base').forEach(el => el.remove());
     const base = document.createElement('base');
     base.href = url[url.length - 1] === '/' ? url : url + '/';
     document.head.append(base);
-    return Promise.resolve({ ...rest, resources });
 }
 
 function loadCustomComponents({ resources, ...rest }) {
@@ -450,6 +471,10 @@ var ProcessStartForms = {
                         showError(xhr.responseJSON);
                     }
                 }
+            })
+            .finally(() => {
+                metaData.originalBaseUrl && setBaseUrl(metaData.originalBaseUrl);
+                metaData.originalBaseUrl = null;
             });
     }
 };
@@ -542,6 +567,10 @@ var TaskForms = {
                 } else {
                     showError(xhr.responseJSON);
                 }
+            })
+            .finally(() => {
+                metaData.originalBaseUrl && setBaseUrl(metaData.originalBaseUrl);
+                metaData.originalBaseUrl = null;
             })
     }
 };

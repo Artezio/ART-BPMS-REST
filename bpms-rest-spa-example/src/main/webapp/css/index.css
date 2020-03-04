@@ -1,9 +1,5 @@
 @import url("./bootstrapOverrides/index.css");
-
-@font-face {
-  font-family: "Roboto";
-  src: url("./fonts/Roboto/Roboto-Regular.ttf");
-}
+@import url("./robotoFonts.css");
 
 :root {
   --sidebar__tab-item_leftPadding: 32px;
@@ -14,6 +10,7 @@ body {
   height: 100vh;
   font-style: normal;
   font-weight: normal;
+  font-size: 14px;
   line-height: 16px;
   color: #1a1f29;
   margin: 0;
