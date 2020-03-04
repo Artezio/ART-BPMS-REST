@@ -41,6 +41,12 @@ ul li:first-child {
   line-height: 16px;
 }
 
+ul li:first-child strong {
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 16px;
+}
+
 .formio-component-file > ul li:first-child:last-child {
   display: none;
 }
