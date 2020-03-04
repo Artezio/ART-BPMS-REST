@@ -9,14 +9,11 @@ import com.artezio.bpm.services.integration.FileStorage;
 import com.artezio.bpm.validation.VariableValidator;
 import junitx.framework.ListAssert;
 import junitx.util.PrivateAccessor;
-
-import org.apache.ibatis.logging.LogFactory;
 import org.camunda.bpm.engine.FormService;
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.TaskService;
 import org.camunda.bpm.engine.history.HistoricTaskInstance;
-import org.camunda.bpm.engine.impl.util.LogUtil;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.runtime.ProcessInstanceQuery;
 import org.camunda.bpm.engine.task.Task;
@@ -25,8 +22,6 @@ import org.camunda.bpm.engine.variable.Variables;
 import org.camunda.bpm.engine.variable.value.FileValue;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.instance.Process;
-import org.camunda.bpm.scenario.ProcessScenario;
-import org.camunda.bpm.scenario.Scenario;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -49,7 +44,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Field;
 import java.net.URISyntaxException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -59,11 +53,10 @@ import java.util.stream.Collectors;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static junit.framework.TestCase.assertNotNull;
+import static org.camunda.bpm.engine.test.assertions.ProcessEngineTests.*;
 import static org.junit.Assert.*;
 import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.*;
-import static org.mockito.internal.util.reflection.FieldSetter.setField;
-import static org.camunda.bpm.engine.test.assertions.ProcessEngineTests.*;
 import static org.powermock.reflect.Whitebox.setInternalState;
 
 @RunWith(PowerMockRunner.class)
@@ -534,7 +527,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testListAssigned() throws ParseException {
+    public void testListAssigned() {
         String callerId = "callerId";
         TaskQueryParams queryParams = new TaskQueryParams();
 
@@ -756,7 +749,7 @@ public class TaskSvcTest extends ServiceTest {
                     "]" +
                 "}";
         List<Map<String, Object>> fileValues = asList(fileValue1, fileValue2);
-        Map<String, Object> taskVariables = new HashMap<String, Object>() {{
+        Map<String, Object> taskVariables = new HashMap<>() {{
             put(fileVariableName, fileValues);
         }};
 
@@ -875,17 +868,19 @@ public class TaskSvcTest extends ServiceTest {
         String formPath = "formPath";
         String cleanDataJson = "{\"var1\": \"value1\"}";
         String decision = "submitted";
-        Map<String, Object> inputVariables = new HashMap<String, Object>() {{
+        Map<String, Object> inputVariables = new HashMap<>() {{
             put("var1", "value1");
             put("var2", "value2");
             put("decision", decision);
         }};
-        Map<String, Object> expectedVariables = new HashMap<String, Object>() {{
+        Map<String, Object> expectedVariables = new HashMap<>() {{
             put("var1", "value1");
             put("decision", decision);
         }};
         ArgumentCaptor<Map<String, Object>> taskVariablesCaptor = ArgumentCaptor.forClass(Map.class);
-        Map<String, Object> taskVariables = new HashMap<String, Object>() {{put("var1", "");}};
+        Map<String, Object> taskVariables = new HashMap<>() {{
+            put("var1", "");
+        }};
 
         Task task = createTask(taskId, callerId, callerId, emptyList());
         setVariablesToTask(taskId, taskVariables);
@@ -929,7 +924,7 @@ public class TaskSvcTest extends ServiceTest {
         String callerId = "callerId";
         String taskId = "testTask";
         String decision = "rejected";
-        Map<String, Object> inputVariables = new HashMap<String, Object>() {{
+        Map<String, Object> inputVariables = new HashMap<>() {{
             put("var1", "value1");
             put("var2", "value2");
             put("decision", decision);
@@ -969,12 +964,12 @@ public class TaskSvcTest extends ServiceTest {
         String formKey = null;
         String decision = "submitted";
         String processDefinitionKey = "processDefinitionKey";
-        Map<String, Object> inputVariables = new HashMap<String, Object>() {{
+        Map<String, Object> inputVariables = new HashMap<>() {{
             put("var1", "value1");
             put("var2", "value2");
             put("decision", decision);
         }};
-        Map<String, Object> expectedVariables = new HashMap<String, Object>() {{
+        Map<String, Object> expectedVariables = new HashMap<>() {{
             put("var1", "value1");
             put("var2", "value2");
             put("decision", decision);
@@ -1038,7 +1033,7 @@ public class TaskSvcTest extends ServiceTest {
         String callerId = "callerId";
         File file = getFile(fileName);
         FileValue fileValue = getFileValue(file);
-        Map<String, Object> variables = new HashMap<String, Object>() {{
+        Map<String, Object> variables = new HashMap<>() {{
             put(fileVariableName, asList(fileValue));
         }};
         String mimeType = "image/png";
@@ -1106,7 +1101,7 @@ public class TaskSvcTest extends ServiceTest {
         File file = getFile(fileName);
         Map<String, Object> fileValue = getFileAsAttributesMap(file);
         fileValue.put("mimeType", "");
-        Map<String, Object> variables = new HashMap<String, Object>() {{
+        Map<String, Object> variables = new HashMap<>() {{
             put(fileVariableName, asList(fileValue));
         }};
         try (InputStream in = new FileInputStream(file)) {
@@ -1134,7 +1129,7 @@ public class TaskSvcTest extends ServiceTest {
         List<String> candidateGroups = asList("candidateGroup");
         String callerId = "callerId";
         String filename = "file.txt";
-        Map<String, Object> variables = new HashMap<String, Object>() {{
+        Map<String, Object> variables = new HashMap<>() {{
             put(filePath, asList(Variables.fileValue(filename).file(new byte[]{}).create()));
         }};
 
@@ -1155,7 +1150,7 @@ public class TaskSvcTest extends ServiceTest {
         List<String> candidateGroups = asList("candidateGroup");
         String callerId = "callerId";
         String filename = "file.txt";
-        Map<String, Object> variables = new HashMap<String, Object>() {{
+        Map<String, Object> variables = new HashMap<>() {{
             put(filePath, asList(Variables.fileValue(filename).file(new byte[]{}).create()));
         }};
 
@@ -1176,7 +1171,7 @@ public class TaskSvcTest extends ServiceTest {
         List<String> candidateGroups = asList("candidateGroup");
         String callerId = "callerId";
         String filename = "file.txt";
-        Map<String, Object> variables = new HashMap<String, Object>() {{
+        Map<String, Object> variables = new HashMap<>() {{
             put(filePath, asList(Variables.fileValue(filename).file(new byte[]{}).create()));
         }};
 
