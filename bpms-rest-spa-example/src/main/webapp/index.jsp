@@ -17,11 +17,11 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <link rel='stylesheet' href='css/bootstrap-4.1.3.min.css'>
-    <link rel="stylesheet" href="css/formio.full-4.7.8.min.css">
+    <link rel="stylesheet" href="css/formio.full.min.css">
     <link rel="stylesheet" href="css/index.css">
     <script src="<%=KEYCLOAK_SERVER_URL%>/js/keycloak.js" type="application/javascript"></script>
     <script src="js/lib/jquery-3.3.1.min.js" type="application/javascript"></script>
-    <script src="js/lib/formio.full-4.7.8.min.js" type="application/javascript"></script>
+    <script src="js/lib/formio.full.min.js" type="application/javascript"></script>
     <script src="js/lib/bootstrap-4.1.3.min.js" type="application/javascript"></script>
     <script src='js/bpms-rest-spa.js' type="application/javascript"></script>
     <style type="text/css">
