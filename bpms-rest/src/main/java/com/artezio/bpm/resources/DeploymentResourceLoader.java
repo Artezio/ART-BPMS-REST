@@ -31,6 +31,7 @@ public class DeploymentResourceLoader extends AbstractResourceLoader {
     public List<String> listResourceNames() {
         return getRepositoryService().getDeploymentResourceNames(deploymentId).stream()
                 .filter(resourceName -> resourceName.startsWith(rootDirectory))
+                .map(resourceName -> resourceName.substring((rootDirectory + "/").length()))
                 .collect(Collectors.toList());
     }
 

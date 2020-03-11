@@ -30,7 +30,9 @@ public class AppResourceLoader extends AbstractResourceLoader {
 
     @Override
     public List<String> listResourceNames() {
-        return listResourceNames(rootDirectory);
+        return listResourceNames(rootDirectory).stream()
+                .map(resourceName -> resourceName.substring((rootDirectory + "/").length()))
+                .collect(Collectors.toList());
     }
 
     private List<String> listResourceNames(String resourcesDirectory) {

@@ -17,6 +17,7 @@ import org.camunda.bpm.engine.history.HistoricTaskInstance;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.runtime.ProcessInstanceQuery;
 import org.camunda.bpm.engine.task.Task;
+import org.camunda.bpm.engine.test.Deployment;
 import org.camunda.bpm.engine.variable.Variables;
 import org.camunda.bpm.engine.variable.value.FileValue;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
@@ -30,6 +31,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -42,7 +44,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Field;
 import java.net.URISyntaxException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -52,13 +53,15 @@ import java.util.stream.Collectors;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static junit.framework.TestCase.assertNotNull;
+import static org.camunda.bpm.engine.test.assertions.ProcessEngineTests.*;
 import static org.junit.Assert.*;
 import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.*;
-import static org.mockito.internal.util.reflection.FieldSetter.setField;
+import static org.powermock.reflect.Whitebox.setInternalState;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({CDI.class})
+@PowerMockIgnore({"com.sun.org.apache.*", "javax.xml.*", "java.xml.*", "org.xml.*", "org.w3c.dom.*"})
 public class TaskSvcTest extends ServiceTest {
 
     @InjectMocks
@@ -79,12 +82,10 @@ public class TaskSvcTest extends ServiceTest {
     private FileStorage fileStorage = new Base64UrlFileStorage();
 
     @Before
-    public void init() throws NoSuchFieldException {
+    public void init() {
         setupMockFileStorage();
-        Field taskServiceField = taskSvc.getClass().getDeclaredField("taskService");
-        setField(taskSvc, taskServiceField, getTaskService());
-        Field fileStorageField = taskSvc.getClass().getDeclaredField("fileStorage");
-        setField(taskSvc, fileStorageField, fileStorage);
+        setInternalState(taskSvc, "taskService", getTaskService());
+        setInternalState(taskSvc, "fileStorage", fileStorage);
     }
 
     private void setupMockFileStorage() {
@@ -526,7 +527,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testListAssigned() throws ParseException {
+    public void testListAssigned() {
         String callerId = "callerId";
         TaskQueryParams queryParams = new TaskQueryParams();
 
@@ -748,7 +749,7 @@ public class TaskSvcTest extends ServiceTest {
                     "]" +
                 "}";
         List<Map<String, Object>> fileValues = asList(fileValue1, fileValue2);
-        Map<String, Object> taskVariables = new HashMap<String, Object>() {{
+        Map<String, Object> taskVariables = new HashMap<>() {{
             put(fileVariableName, fileValues);
         }};
 
@@ -867,17 +868,19 @@ public class TaskSvcTest extends ServiceTest {
         String formPath = "formPath";
         String cleanDataJson = "{\"var1\": \"value1\"}";
         String decision = "submitted";
-        Map<String, Object> inputVariables = new HashMap<String, Object>() {{
+        Map<String, Object> inputVariables = new HashMap<>() {{
             put("var1", "value1");
             put("var2", "value2");
             put("decision", decision);
         }};
-        Map<String, Object> expectedVariables = new HashMap<String, Object>() {{
+        Map<String, Object> expectedVariables = new HashMap<>() {{
             put("var1", "value1");
             put("decision", decision);
         }};
         ArgumentCaptor<Map<String, Object>> taskVariablesCaptor = ArgumentCaptor.forClass(Map.class);
-        Map<String, Object> taskVariables = new HashMap<String, Object>() {{put("var1", "");}};
+        Map<String, Object> taskVariables = new HashMap<>() {{
+            put("var1", "");
+        }};
 
         Task task = createTask(taskId, callerId, callerId, emptyList());
         setVariablesToTask(taskId, taskVariables);
@@ -921,7 +924,7 @@ public class TaskSvcTest extends ServiceTest {
         String callerId = "callerId";
         String taskId = "testTask";
         String decision = "rejected";
-        Map<String, Object> inputVariables = new HashMap<String, Object>() {{
+        Map<String, Object> inputVariables = new HashMap<>() {{
             put("var1", "value1");
             put("var2", "value2");
             put("decision", decision);
@@ -961,12 +964,12 @@ public class TaskSvcTest extends ServiceTest {
         String formKey = null;
         String decision = "submitted";
         String processDefinitionKey = "processDefinitionKey";
-        Map<String, Object> inputVariables = new HashMap<String, Object>() {{
+        Map<String, Object> inputVariables = new HashMap<>() {{
             put("var1", "value1");
             put("var2", "value2");
             put("decision", decision);
         }};
-        Map<String, Object> expectedVariables = new HashMap<String, Object>() {{
+        Map<String, Object> expectedVariables = new HashMap<>() {{
             put("var1", "value1");
             put("var2", "value2");
             put("decision", decision);
@@ -1030,7 +1033,7 @@ public class TaskSvcTest extends ServiceTest {
         String callerId = "callerId";
         File file = getFile(fileName);
         FileValue fileValue = getFileValue(file);
-        Map<String, Object> variables = new HashMap<String, Object>() {{
+        Map<String, Object> variables = new HashMap<>() {{
             put(fileVariableName, asList(fileValue));
         }};
         String mimeType = "image/png";
@@ -1098,7 +1101,7 @@ public class TaskSvcTest extends ServiceTest {
         File file = getFile(fileName);
         Map<String, Object> fileValue = getFileAsAttributesMap(file);
         fileValue.put("mimeType", "");
-        Map<String, Object> variables = new HashMap<String, Object>() {{
+        Map<String, Object> variables = new HashMap<>() {{
             put(fileVariableName, asList(fileValue));
         }};
         try (InputStream in = new FileInputStream(file)) {
@@ -1126,7 +1129,7 @@ public class TaskSvcTest extends ServiceTest {
         List<String> candidateGroups = asList("candidateGroup");
         String callerId = "callerId";
         String filename = "file.txt";
-        Map<String, Object> variables = new HashMap<String, Object>() {{
+        Map<String, Object> variables = new HashMap<>() {{
             put(filePath, asList(Variables.fileValue(filename).file(new byte[]{}).create()));
         }};
 
@@ -1147,7 +1150,7 @@ public class TaskSvcTest extends ServiceTest {
         List<String> candidateGroups = asList("candidateGroup");
         String callerId = "callerId";
         String filename = "file.txt";
-        Map<String, Object> variables = new HashMap<String, Object>() {{
+        Map<String, Object> variables = new HashMap<>() {{
             put(filePath, asList(Variables.fileValue(filename).file(new byte[]{}).create()));
         }};
 
@@ -1168,7 +1171,7 @@ public class TaskSvcTest extends ServiceTest {
         List<String> candidateGroups = asList("candidateGroup");
         String callerId = "callerId";
         String filename = "file.txt";
-        Map<String, Object> variables = new HashMap<String, Object>() {{
+        Map<String, Object> variables = new HashMap<>() {{
             put(filePath, asList(Variables.fileValue(filename).file(new byte[]{}).create()));
         }};
 
@@ -1213,6 +1216,41 @@ public class TaskSvcTest extends ServiceTest {
         Task nextAssignedTask = taskSvc.getNextAssignedTask(processInstance.getProcessInstanceId());
 
         assertNull(nextAssignedTask);
+    }
+    
+    @Test
+    @Deployment(resources = "process-with-froms-from-deployment.bpmn")
+    public void testInitializeFormKeyForAvailableList() {
+        String processInstanceId = runtimeService()
+                .startProcessInstanceByKey("processWithFormsFromDeployment")
+                .getId();
+        when(identityService.userGroups()).thenReturn(Arrays.asList(""));
+        when(identityService.userId()).thenReturn("testUser");
+        
+        TaskRepresentation actual = taskSvc.listAvailable(new TaskQueryParams())
+            .stream()
+            .filter(task -> task.getProcessInstanceId().equals(processInstanceId))
+            .findAny()
+            .get();
+        
+        assertEquals("embedded:deployment:forms/simpleTaskForm", actual.getFormKey());
+    }
+
+    @Test
+    @Deployment(resources = "process-with-froms-from-deployment.bpmn")
+    public void testInitializeFormKeyForAssignedList() {
+        ProcessInstance processInstance = runtimeService()
+                .startProcessInstanceByKey("processWithFormsFromDeployment");
+        taskService().claim(task(processInstance).getId(), "testUser");
+        when(identityService.userId()).thenReturn("testUser");
+        
+        TaskRepresentation actual = taskSvc.listAssigned(new TaskQueryParams())
+                .stream()
+                .filter(task -> task.getProcessInstanceId().equals(processInstance.getId()))
+                .findAny()
+                .get();
+        
+        assertEquals("embedded:deployment:forms/simpleTaskForm", actual.getFormKey());
     }
 
 }
