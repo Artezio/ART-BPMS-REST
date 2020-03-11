@@ -48,7 +48,7 @@
         </div>
     </nav>
 
-    <div class="main-content">
+    <div class="main-wrapper">
         <div class="sidebar">
             <div class="accordion sidebar__tab" id="sidebar__assigned-tasks">
                 <div class="sidebar__tab__tab-link" data-toggle="collapse" data-target="#sidebar__assigned-tasks__tab"
@@ -85,43 +85,47 @@
             </div>
         </div>
 
-        <div id="error" style="display: none;">
-            <div class="error-header">
-                <img src="./assets/error.svg" alt="error">
-                <span class="error-header__text">Internal server error</span>
+        <div class="content-wrapper">
+            <div class="content">
+                <div id="error" style="display: none;">
+                    <div class="error-header">
+                        <img src="./assets/error.svg" alt="error">
+                        <span class="error-header__text">Internal server error</span>
+                    </div>
+                    <div id="error-text"></div>
+                </div>
+                <div id="current-form" class="form-container">
+                    <h2 class="form-name"></h2>
+                    <div id="formio"></div>
+                </div>
             </div>
-            <div id="error-text"></div>
-        </div>
-        <div id="current-form" class="form-container">
-            <h2 class="form-name">Form name</h2>
-            <div id="formio"></div>
         </div>
     </div>
+
+    <script type="text/javascript">
+
+        let fileStorageUrl = '<%=FILE_STORAGE_URL%>';
+        let bpmsRestApi = '<%=BPMS_REST_API%>';
+        let keycloakConfig = {
+            'url': '<%=KEYCLOAK_SERVER_URL%>',
+            'realm': '<%=KEYCLOAK_REALM%>',
+            'clientId': '<%=KEYCLOAK_CLIENT_ID%>'
+        };
+
+        let keycloak = Keycloak(keycloakConfig);
+        keycloak.init({ onLoad: 'login-required', "checkLoginIframe": false })
+            .success(function () {
+                loadProcessesAndTasks();
+                keycloak.loadUserInfo()
+                    .success(info => {
+                        let fullUserName = getFullUserName(info.preferred_username);
+                        $('#username').html('<strong>Welcome, ' + fullUserName + '!</strong>')
+                    })
+            })
+            .error(function (e) {
+                alert('Authentication error ' + e);
+            });
+    </script>
 </body>
-
-<script type="text/javascript">
-
-    let fileStorageUrl = '<%=FILE_STORAGE_URL%>';
-    let bpmsRestApi = '<%=BPMS_REST_API%>';
-    let keycloakConfig = {
-        'url': '<%=KEYCLOAK_SERVER_URL%>',
-        'realm': '<%=KEYCLOAK_REALM%>',
-        'clientId': '<%=KEYCLOAK_CLIENT_ID%>'
-    };
-
-    let keycloak = Keycloak(keycloakConfig);
-    keycloak.init({ onLoad: 'login-required', "checkLoginIframe": false })
-        .success(function () {
-            loadProcessesAndTasks();
-            keycloak.loadUserInfo()
-                .success(info => {
-                    let fullUserName = getFullUserName(info.preferred_username);
-                    $('#username').html('<strong>Welcome, ' + fullUserName + '!</strong>')
-                })
-        })
-        .error(function (e) {
-            alert('Authentication error ' + e);
-        });
-</script>
 
 </html>
