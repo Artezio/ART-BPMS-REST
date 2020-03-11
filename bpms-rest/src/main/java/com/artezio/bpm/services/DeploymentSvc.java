@@ -35,13 +35,9 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.PathSegment;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -76,6 +72,8 @@ public class DeploymentSvc {
     private Logger log = Logger.getLogger(DeploymentSvc.class.getName());
 
     @PostConstruct
+    @Log(level = CONFIG, beforeExecuteMessage = "Registration existent deployments in process application",
+            afterExecuteMessage = "All existent deployments are registered in process application")
     public void registerDeployments() {
         repositoryService.createDeploymentQuery().list()
                 .forEach(this::registerInProcessApplication);
@@ -98,7 +96,7 @@ public class DeploymentSvc {
                     @ApiResponse(responseCode = "403", description = "The user is not allowed to create deployments.")
             }
     )
-    @Log(beforeExecuteMessage = "Creating deployment '{0}'", afterExecuteMessage = "Deployment '{0}' is successfully created")
+    @Log(beforeExecuteMessage = "Creating deployment '{0}'", afterExecuteMessage = "Deployment '{0}' is created")
     public DeploymentRepresentation create(
             @Parameter(description = "Name for the deployment", required = true) @QueryParam("deployment-name") @Valid @NotNull String deploymentName,
             @Parameter(
@@ -154,7 +152,7 @@ public class DeploymentSvc {
                     @ApiResponse(responseCode = "403", description = "The user is not allowed to delete deployments.")
             }
     )
-    @Log(level = CONFIG, beforeExecuteMessage = "Deleting deployment '{0}'", afterExecuteMessage = "Deployment is successfully deleted")
+    @Log(beforeExecuteMessage = "Deleting deployment '{0}'", afterExecuteMessage = "Deployment '{0}' is deleted")
     public void delete(
             @Parameter(description = "The id of the deployment.", required = true) @PathParam("deployment-id") @NotNull String deploymentId) {
         repositoryService.deleteDeployment(deploymentId, true);
@@ -164,16 +162,16 @@ public class DeploymentSvc {
     @GET
     @Path("/public-resources")
     @Produces("application/hal+json")
-    @Log(level = CONFIG, beforeExecuteMessage = "Getting list of task resources")
+    @Log(level = CONFIG, beforeExecuteMessage = "Getting list of public resources for form '{2}'")
     //TODO document it
     public HalRepresentation listPublicResources(
             @Parameter(description = "The id of process definition which has the resources. Not required, if 'case-definition-id' is passed.", allowEmptyValue = true) @QueryParam("process-definition-id") String processDefinitionId,
             @Parameter(description = "The id of case definition which has the resources. Not required, if 'process-definition-id' is passed.", allowEmptyValue = true) @QueryParam("case-definition-id") String caseDefinitionId,
-            @Parameter(description = "The key of a form for which resources are requested.", allowEmptyValue = false) @QueryParam("form-key") String resourceKey) {
+            @Parameter(description = "The key of a form for which resources are requested.", allowEmptyValue = false) @QueryParam("form-key") String formKey) {
         String deploymentId =  getResourceDefinition(processDefinitionId, caseDefinitionId).getDeploymentId();
         ResourceLoader resourceLoader = AbstractResourceLoader
-                .getResourceLoader(deploymentId, resourceKey, PUBLIC_RESOURCES_DIRECTORY);
-        String deploymentProtocol = AbstractResourceLoader.getProtocol(resourceKey);
+                .getResourceLoader(deploymentId, formKey, PUBLIC_RESOURCES_DIRECTORY);
+        String deploymentProtocol = AbstractResourceLoader.getProtocol(formKey);
         List<String> resources = resourceLoader.listResourceNames();
         String baseUrl = getBaseUrl();
         return new HalRepresentation(
@@ -195,13 +193,12 @@ public class DeploymentSvc {
     @GET
     @Path("/public-resource/{deployment-protocol}/{deployment-id}/{resource-key: .*}")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
-    @Log(level = CONFIG, beforeExecuteMessage = "Getting list of task resources")
+    @Log(level = CONFIG, beforeExecuteMessage = "Getting a public resource using protocol '{0}'")
     //TODO document it
     public InputStream getPublicResource(
             @Parameter(description = "Deployment protocol of the requested resource ('embedded:app:' or 'embedded:deployment:').", required = true) @PathParam("deployment-protocol") @Valid @NotNull String deploymentProtocol,
             @Parameter(description = "The id of the deployment connected with resource requested.", required = true) @PathParam("deployment-id") @Valid @NotNull String deploymentId,
-            @Parameter(description = "The requested resource path. No deployment protocol needed.", required = true) @PathParam("resource-key") @Valid @NotNull List<PathSegment> resourceKey)
-            throws UnsupportedEncodingException {
+            @Parameter(description = "The requested resource path. No deployment protocol needed.", required = true) @PathParam("resource-key") @Valid @NotNull List<PathSegment> resourceKey) {
         ResourceLoader resourceLoader = AbstractResourceLoader
                 .getResourceLoader(deploymentId, deploymentProtocol + resourceKey, PUBLIC_RESOURCES_DIRECTORY);
         String resourcePath = resourceKey.stream().map(PathSegment::getPath).collect(Collectors.joining("/"));

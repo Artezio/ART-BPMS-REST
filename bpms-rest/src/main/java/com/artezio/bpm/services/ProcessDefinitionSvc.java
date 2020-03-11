@@ -87,7 +87,7 @@ public class ProcessDefinitionSvc {
                     )
             }
     )
-    @Log(level = CONFIG, beforeExecuteMessage = "Getting list of startable by caller process definitions")
+    @Log(level = CONFIG, beforeExecuteMessage = "Getting list of process definitions startable by the caller")
     public List<ProcessDefinitionRepresentation> listStartableByUser() {
         return repositoryService
                 .createProcessDefinitionQuery()
@@ -122,7 +122,7 @@ public class ProcessDefinitionSvc {
                     @ApiResponse(responseCode = "403", description = "The user is not allowed to start the process.")
             }
     )
-    @Log(level = CONFIG, beforeExecuteMessage = "Starting process '{0}'", afterExecuteMessage = "Process '{0}' successfully started")
+    @Log(beforeExecuteMessage = "Starting process '{0}'", afterExecuteMessage = "Process '{0}' is started")
     public TaskRepresentation start(
             @Parameter(description = "The key of the process definition to be started.") @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey,
             @RequestBody(description = "A JSON object with variables.") Map<String, Object> inputVariables) throws IOException {
@@ -159,7 +159,7 @@ public class ProcessDefinitionSvc {
                     )
             }
     )
-    @Log(beforeExecuteMessage = "Loading start form for process '{0}'", afterExecuteMessage = "Start form for process '{0}' successfully loaded")
+    @Log(level = CONFIG, beforeExecuteMessage = "Loading start form for process '{0}'")
     public String loadRenderedStartForm(
             @Parameter(description = "The key of the process definition, which form is loaded for.") @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey) throws IOException {
         ProcessDefinition processDefinition = getLastProcessDefinition(processDefinitionKey);
@@ -194,6 +194,7 @@ public class ProcessDefinitionSvc {
                     )
             }
     )
+    @Log(level = CONFIG, beforeExecuteMessage = "Loading start form info for process '{0}'")
     public FormDto loadStartForm( 
             @Parameter(description = "The key of the process definition, which form is loaded for.") @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey) throws IOException {
         ProcessDefinition processDefinition = getLastProcessDefinition(processDefinitionKey);

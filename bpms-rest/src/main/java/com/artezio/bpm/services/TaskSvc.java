@@ -310,7 +310,7 @@ public class TaskSvc {
                     )
             }
     )
-    @Log(level = CONFIG, beforeExecuteMessage = "Claiming task '{0}'")
+    @Log(beforeExecuteMessage = "Claiming task '{0}'", afterExecuteMessage = "Task '{0}' is claimed")
     public void claim(
             @Parameter(description = "The id of the task which is going to be assigned", required = true) @PathParam("task-id") @Valid @NotNull String taskId) {
         ensureUserHasAccess(taskId);
@@ -338,7 +338,7 @@ public class TaskSvc {
                     )
             }
     )
-    @Log(beforeExecuteMessage = "Loading form for user task '{0}'", afterExecuteMessage = "Form successfully loaded")
+    @Log(level = CONFIG, beforeExecuteMessage = "Loading form for user task '{0}'")
     public String loadForm(
             @Parameter(description = "The id of the task which form is requested for.", required = true) @PathParam("task-id") @Valid @NotNull String taskId) throws IOException {
         ensureUserHasAccess(taskId);
@@ -370,7 +370,7 @@ public class TaskSvc {
                     )
             }
     )
-    @Log(level = CONFIG, beforeExecuteMessage = "Downloading file '{1}'", afterExecuteMessage = "File '{1}' successfully downloaded")
+    @Log(level = CONFIG, beforeExecuteMessage = "Downloading file '{1}'", afterExecuteMessage = "File '{1}' is downloaded")
     public Response downloadFile(
             @Parameter(description = "An id of the task which has in its scope requested file as variable.", required = true) @PathParam("task-id") @Valid @NotNull String taskId,
             @Parameter(description = "Path to requested file.", required = true) @QueryParam(value = "filePath") @Valid @NotNull String filePath) {
@@ -417,10 +417,11 @@ public class TaskSvc {
                     )
             }
     )
-    @Log(level = CONFIG, beforeExecuteMessage = "Completing task '{0}'", afterExecuteMessage = "Task '{0}' successfully completed")
+    @Log(beforeExecuteMessage = "Completing task '{0}'", afterExecuteMessage = "Task '{0}' is completed")
     public TaskRepresentation complete(
             @Parameter(description = "The id of the task to be completed.", required = true) @PathParam("task-id") @Valid @NotNull String taskId,
-            @RequestBody(description = "The variables which will be passed to a process after completing the task.") Map<String, Object> inputVariables) throws IOException {
+            @RequestBody(description = "The variables which will be passed to a process after completing the task.") Map<String, Object> inputVariables)
+            throws IOException {
         Task task = taskService.createTaskQuery()
                 .taskId(taskId)
                 .singleResult();
@@ -435,7 +436,7 @@ public class TaskSvc {
     }
 
     @PermitAll
-    @Log(level = CONFIG, beforeExecuteMessage = "Getting next assigned task for process instance")
+    @Log(level = CONFIG, beforeExecuteMessage = "Getting next assigned task for process instance '{0}'")
     public Task getNextAssignedTask(String processInstanceId) {
         List<Task> assignedTasks = taskService.createTaskQuery()
                 .processInstanceId(processInstanceId)
