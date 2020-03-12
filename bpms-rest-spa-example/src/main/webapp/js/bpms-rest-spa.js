@@ -350,6 +350,7 @@ function loadCustomComponents({ resources, ...rest }) {
 function loadCustomComponent(customComponentSource) {
     const script = document.createElement('script');
     script.src = customComponentSource;
+    // script.crossorigin = "cross-origin";
     return new Promise((resolve, reject) => {
         script.onload = () => {
             resolve()
@@ -368,6 +369,23 @@ function registerCustomComponents(customComponents) {
             console.info(err);
         }
     }
+}
+
+const loader = (function () {
+    const loaderImage = document.createElement('i');
+    const loader = document.createElement('div');
+    loaderImage.classList.add('loader', 'text-info');
+    loader.classList.add('d-flex', 'justify-content-center', 'align-items-center', 'page-loader');
+    loader.append(loaderImage);
+    return loader;
+})()
+
+function attachLoader() {
+    document.body.append(loader);
+}
+
+function detachLoader() {
+    loader.remove();
 }
 
 var ProcessStartForms = {
@@ -389,6 +407,7 @@ var ProcessStartForms = {
 
     load: function (processDefinitionId, processDefinitionKey, errorCallback) {
         clearErrors();
+        attachLoader();
         refreshToken()
             .then(prepareEnvironmentForFormio({ processDefinitionId, processDefinitionKey }))
             .then(_ =>
@@ -473,6 +492,7 @@ var ProcessStartForms = {
             .finally(() => {
                 metaData.originalBaseUrl && setBaseUrl(metaData.originalBaseUrl);
                 metaData.originalBaseUrl = null;
+                detachLoader();
             });
     }
 };
@@ -499,6 +519,7 @@ var TaskForms = {
         const formKey = task.formKey;
         const processDefinitionId = task.processDefinitionId;
         clearErrors();
+        attachLoader();
         refreshToken()
             .then(prepareEnvironmentForFormio({ processDefinitionId: processDefinitionId, formKey: formKey }))
             .then(_ =>
@@ -569,6 +590,7 @@ var TaskForms = {
             .finally(() => {
                 metaData.originalBaseUrl && setBaseUrl(metaData.originalBaseUrl);
                 metaData.originalBaseUrl = null;
+                detachLoader();
             })
     }
 };
