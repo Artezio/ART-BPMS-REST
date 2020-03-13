@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 import org.apache.commons.io.IOUtils;
+import org.apache.tika.Tika;
 import org.camunda.bpm.application.ProcessApplicationInterface;
 import org.camunda.bpm.engine.ManagementService;
 import org.camunda.bpm.engine.RepositoryService;
@@ -35,6 +36,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.PathSegment;
+import javax.ws.rs.core.Response;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -58,8 +60,9 @@ import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
 @Path("/deployment")
 public class DeploymentSvc {
 
-    public final static String PUBLIC_RESOURCES_DIRECTORY = "public";
-    private final static MediaType MEDIA_TYPE_ZIP = MediaType.valueOf("application/zip");
+    public static final String PUBLIC_RESOURCES_DIRECTORY = "public";
+    private static final MediaType MEDIA_TYPE_ZIP = MediaType.valueOf("application/zip");
+    private static final Tika CONTENT_ANALYSER = new Tika();
 
     @Inject
     private RepositoryService repositoryService;
@@ -192,17 +195,21 @@ public class DeploymentSvc {
     @PermitAll
     @GET
     @Path("/public-resource/{deployment-protocol}/{deployment-id}/{resource-key: .*}")
-    @Produces(MediaType.APPLICATION_OCTET_STREAM)
+    @Produces(MediaType.WILDCARD)
     @Log(level = CONFIG, beforeExecuteMessage = "Getting a public resource using protocol '{0}'")
     //TODO document it
-    public InputStream getPublicResource(
+    public Response getPublicResource(
             @Parameter(description = "Deployment protocol of the requested resource ('embedded:app:' or 'embedded:deployment:').", required = true) @PathParam("deployment-protocol") @Valid @NotNull String deploymentProtocol,
             @Parameter(description = "The id of the deployment connected with resource requested.", required = true) @PathParam("deployment-id") @Valid @NotNull String deploymentId,
-            @Parameter(description = "The requested resource path. No deployment protocol needed.", required = true) @PathParam("resource-key") @Valid @NotNull List<PathSegment> resourceKey) {
+            @Parameter(description = "The requested resource path. No deployment protocol needed.", required = true) @PathParam("resource-key") @Valid @NotNull List<PathSegment> resourceKey) throws IOException {
         ResourceLoader resourceLoader = AbstractResourceLoader
                 .getResourceLoader(deploymentId, deploymentProtocol + resourceKey, PUBLIC_RESOURCES_DIRECTORY);
         String resourcePath = resourceKey.stream().map(PathSegment::getPath).collect(Collectors.joining("/"));
-        return resourceLoader.getResource(resourcePath);
+        String resourceMimeType = CONTENT_ANALYSER.detect(resourcePath);
+        return Response.ok()
+                .entity(resourceLoader.getResource(resourcePath))
+                .type(resourceMimeType)
+                .build();
     }
 
     private void registerInProcessApplication(Deployment deployment) {

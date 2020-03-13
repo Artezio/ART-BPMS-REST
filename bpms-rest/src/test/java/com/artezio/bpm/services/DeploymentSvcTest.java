@@ -3,8 +3,6 @@ package com.artezio.bpm.services;
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
 import de.otto.edison.hal.HalRepresentation;
 import de.otto.edison.hal.Link;
-
-import org.assertj.core.util.Arrays;
 import org.camunda.bpm.application.ProcessApplicationInterface;
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.impl.persistence.entity.ResourceEntity;
@@ -14,7 +12,6 @@ import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
@@ -25,16 +22,10 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.PathSegment;
-
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
+import javax.ws.rs.core.Response;
+import java.io.*;
 import java.lang.reflect.Field;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -242,29 +233,27 @@ public class DeploymentSvcTest extends ServiceTest {
     
     @Test
     @org.camunda.bpm.engine.test.Deployment(resources = {"process-with-froms-from-deployment.bpmn", "public/simpleStartForm.json"})
-    public void testGetPublicResource() throws UnsupportedEncodingException {
+    public void testGetPublicResource() throws IOException {
         ProcessDefinition processDefinition = getLastProcessDefinition("processWithFormsFromDeployment");
         
-        InputStream actual = deploymentSvc.getPublicResource("embedded:deployment:", processDefinition.getDeploymentId(), asPathSegments("simpleStartForm.json"));
-        
+        Response actual = deploymentSvc.getPublicResource("embedded:deployment:", processDefinition.getDeploymentId(), asPathSegments("simpleStartForm.json"));
+
         assertNotNull(actual);
     }
     
     private List<PathSegment> asPathSegments(String path) {
         return Stream.of(path.split("/"))
-            .map(p -> {
-                return new PathSegment() {
-                    
-                    @Override
-                    public String getPath() {
-                        return p;
-                    }
-                    
-                    @Override
-                    public MultivaluedMap<String, String> getMatrixParameters() {
-                        return null;
-                    }
-                };
+            .map(p -> new PathSegment() {
+
+                @Override
+                public String getPath() {
+                    return p;
+                }
+
+                @Override
+                public MultivaluedMap<String, String> getMatrixParameters() {
+                    return null;
+                }
             })
             .collect(Collectors.toList());
     }
