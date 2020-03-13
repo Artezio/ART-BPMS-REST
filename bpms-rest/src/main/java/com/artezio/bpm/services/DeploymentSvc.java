@@ -19,6 +19,7 @@ import org.camunda.bpm.application.ProcessApplicationInterface;
 import org.camunda.bpm.engine.ManagementService;
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.repository.*;
+import org.jboss.resteasy.annotations.cache.Cache;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
@@ -62,6 +63,7 @@ public class DeploymentSvc {
 
     public static final String PUBLIC_RESOURCES_DIRECTORY = "public";
     private static final MediaType MEDIA_TYPE_ZIP = MediaType.valueOf("application/zip");
+    private static final int CACHE_MAX_AGE = 31536000;
     private static final Tika CONTENT_ANALYSER = new Tika();
 
     @Inject
@@ -197,6 +199,7 @@ public class DeploymentSvc {
     @Path("/public-resource/{deployment-protocol}/{deployment-id}/{resource-key: .*}")
     @Produces(MediaType.WILDCARD)
     @Log(level = CONFIG, beforeExecuteMessage = "Getting a public resource using protocol '{0}'")
+    @Cache(maxAge = CACHE_MAX_AGE, isPrivate = true)
     //TODO document it
     public Response getPublicResource(
             @Parameter(description = "Deployment protocol of the requested resource ('embedded:app:' or 'embedded:deployment:').", required = true) @PathParam("deployment-protocol") @Valid @NotNull String deploymentProtocol,
