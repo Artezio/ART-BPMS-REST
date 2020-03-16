@@ -54,6 +54,7 @@ import static de.otto.edison.hal.Link.linkBuilder;
 import static de.otto.edison.hal.Links.linkingTo;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
+import static org.jboss.resteasy.util.HttpHeaderNames.PRAGMA;
 
 @Startup
 @DependsOn("DefaultEjbProcessApplication")
@@ -211,6 +212,7 @@ public class DeploymentSvc {
         String resourceMimeType = CONTENT_ANALYSER.detect(resourcePath);
         return Response.ok()
                 .entity(resourceLoader.getResource(resourcePath))
+                .header(PRAGMA, "")
                 .type(resourceMimeType)
                 .build();
     }
