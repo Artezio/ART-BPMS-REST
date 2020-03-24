@@ -1,8 +1,8 @@
 package com.artezio.bpm.services;
 
 import com.artezio.bpm.resources.AbstractResourceLoader;
-import com.artezio.bpm.resources.ResourceLoader;
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
+import com.artezio.forms.ResourceLoader;
 import com.artezio.logging.Log;
 import de.otto.edison.hal.HalRepresentation;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;

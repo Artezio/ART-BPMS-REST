@@ -1,10 +1,12 @@
 package com.artezio.bpm.services;
 
+import com.artezio.bpm.integration.CamundaFileStorage;
 import com.artezio.bpm.rest.dto.repository.ProcessDefinitionRepresentation;
 import com.artezio.bpm.rest.dto.task.FormDto;
 import com.artezio.bpm.rest.dto.task.TaskRepresentation;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.validation.VariableValidator;
+import com.artezio.forms.FileStorage;
 import com.artezio.logging.Log;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
@@ -236,8 +238,10 @@ public class ProcessDefinitionSvc {
         if (formKey == null) {
             throw new RuntimeException("Process has no start form");
         } else {
-            String validatedVariablesJson = formService.dryValidationAndCleanupStartForm(processDefinitionId, inputVariables, PUBLIC_RESOURCES_DIRECTORY);
             Map<String, Object> formVariables = getStartFormVariables(formData);
+            FileStorage fileStorage = new CamundaFileStorage(formVariables);
+            String validatedVariablesJson = formService.dryValidationAndCleanupStartForm(processDefinitionId, inputVariables,
+                    PUBLIC_RESOURCES_DIRECTORY, fileStorage);
             variablesMapper.updateVariables(formVariables, validatedVariablesJson);
             return formVariables;
         }

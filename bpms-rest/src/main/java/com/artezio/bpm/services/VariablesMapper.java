@@ -1,6 +1,5 @@
 package com.artezio.bpm.services;
 
-import com.artezio.camunda.spinjar.jackson.JacksonDataFormatConfigurator;
 import com.artezio.logging.Log;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import spinjar.com.fasterxml.jackson.databind.DeserializationFeature;
@@ -24,10 +23,6 @@ public class VariablesMapper {
     private final static ObjectMapper SPINJAR_MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             .setDefaultMergeable(false);
-
-    static {
-        JacksonDataFormatConfigurator.registerSpinjarFileValueSerializers(SPINJAR_MAPPER);
-    }
 
     @Log(level = CONFIG, beforeExecuteMessage = "Updating process variables")
     public void updateVariables(Map<String, Object> existedVariables, String inputVarsJson) throws IOException {

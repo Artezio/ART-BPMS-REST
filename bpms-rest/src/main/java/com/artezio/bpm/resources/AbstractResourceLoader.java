@@ -1,5 +1,7 @@
 package com.artezio.bpm.resources;
 
+import com.artezio.forms.ResourceLoader;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 

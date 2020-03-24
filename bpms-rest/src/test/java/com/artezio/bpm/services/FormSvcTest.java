@@ -1,7 +1,8 @@
 package com.artezio.bpm.services;
 
-import com.artezio.bpm.resources.ResourceLoader;
+import com.artezio.forms.FileStorage;
 import com.artezio.forms.FormClient;
+import com.artezio.forms.ResourceLoader;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import junitx.framework.ListAssert;
@@ -40,7 +41,7 @@ import static org.mockito.internal.util.reflection.FieldSetter.setField;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(CDI.class)
-@PowerMockIgnore({"com.sun.org.apache.*", "javax.xml.*", "java.xml.*", "org.xml.*", "org.w3c.dom.*"})
+@PowerMockIgnore({"com.sun.org.apache.*", "javax.xml.*", "java.xml.*", "org.xml.*", "org.w3c.dom.*", "javax.management.*"})
 public class FormSvcTest extends ServiceTest {
 
     @InjectMocks
@@ -98,7 +99,7 @@ public class FormSvcTest extends ServiceTest {
         String expected = "{someFormWithData}";
 
         when(variablesMapper.toJsonNode(taskVariables)).thenReturn(taskVariablesNode);
-        when(formClient.getFormWithData(eq(formKey), eq(taskVariablesNode), any(ResourceLoader.class))).thenReturn(expected);
+        when(formClient.getFormWithData(eq(formKey), eq(taskVariablesNode), any(ResourceLoader.class), any(FileStorage.class))).thenReturn(expected);
 
         String actual = formSvc.getTaskFormWithData(task.getId(), taskVariables, PUBLIC_RESOURCES_DIRECTORY);
 

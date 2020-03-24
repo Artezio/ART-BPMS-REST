@@ -1,5 +1,6 @@
 package com.artezio.bpm.resources;
 
+import com.artezio.forms.ResourceLoader;
 import org.camunda.bpm.engine.test.Deployment;
 import org.camunda.bpm.engine.test.ProcessEngineRule;
 import org.junit.Rule;

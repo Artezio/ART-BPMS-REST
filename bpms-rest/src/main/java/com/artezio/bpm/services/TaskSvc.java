@@ -1,11 +1,12 @@
 package com.artezio.bpm.services;
 
+import com.artezio.bpm.integration.CamundaFileStorage;
 import com.artezio.bpm.rest.dto.task.TaskRepresentation;
 import com.artezio.bpm.rest.query.task.TaskQueryParams;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
-import com.artezio.bpm.services.exceptions.NotFoundException;
-import com.artezio.bpm.services.integration.FileStorage;
 import com.artezio.bpm.validation.VariableValidator;
+import com.artezio.forms.FileStorage;
+import com.artezio.forms.FileStorageEntity;
 import com.artezio.logging.Log;
 import com.jayway.jsonpath.JsonPath;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
@@ -17,7 +18,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import net.minidev.json.JSONArray;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.tika.Tika;
 import org.camunda.bpm.engine.CaseService;
 import org.camunda.bpm.engine.FormService;
 import org.camunda.bpm.engine.RepositoryService;
@@ -39,10 +40,8 @@ import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -61,6 +60,7 @@ public class TaskSvc {
 
     private static final String DECISION_VARIABLE_NAME = "decision";
     private static final String STATE_VARIABLE_NAME = "state";
+    private static final Tika CONTENT_ANALYSER = new Tika();
 
     @Inject
     private TaskService taskService;
@@ -348,7 +348,7 @@ public class TaskSvc {
     }
 
     @GET
-    @Path("{task-id}/file/")
+    @Path("{task-id}/file/{file-id}")
     @PermitAll
     @Operation(
             description = "Download a file which is a variable in the scope of a task.",
@@ -373,18 +373,16 @@ public class TaskSvc {
     @Log(level = CONFIG, beforeExecuteMessage = "Downloading file '{1}'", afterExecuteMessage = "File '{1}' is downloaded")
     public Response downloadFile(
             @Parameter(description = "An id of the task which has in its scope requested file as variable.", required = true) @PathParam("task-id") @Valid @NotNull String taskId,
-            @Parameter(description = "Path to requested file.", required = true) @QueryParam(value = "filePath") @Valid @NotNull String filePath) {
+            @Parameter(description = "Id of requested file.", required = true) @PathParam("file-id") @Valid @NotNull String fileId) {
         ensureUserHasAccess(taskId);
         try {
-            Map<String, Object> file = getRequestedFileVariableValue(taskId, filePath);
-            String type = StringUtils.isNotEmpty((String) file.get("mimeType")) ? (String) file.get("mimeType") : MediaType.APPLICATION_OCTET_STREAM;
-            InputStream fileContent = fileStorage.retrieve((String) file.get("url"));
+            FileStorageEntity fileStorageEntity = new CamundaFileStorage(taskId).retrieve(fileId);
             return Response
-                    .ok(fileContent, type)
-                    .header("Content-Disposition", "attachment; filename=" + file.get("filename"))
+                    .ok(fileStorageEntity.getContent(), fileStorageEntity.getMimeType())
+                    .header("Content-Disposition", "attachment; filename=" + fileStorageEntity.getName())
                     .build();
         } catch (RuntimeException exception) {
-            throw new NotFoundException("File '" + filePath + "' is not found.");
+            throw new NotFoundException("File '" + fileId + "' is not found.");
         }
     }
 
@@ -571,8 +569,10 @@ public class TaskSvc {
         if (formKey != null) {
             List<String> formFieldsNames = formService.getTaskFormFieldsNames(taskId, PUBLIC_RESOURCES_DIRECTORY);
             Map<String, Object> taskVariables = taskService.getVariables(taskId, formFieldsNames);
-            String cleanDataJson = formService.dryValidationAndCleanupTaskForm(taskId, inputVariables, taskVariables, PUBLIC_RESOURCES_DIRECTORY);
-            variablesMapper.updateVariables(taskVariables, cleanDataJson);
+            FileStorage fileStorage = new CamundaFileStorage(taskVariables);
+            String validatedVariablesJson = formService.dryValidationAndCleanupTaskForm(taskId, inputVariables,
+                    taskVariables, PUBLIC_RESOURCES_DIRECTORY, fileStorage);
+            variablesMapper.updateVariables(taskVariables, validatedVariablesJson);
             return taskVariables;
         } else {
             return inputVariables;

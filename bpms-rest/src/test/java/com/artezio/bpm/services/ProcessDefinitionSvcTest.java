@@ -4,6 +4,7 @@ import com.artezio.bpm.rest.dto.repository.ProcessDefinitionRepresentation;
 import com.artezio.bpm.rest.dto.task.FormDto;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.validation.VariableValidator;
+import com.artezio.forms.FileStorage;
 import junitx.framework.ListAssert;
 import org.camunda.bpm.engine.IdentityService;
 import org.camunda.bpm.engine.identity.Group;
@@ -180,8 +181,8 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
             return null;
         });
         expect(taskSvc.getNextAssignedTask(anyObject(String.class))).andReturn(null);
-        expect(formSvc.dryValidationAndCleanupStartForm(anyString(), eq(submittedFormValues), eq(PUBLIC_RESOURCES_DIRECTORY)))
-                .andReturn(validatedVariablesJson);
+        expect(formSvc.dryValidationAndCleanupStartForm(EasyMock.anyString(), EasyMock.eq(submittedFormValues), EasyMock.eq(PUBLIC_RESOURCES_DIRECTORY),
+                EasyMock.anyObject(FileStorage.class))).andReturn(validatedVariablesJson);
         expect(variablesMapper.convertVariablesToEntities(capture(processVariablesCapture), anyObject(Map.class)))
                 .andStubAnswer(processVariablesCapture::getValue);
         replay(formSvc, variablesMapper, taskSvc);
@@ -225,8 +226,8 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
             processVariablesCapture.getValue().put("testFiles", expectedFileValues);
             return null;
         });
-        expect(formSvc.dryValidationAndCleanupStartForm(anyString(), eq(submittedFormValues), eq(PUBLIC_RESOURCES_DIRECTORY)))
-                .andReturn(validatedVariablesJson);
+        expect(formSvc.dryValidationAndCleanupStartForm(anyString(), eq(submittedFormValues), eq(PUBLIC_RESOURCES_DIRECTORY),
+                anyObject(FileStorage.class))).andReturn(validatedVariablesJson);
         expect(taskSvc.getNextAssignedTask(anyObject(String.class))).andReturn(null);
         expect(identitySvc.userGroups()).andReturn(asList(TEST_GROUP_ID));
         expect(variablesMapper.convertVariablesToEntities(capture(processVariablesCapture), anyObject(Map.class)))
