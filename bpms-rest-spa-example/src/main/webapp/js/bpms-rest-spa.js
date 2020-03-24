@@ -350,7 +350,7 @@ function loadCustomComponents({ resources, ...rest }) {
 function loadCustomComponent(customComponentSource) {
     const script = document.createElement('script');
     script.src = customComponentSource;
-    // script.crossorigin = "cross-origin";
+    // script.src = "http://127.0.0.1:5501/webapp/texteditor.js";
     return new Promise((resolve, reject) => {
         script.onload = () => {
             resolve()
