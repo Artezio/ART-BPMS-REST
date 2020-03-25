@@ -17,7 +17,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import javax.enterprise.inject.Instance;
 import javax.enterprise.inject.spi.CDI;
-import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -89,17 +89,17 @@ public class CamundaFileStorageTest {
     public void testGetDownloadUrlPrefix() {
         String taskId = "taskId";
         CamundaFileStorage fileStorage = new CamundaFileStorage(taskId);
-        String rootContext = "/context";
-        String expected = rootContext + "/api/task/" + taskId;
-        ServletContext servletContext = mock(ServletContext.class);
+        StringBuffer requestUrl = new StringBuffer(String.format("http://localhost:8080/bpms-rest/api/task/%s/", taskId));
+        String expected = requestUrl.substring(0, requestUrl.lastIndexOf("/"));
+        HttpServletRequest servletRequest = mock(HttpServletRequest.class);
 
         PowerMockito.mockStatic(CDI.class);
         CDI cdi = mock(CDI.class);
-        Instance<ServletContext> servletContextInstance = mock(Instance.class);
+        Instance<HttpServletRequest> servletRequestInstance = mock(Instance.class);
         when(CDI.current()).thenReturn(cdi);
-        when(cdi.select(ServletContext.class)).thenReturn(servletContextInstance);
-        when(servletContextInstance.get()).thenReturn(servletContext);
-        when(servletContext.getContextPath()).thenReturn(rootContext);
+        when(cdi.select(HttpServletRequest.class)).thenReturn(servletRequestInstance);
+        when(servletRequestInstance.get()).thenReturn(servletRequest);
+        when(servletRequest.getRequestURL()).thenReturn(requestUrl);
 
         String actual = fileStorage.getDownloadUrlPrefix();
 
