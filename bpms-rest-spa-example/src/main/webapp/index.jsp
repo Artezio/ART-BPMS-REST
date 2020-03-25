@@ -6,7 +6,9 @@
 
 <%
     final String KEYCLOAK_SERVER_URL = System.getProperty("KEYCLOAK_SERVER_URL", "http://localhost:8180/auth");
-    final String BPMS_REST_API = System.getProperty("BPMS_REST_API", "http://localhost:8080/bpms-rest/api");
+    String contextPath = request.getContextPath();
+    StringBuffer requestUrl = request.getRequestURL();
+    final String BPMS_REST_API = String.format("%s/bpms-rest/api", requestUrl.substring(0, requestUrl.indexOf(contextPath)));
     final String KEYCLOAK_REALM = System.getProperty("KEYCLOAK_REALM", "master");
     final String KEYCLOAK_CLIENT_ID = System.getProperty("KEYCLOAK_CLIENT_ID", "bpms-rest");
     final String FILE_STORAGE_URL = System.getenv("FILE_STORAGE_URL");
