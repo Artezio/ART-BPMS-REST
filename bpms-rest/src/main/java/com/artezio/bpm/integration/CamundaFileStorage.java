@@ -10,7 +10,7 @@ import org.camunda.bpm.engine.variable.Variables;
 import org.camunda.bpm.engine.variable.value.FileValue;
 
 import javax.enterprise.inject.spi.CDI;
-import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -22,7 +22,7 @@ public class CamundaFileStorage implements FileStorage {
     private String taskId;
     private Map<String, Object> variables;
     private ProcessEngine processEngine;
-    private ServletContext servletContext;
+    private HttpServletRequest httpServletRequest;
 
     public CamundaFileStorage(String taskId) {
         this.taskId = taskId;
@@ -50,7 +50,9 @@ public class CamundaFileStorage implements FileStorage {
 
     @Override
     public String getDownloadUrlPrefix() {
-        return String.format("%s/api/task/%s", getServletContext().getContextPath(), taskId);
+        HttpServletRequest request = getRequest();
+        StringBuffer requestURL = request.getRequestURL();
+        return requestURL.substring(0, requestURL.lastIndexOf("/"));
     }
 
     private FileValue createFileValue(FileStorageEntity fileStorageEntity) {
@@ -75,11 +77,11 @@ public class CamundaFileStorage implements FileStorage {
         return processEngine;
     }
 
-    private ServletContext getServletContext() {
-        if (servletContext == null) {
-            servletContext = CDI.current().select(ServletContext.class).get();
+    private HttpServletRequest getRequest() {
+        if (httpServletRequest == null) {
+            httpServletRequest = CDI.current().select(HttpServletRequest.class).get();
         }
-        return servletContext;
+        return httpServletRequest;
     }
 
 }
