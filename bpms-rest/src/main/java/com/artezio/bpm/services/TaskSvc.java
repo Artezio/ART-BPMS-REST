@@ -4,6 +4,7 @@ import com.artezio.bpm.integration.CamundaFileStorage;
 import com.artezio.bpm.rest.dto.task.TaskRepresentation;
 import com.artezio.bpm.rest.query.task.TaskQueryParams;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
+import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.bpm.validation.VariableValidator;
 import com.artezio.forms.FileStorage;
 import com.artezio.forms.FileStorageEntity;
@@ -18,7 +19,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import net.minidev.json.JSONArray;
-import org.apache.tika.Tika;
 import org.camunda.bpm.engine.CaseService;
 import org.camunda.bpm.engine.FormService;
 import org.camunda.bpm.engine.RepositoryService;
@@ -27,7 +27,6 @@ import org.camunda.bpm.engine.runtime.CaseExecution;
 import org.camunda.bpm.engine.task.Task;
 import org.camunda.bpm.engine.task.TaskQuery;
 import org.camunda.bpm.engine.variable.VariableMap;
-import org.camunda.bpm.engine.variable.impl.value.ObjectValueImpl;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.instance.ExtensionElements;
 import org.camunda.bpm.model.bpmn.instance.Process;
@@ -60,7 +59,6 @@ public class TaskSvc {
 
     private static final String DECISION_VARIABLE_NAME = "decision";
     private static final String STATE_VARIABLE_NAME = "state";
-    private static final Tika CONTENT_ANALYSER = new Tika();
 
     @Inject
     private TaskService taskService;
@@ -342,7 +340,7 @@ public class TaskSvc {
     public String loadForm(
             @Parameter(description = "The id of the task which form is requested for.", required = true) @PathParam("task-id") @Valid @NotNull String taskId) throws IOException {
         ensureUserHasAccess(taskId);
-        List<String> formFieldsNames = formService.getTaskFormFieldsNames(taskId, PUBLIC_RESOURCES_DIRECTORY);
+        List<String> formFieldsNames = formService.getRootTaskFormFieldNames(taskId, PUBLIC_RESOURCES_DIRECTORY);
         VariableMap taskVariables = taskService.getVariablesTyped(taskId, formFieldsNames, true);
         return formService.getTaskFormWithData(taskId, taskVariables, PUBLIC_RESOURCES_DIRECTORY);
     }
@@ -375,15 +373,12 @@ public class TaskSvc {
             @Parameter(description = "An id of the task which has in its scope requested file as variable.", required = true) @PathParam("task-id") @Valid @NotNull String taskId,
             @Parameter(description = "Id of requested file.", required = true) @PathParam("file-id") @Valid @NotNull String fileId) {
         ensureUserHasAccess(taskId);
-        try {
-            FileStorageEntity fileStorageEntity = new CamundaFileStorage(taskId).retrieve(fileId);
-            return Response
-                    .ok(fileStorageEntity.getContent(), fileStorageEntity.getMimeType())
-                    .header("Content-Disposition", "attachment; filename=" + fileStorageEntity.getName())
-                    .build();
-        } catch (RuntimeException exception) {
-            throw new NotFoundException("File '" + fileId + "' is not found.");
-        }
+        checkIfFileExists(taskId, fileId);
+        FileStorageEntity fileStorageEntity = new CamundaFileStorage(taskId).retrieve(fileId);
+        return Response
+                .ok(fileStorageEntity.getContent(), fileStorageEntity.getMimeType())
+                .header("Content-Disposition", "attachment; filename=" + fileStorageEntity.getName())
+                .build();
     }
 
     @POST
@@ -523,18 +518,6 @@ public class TaskSvc {
                 : getNextAssignedTask(getCaseExecution(task));
     }
 
-    private Map<String, Object> getRequestedFileVariableValue(String taskId, String filePath) {
-        String[] splitFilePath = filePath.split("/");
-        String sanitizedVariableName = cleanUpVariableName(splitFilePath[0]);
-        if (splitFilePath.length > 1) {
-            String variableJsonValue = ((ObjectValueImpl) taskService.getVariableTyped(taskId, sanitizedVariableName, false))
-                    .getValueSerialized();
-            return getFileValue(splitFilePath, variableJsonValue);
-        } else {
-            return taskService.getVariableTyped(taskId, sanitizedVariableName);
-        }
-    }
-
     private Map<String, String> getProcessExtensions(String taskId) {
         String processDefinitionId = taskService.createTaskQuery().taskId(taskId).singleResult().getProcessDefinitionId();
         String processDefinitionKey = repositoryService.createProcessDefinitionQuery()
@@ -567,7 +550,7 @@ public class TaskSvc {
             throws IOException {
         String formKey = camundaFormService.getTaskFormData(taskId).getFormKey();
         if (formKey != null) {
-            List<String> formFieldsNames = formService.getTaskFormFieldsNames(taskId, PUBLIC_RESOURCES_DIRECTORY);
+            List<String> formFieldsNames = formService.getRootTaskFormFieldNames(taskId, PUBLIC_RESOURCES_DIRECTORY);
             Map<String, Object> taskVariables = taskService.getVariables(taskId, formFieldsNames);
             FileStorage fileStorage = new CamundaFileStorage(taskVariables);
             String validatedVariablesJson = formService.dryValidationAndCleanupTaskForm(taskId, inputVariables,
@@ -601,6 +584,13 @@ public class TaskSvc {
                 .isEmpty()) {
             throw new NotAuthorizedException();
         }
+    }
+
+    private void checkIfFileExists(String taskId, String fileId) {
+        List<String> taskFormVariableNames = formService.getTaskFormFieldNames(taskId, PUBLIC_RESOURCES_DIRECTORY);
+        fileId = fileId.replaceAll("\\[\\d+]", "");
+        if (!taskFormVariableNames.contains(fileId))
+            throw new NotFoundException(String.format("File %s is not found", fileId));
     }
 
 }

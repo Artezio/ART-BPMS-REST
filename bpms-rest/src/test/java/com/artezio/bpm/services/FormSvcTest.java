@@ -163,9 +163,9 @@ public class FormSvcTest extends ServiceTest {
         String formKey = "Form_1";
         List<String> expected = asList("formField1", "formField2");
 
-        when(formClient.getFormVariableNames(eq(formKey), any(ResourceLoader.class))).thenReturn(expected);
+        when(formClient.getRootFormFieldNames(eq(formKey), any(ResourceLoader.class))).thenReturn(expected);
 
-        List<String> actual = formSvc.getTaskFormFieldsNames(taskId, PUBLIC_RESOURCES_DIRECTORY);
+        List<String> actual = formSvc.getRootTaskFormFieldNames(taskId, PUBLIC_RESOURCES_DIRECTORY);
 
         ListAssert.assertEquals(expected, actual);
     }

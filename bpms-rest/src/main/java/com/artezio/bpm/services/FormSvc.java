@@ -78,11 +78,18 @@ public class FormSvc {
         return formClient.shouldProcessSubmission(formKey, decision, resourceLoader);
     }
 
-    public List<String> getTaskFormFieldsNames(String taskId, String formResourcesDir) {
+    public List<String> getRootTaskFormFieldNames(String taskId, String formResourcesDir) {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = getDeploymentIdFromTask(taskId);
         ResourceLoader resourceLoader = AbstractResourceLoader.getResourceLoader(deploymentId, formKey, formResourcesDir);
-        return formClient.getFormVariableNames(formKey, resourceLoader);
+        return formClient.getRootFormFieldNames(formKey, resourceLoader);
+    }
+
+    public List<String> getTaskFormFieldNames(String taskId, String formResourcesDir) {
+        String formKey = getTaskFormKey(taskId);
+        String deploymentId = getDeploymentIdFromTask(taskId);
+        ResourceLoader resourceLoader = AbstractResourceLoader.getResourceLoader(deploymentId, formKey, formResourcesDir);
+        return formClient.getFormFieldPaths(formKey, resourceLoader);
     }
 
     private String getDeploymentIdFromTask(String taskId) {

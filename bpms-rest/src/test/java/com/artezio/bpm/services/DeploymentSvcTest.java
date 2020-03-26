@@ -76,7 +76,7 @@ public class DeploymentSvcTest extends ServiceTest {
         InputPart inputTextFile = mock(InputPart.class);
         InputPart inputBpmProcessFile = mock(InputPart.class);
         ProcessApplicationReference processApplicationReference = mock(ProcessApplicationReference.class);
-        Map<String, List<InputPart>> paramsMap = new HashMap<String, List<InputPart>>() {{
+        Map<String, List<InputPart>> paramsMap = new HashMap<>() {{
             put(textFilename, asList(inputTextFile));
             put(bpmProcessFilename, asList(inputBpmProcessFile));
         }};

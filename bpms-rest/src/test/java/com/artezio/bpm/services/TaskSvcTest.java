@@ -3,6 +3,7 @@ package com.artezio.bpm.services;
 import com.artezio.bpm.rest.dto.task.TaskRepresentation;
 import com.artezio.bpm.rest.query.task.TaskQueryParams;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
+import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.bpm.validation.VariableValidator;
 import com.artezio.forms.FileStorage;
 import junitx.framework.ListAssert;
@@ -35,7 +36,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import javax.enterprise.inject.Instance;
 import javax.enterprise.inject.spi.CDI;
 import javax.enterprise.util.AnnotationLiteral;
-import javax.ws.rs.NotFoundException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.File;
@@ -762,7 +762,7 @@ public class TaskSvcTest extends ServiceTest {
 
         when(identityService.userId()).thenReturn(callerId);
         when(identityService.userGroups()).thenReturn(callerGroups);
-        when(formSvc.getTaskFormFieldsNames(taskId, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(asList(fileVariableName));
+        when(formSvc.getRootTaskFormFieldNames(taskId, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(asList(fileVariableName));
         when(formSvc.getTaskFormWithData(eq(taskId), convertedTaskVariablesCaptor.capture(), eq(PUBLIC_RESOURCES_DIRECTORY))).thenReturn(expected);
 
         String actual = taskSvc.loadForm(taskId);
@@ -788,7 +788,7 @@ public class TaskSvcTest extends ServiceTest {
 
         when(identityService.userId()).thenReturn(callerId);
         when(identityService.userGroups()).thenReturn(callerGroups);
-        when(formSvc.getTaskFormFieldsNames(taskId, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(asList("container1"));
+        when(formSvc.getRootTaskFormFieldNames(taskId, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(asList("container1"));
         when(formSvc.getTaskFormWithData(taskId, taskVariables, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(expected);
 
         String actual = taskSvc.loadForm(taskId);
@@ -831,7 +831,7 @@ public class TaskSvcTest extends ServiceTest {
 
         when(identityService.userId()).thenReturn(callerId);
         when(identityService.userGroups()).thenReturn(callerGroups);
-        when(formSvc.getTaskFormFieldsNames(taskId, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(asList(container1VariableName));
+        when(formSvc.getRootTaskFormFieldNames(taskId, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(asList(container1VariableName));
         when(formSvc.getTaskFormWithData(eq(taskId), convertedTaskVariablesCaptor.capture(), eq(PUBLIC_RESOURCES_DIRECTORY))).thenReturn(expected);
 
         String actual = taskSvc.loadForm(taskId);
@@ -1006,7 +1006,7 @@ public class TaskSvcTest extends ServiceTest {
         assertEquals(actualVariables, expectedVariables);
     }
 
-    @Test(expected = NotAuthorizedException.class)
+    @Test(expected = com.artezio.bpm.services.exceptions.NotAuthorizedException.class)
     public void testComplete_TaskIsNotAssignedToCaller() throws IOException {
         String candidateUserId = "candidateUserId";
         String callerId = "callerId";
@@ -1025,7 +1025,8 @@ public class TaskSvcTest extends ServiceTest {
     public void testDownloadFile() throws IOException, URISyntaxException {
         String taskId = "taskId";
         String fileName = "testFile.png";
-        String fileId = "testVar.";
+        List<String> formVariableNames = asList("var1", "var1.var11", "var1.var12", "var2", "var2.var21", "var2.var21.file211");
+        String fileId = "var2.var21[0].file211[0]";
         String candidateUserId = "candidateUserId";
         List<String> candidateGroups = asList("candidateGroup");
         String callerId = "callerId";
@@ -1035,27 +1036,46 @@ public class TaskSvcTest extends ServiceTest {
             put(fileId, fileValue);
         }};
         String mimeType = "image/png";
-        try (InputStream in = new FileInputStream(file)) {
-            Response expected = Response.ok(in, MediaType.valueOf(mimeType))
-                    .header("Content-Disposition", "attachment; filename=" + fileName)
-                    .build();
+        InputStream in = new FileInputStream(file);
+        Response expected = Response.ok(in, MediaType.valueOf(mimeType))
+                .header("Content-Disposition", "attachment; filename=" + fileName)
+                .build();
 
-            createTask(taskId, callerId, candidateUserId, candidateGroups);
-            setVariablesToTask(taskId, variables);
+        createTask(taskId, callerId, candidateUserId, candidateGroups);
+        setVariablesToTask(taskId, variables);
 
-            when(identityService.userId()).thenReturn(callerId);
-            when(identityService.userGroups()).thenReturn(candidateGroups);
+        when(identityService.userId()).thenReturn(callerId);
+        when(identityService.userGroups()).thenReturn(candidateGroups);
+        when(formSvc.getTaskFormFieldNames(taskId, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(formVariableNames);
 
-            Response actual = taskSvc.downloadFile(taskId, fileId);
+        Response actual = taskSvc.downloadFile(taskId, fileId);
 
-            assertFileResponseEquals(expected, actual);
-        }
+        assertFileResponseEquals(expected, actual);
+    }
+
+    @Test(expected = NotAuthorizedException.class)
+    public void testDownloadFile_UserHasNoAccess() {
+        String taskId = "taskId";
+        String fileId = "var2.var21.var211.file2111[0]";
+        String candidateUserId = "candidateUserId";
+        List<String> candidateGroups = asList("candidateGroup");
+        String callerId = "callerId";
+        Map<String, Object> variables = new HashMap<>();
+
+        createTask(taskId, "", candidateUserId, candidateGroups);
+        setVariablesToTask(taskId, variables);
+
+        when(identityService.userId()).thenReturn(callerId);
+        when(identityService.userGroups()).thenReturn(asList(""));
+
+        taskSvc.downloadFile(taskId, fileId);
     }
 
     @Test(expected = NotFoundException.class)
-    public void testDownloadFile_FileDoesntExist() {
+    public void testDownloadFile_UserHasNoAccessToTask() {
         String taskId = "taskId";
-        String fileId = "notExistentFileId";
+        List<String> formVariableNames = asList("var1", "var11", "var2", "var21", "file211");
+        String fileId = "var2.var21.var211.file2111[0]";
         String candidateUserId = "candidateUserId";
         List<String> candidateGroups = asList("candidateGroup");
         String callerId = "callerId";
@@ -1066,6 +1086,7 @@ public class TaskSvcTest extends ServiceTest {
 
         when(identityService.userId()).thenReturn(callerId);
         when(identityService.userGroups()).thenReturn(candidateGroups);
+        when(formSvc.getTaskFormFieldNames(taskId, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(formVariableNames);
 
         taskSvc.downloadFile(taskId, fileId);
     }
