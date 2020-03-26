@@ -373,7 +373,7 @@ public class TaskSvc {
             @Parameter(description = "An id of the task which has in its scope requested file as variable.", required = true) @PathParam("task-id") @Valid @NotNull String taskId,
             @Parameter(description = "Id of requested file.", required = true) @PathParam("file-id") @Valid @NotNull String fileId) {
         ensureUserHasAccess(taskId);
-        checkIfFileExists(taskId, fileId);
+        checkIfFileAvailable(taskId, fileId);
         FileStorageEntity fileStorageEntity = new CamundaFileStorage(taskId).retrieve(fileId);
         return Response
                 .ok(fileStorageEntity.getContent(), fileStorageEntity.getMimeType())
@@ -586,11 +586,11 @@ public class TaskSvc {
         }
     }
 
-    private void checkIfFileExists(String taskId, String fileId) {
-        List<String> taskFormVariableNames = formService.getTaskFormFieldNames(taskId, PUBLIC_RESOURCES_DIRECTORY);
+    private void checkIfFileAvailable(String taskId, String fileId) {
+        List<String> taskFormVariableNames = formService.getTaskFormFieldPaths(taskId, PUBLIC_RESOURCES_DIRECTORY);
         fileId = fileId.replaceAll("\\[\\d+]", "");
         if (!taskFormVariableNames.contains(fileId))
-            throw new NotFoundException(String.format("File %s is not found", fileId));
+            throw new NotFoundException(String.format("No available file with id %s is found", fileId));
     }
 
 }

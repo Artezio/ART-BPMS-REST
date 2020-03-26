@@ -156,7 +156,7 @@ public class FormSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testGetFormFieldsNames() throws IOException, URISyntaxException {
+    public void testGetRootTaskFormFieldNames() throws IOException, URISyntaxException {
         createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
         getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
         String taskId = getTaskService().createTaskQuery().taskDefinitionKey("Task_1").singleResult().getId();
@@ -166,6 +166,21 @@ public class FormSvcTest extends ServiceTest {
         when(formClient.getRootFormFieldNames(eq(formKey), any(ResourceLoader.class))).thenReturn(expected);
 
         List<String> actual = formSvc.getRootTaskFormFieldNames(taskId, PUBLIC_RESOURCES_DIRECTORY);
+
+        ListAssert.assertEquals(expected, actual);
+    }
+
+    @Test
+    public void testGetTaskFormFieldPaths() throws IOException, URISyntaxException {
+        createDeployment("test-deployment", "test-process-containing-task-with-form.bpmn");
+        getRuntimeService().startProcessInstanceByKey("Process_contains_TaskWithForm");
+        String taskId = getTaskService().createTaskQuery().taskDefinitionKey("Task_1").singleResult().getId();
+        String formKey = "Form_1";
+        List<String> expected = asList("field1", "field11", "field2");
+
+        when(formClient.getFormFieldPaths(eq(formKey), any(ResourceLoader.class))).thenReturn(expected);
+
+        List<String> actual = formSvc.getTaskFormFieldPaths(taskId, PUBLIC_RESOURCES_DIRECTORY);
 
         ListAssert.assertEquals(expected, actual);
     }

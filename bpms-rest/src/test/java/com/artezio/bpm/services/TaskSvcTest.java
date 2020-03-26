@@ -1046,7 +1046,7 @@ public class TaskSvcTest extends ServiceTest {
 
         when(identityService.userId()).thenReturn(callerId);
         when(identityService.userGroups()).thenReturn(candidateGroups);
-        when(formSvc.getTaskFormFieldNames(taskId, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(formVariableNames);
+        when(formSvc.getTaskFormFieldPaths(taskId, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(formVariableNames);
 
         Response actual = taskSvc.downloadFile(taskId, fileId);
 
@@ -1086,7 +1086,7 @@ public class TaskSvcTest extends ServiceTest {
 
         when(identityService.userId()).thenReturn(callerId);
         when(identityService.userGroups()).thenReturn(candidateGroups);
-        when(formSvc.getTaskFormFieldNames(taskId, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(formVariableNames);
+        when(formSvc.getTaskFormFieldPaths(taskId, PUBLIC_RESOURCES_DIRECTORY)).thenReturn(formVariableNames);
 
         taskSvc.downloadFile(taskId, fileId);
     }

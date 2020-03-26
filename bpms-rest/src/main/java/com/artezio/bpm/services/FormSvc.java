@@ -85,7 +85,7 @@ public class FormSvc {
         return formClient.getRootFormFieldNames(formKey, resourceLoader);
     }
 
-    public List<String> getTaskFormFieldNames(String taskId, String formResourcesDir) {
+    public List<String> getTaskFormFieldPaths(String taskId, String formResourcesDir) {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = getDeploymentIdFromTask(taskId);
         ResourceLoader resourceLoader = AbstractResourceLoader.getResourceLoader(deploymentId, formKey, formResourcesDir);
