@@ -2,10 +2,10 @@ package com.artezio.bpm.services;
 
 import com.artezio.bpm.integration.CamundaFileStorage;
 import com.artezio.bpm.resources.AbstractResourceLoader;
-import com.artezio.forms.FileStorage;
 import com.artezio.forms.FormClient;
-import com.artezio.forms.ResourceLoader;
 import com.artezio.forms.formio.FormioClient;
+import com.artezio.forms.resources.ResourceLoader;
+import com.artezio.forms.storages.FileStorage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.camunda.bpm.engine.FormService;

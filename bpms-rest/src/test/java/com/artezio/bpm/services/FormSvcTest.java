@@ -1,8 +1,8 @@
 package com.artezio.bpm.services;
 
-import com.artezio.forms.FileStorage;
 import com.artezio.forms.FormClient;
-import com.artezio.forms.ResourceLoader;
+import com.artezio.forms.resources.ResourceLoader;
+import com.artezio.forms.storages.FileStorage;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import junitx.framework.ListAssert;

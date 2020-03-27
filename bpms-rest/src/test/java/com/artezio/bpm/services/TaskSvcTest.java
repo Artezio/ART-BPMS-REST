@@ -5,7 +5,7 @@ import com.artezio.bpm.rest.query.task.TaskQueryParams;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.bpm.validation.VariableValidator;
-import com.artezio.forms.FileStorage;
+import com.artezio.forms.storages.FileStorage;
 import junitx.framework.ListAssert;
 import junitx.util.PrivateAccessor;
 import org.camunda.bpm.engine.FormService;

@@ -4,7 +4,7 @@ import com.artezio.bpm.rest.dto.repository.ProcessDefinitionRepresentation;
 import com.artezio.bpm.rest.dto.task.FormDto;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.validation.VariableValidator;
-import com.artezio.forms.FileStorage;
+import com.artezio.forms.storages.FileStorage;
 import junitx.framework.ListAssert;
 import org.camunda.bpm.engine.IdentityService;
 import org.camunda.bpm.engine.identity.Group;

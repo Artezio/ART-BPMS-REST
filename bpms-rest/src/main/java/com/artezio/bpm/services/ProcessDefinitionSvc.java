@@ -6,7 +6,7 @@ import com.artezio.bpm.rest.dto.task.FormDto;
 import com.artezio.bpm.rest.dto.task.TaskRepresentation;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.validation.VariableValidator;
-import com.artezio.forms.FileStorage;
+import com.artezio.forms.storages.FileStorage;
 import com.artezio.logging.Log;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;

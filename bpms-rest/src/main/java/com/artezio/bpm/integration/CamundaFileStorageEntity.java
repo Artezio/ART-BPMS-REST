@@ -1,6 +1,6 @@
 package com.artezio.bpm.integration;
 
-import com.artezio.forms.FileStorageEntity;
+import com.artezio.forms.storages.FileStorageEntity;
 import org.camunda.bpm.engine.variable.value.FileValue;
 
 import java.io.InputStream;

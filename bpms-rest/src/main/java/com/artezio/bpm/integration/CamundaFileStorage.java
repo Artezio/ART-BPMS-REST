@@ -1,7 +1,7 @@
 package com.artezio.bpm.integration;
 
-import com.artezio.forms.FileStorage;
-import com.artezio.forms.FileStorageEntity;
+import com.artezio.forms.storages.FileStorage;
+import com.artezio.forms.storages.FileStorageEntity;
 import org.camunda.bpm.BpmPlatform;
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.ProcessEngines;

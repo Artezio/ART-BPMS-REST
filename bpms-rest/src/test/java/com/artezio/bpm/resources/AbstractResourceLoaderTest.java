@@ -1,6 +1,6 @@
 package com.artezio.bpm.resources;
 
-import com.artezio.forms.ResourceLoader;
+import com.artezio.forms.resources.ResourceLoader;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
