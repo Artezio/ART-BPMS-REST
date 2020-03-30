@@ -76,8 +76,6 @@ public class TaskSvc {
     private RepositoryService repositoryService;
     @Inject
     private VariableValidator variableValidator;
-    @Inject
-    private FileStorage fileStorage;
 
     @GET
     @Path("available")
@@ -310,7 +308,7 @@ public class TaskSvc {
     )
     @Log(beforeExecuteMessage = "Claiming task '{0}'", afterExecuteMessage = "Task '{0}' is claimed")
     public void claim(
-            @Parameter(description = "The id of the task which is going to be assigned", required = true) @PathParam("task-id") @Valid @NotNull String taskId) {
+            @Parameter(description = "The id of the task which is going to be assigned", required = true) @PathParam(value = "task-id") @Valid @NotNull String taskId) {
         ensureUserHasAccess(taskId);
         taskService.claim(taskId, identityService.userId());
     }
@@ -338,7 +336,7 @@ public class TaskSvc {
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Loading form for user task '{0}'")
     public String loadForm(
-            @Parameter(description = "The id of the task which form is requested for.", required = true) @PathParam("task-id") @Valid @NotNull String taskId) throws IOException {
+            @Parameter(description = "The id of the task which form is requested for.", required = true) @PathParam("task-id") @Valid @NotNull String taskId) {
         ensureUserHasAccess(taskId);
         List<String> formFieldsNames = formService.getRootTaskFormFieldNames(taskId, PUBLIC_RESOURCES_DIRECTORY);
         VariableMap taskVariables = taskService.getVariablesTyped(taskId, formFieldsNames, true);
@@ -349,7 +347,7 @@ public class TaskSvc {
     @Path("{task-id}/file/{file-id}")
     @PermitAll
     @Operation(
-            description = "Download a file which is a variable in the scope of a task.",
+            description = "Download a file existing in a scope of the task.",
             externalDocs = @ExternalDocumentation(
                     url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/task-service-api-docs.md"
             ),

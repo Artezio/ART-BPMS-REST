@@ -141,7 +141,7 @@ public class ProcessDefinitionSvc {
     @Produces(APPLICATION_JSON)
     @PermitAll
     @Operation(
-            description = "Load the start form definition in formio format with data for the process, if any.",
+            description = "Load the start form definition with data.",
             externalDocs = @ExternalDocumentation(
                     url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/process-definition-service-api-docs.md"
             ),
@@ -176,7 +176,7 @@ public class ProcessDefinitionSvc {
     @Produces(APPLICATION_JSON)
     @PermitAll
     @Operation(
-            description = "Load the start form definition for the process, if any.",
+            description = "Retrieves the start form key.",
             externalDocs = @ExternalDocumentation(
                     url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/process-definition-service-api-docs.md"
             ),
@@ -187,12 +187,8 @@ public class ProcessDefinitionSvc {
                             content = @Content(mediaType = APPLICATION_JSON)
                     ),
                     @ApiResponse(
-                            responseCode = "403",
-                            description = "The user doesn't have an access to load start form for the process."
-                    ),
-                    @ApiResponse(
-                            responseCode = "404",
-                            description = "No deployed form for a given process definition exists."
+                            responseCode = "400",
+                            description = "Task with given id does not exist."
                     )
             }
     )

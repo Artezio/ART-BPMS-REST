@@ -9,13 +9,13 @@ Features:
 * Integration with form clients
 * Robust Data validation using both java validation and a form client validation
 * File uploading/downloading using FileStorage, which can be replaced with custom FileStorage implementations
-* Camunda protocols for storing embedded forms [User Task Forms] 
+* Camunda protocols for storing resources 
 * Logging 
 * Caching (forms, decisions etc.)
 * Default implementation of Message Correlation and Signal services
 
 >Note:
->ART-BPMS-REST has its own implementation of [FormClient] called [FormioClient]. Given document assumes use of this implementation and
+>Given document assumes use of [FormioClient] implementation of [FormClient] interface and
 >[Formio Builder] application for designing forms. But you can use your own implementation and a way to build forms.
 
 ---
@@ -39,6 +39,7 @@ Features:
     * [Mapping submitted data to Java Classes](#mapping-submitted-data-to-java-classes)
    * [Steps to create and use forms in BPMN](#steps-to-create-and-use-forms-in-bpmn)
    * [File storage](#file-storage)
+   * [Resource Loaders](#resource-loaders)
    * [Bpms-rest SPA example](#bpms-rest-spa-example)
 ---
 
@@ -335,8 +336,19 @@ Process variable `userInfo` will be stored as class `com.artezio.bpm.model.UserI
     Make [Load form] request. In a result of the request you will get the form definition in `json` view. Use any of numerous [Formio players] to
     depict and work with forms on a client side.
 
+### Resource Loaders
+Resource loaders are intended to load resources from different sources such as: bpm deployment, webapp, database, file system etc.
+Each resource loader corresponds to a deployment protocol. There are two resource loaders by default: `AppResourceLoader` and `DeploymentResourceLoader`.
+
+#### AppResourceLoader
+This loader communicates with a web application to download resources. To invoke this loader you either must specify `embedded:app:` deployment protocol or
+specify no protocols.
+
+#### DeploymentResourceLoader
+This loader communicates with a bpm deployment to download resources. To invoke this loader you must specify `embedded:deployment:` deployment protocol.  
+
 ### File Storage
-[ART-BPMS-REST] uses [Camunda File Storage] as an implementation of [File Storage]. This implementation stores files in Camunda database. 
+ART-BPMS-REST uses [Camunda File Storage] as an implementation of [File Storage]. This implementation stores files in Camunda database. 
 
 ### Bpms-rest SPA example
 

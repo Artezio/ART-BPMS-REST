@@ -2,6 +2,7 @@ package com.artezio.bpm.services;
 
 import com.artezio.bpm.resources.AbstractResourceLoader;
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
+import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.forms.resources.ResourceLoader;
 import com.artezio.logging.Log;
 import de.otto.edison.hal.HalRepresentation;
@@ -167,14 +168,20 @@ public class DeploymentSvc {
     @GET
     @Path("/public-resources")
     @Produces("application/hal+json")
+    @Operation(
+            description = "Get a list of links to public resources in HAL format.",
+            externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/deployment-service-api-docs.md"),
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Request successful")
+            }
+    )
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of public resources for form '{2}'")
     @Cache(maxAge = CACHE_MAX_AGE, isPrivate = true)
-    //TODO document it
     public HalRepresentation listPublicResources(
             @Parameter(description = "The id of process definition which has the resources. Not required, if 'case-definition-id' is passed.", allowEmptyValue = true) @QueryParam("process-definition-id") String processDefinitionId,
             @Parameter(description = "The id of case definition which has the resources. Not required, if 'process-definition-id' is passed.", allowEmptyValue = true) @QueryParam("case-definition-id") String caseDefinitionId,
-            @Parameter(description = "The key of a form for which resources are requested.", allowEmptyValue = false) @QueryParam("form-key") String formKey) {
-        String deploymentId =  getResourceDefinition(processDefinitionId, caseDefinitionId).getDeploymentId();
+            @Parameter(description = "The key of a form for which resources are requested.") @QueryParam("form-key") String formKey) {
+        String deploymentId = getResourceDefinition(processDefinitionId, caseDefinitionId).getDeploymentId();
         ResourceLoader resourceLoader = AbstractResourceLoader
                 .getResourceLoader(deploymentId, formKey, PUBLIC_RESOURCES_DIRECTORY);
         String deploymentProtocol = AbstractResourceLoader.getProtocol(formKey);
@@ -187,7 +194,7 @@ public class DeploymentSvc {
                         .array(resources
                                 .stream()
                                 .map(resource -> resource.replaceFirst(PUBLIC_RESOURCES_DIRECTORY + "/", ""))
-                                .map(resource -> linkBuilder("items", 
+                                .map(resource -> linkBuilder("items",
                                         String.format("%s/deployment/public-resource/%s/%s/%s", baseUrl, deploymentProtocol, deploymentId, resource))
                                         .withName(resource)
                                         .build())
@@ -201,17 +208,27 @@ public class DeploymentSvc {
     @Produces(MediaType.WILDCARD)
     @Log(level = CONFIG, beforeExecuteMessage = "Getting a public resource using protocol '{0}'")
     @Cache(maxAge = CACHE_MAX_AGE, isPrivate = true)
-    //TODO document it
+    @Operation(
+            description = "Get a public resource in accordance to the protocol",
+            externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/deployment-service-api-docs.md"),
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Request successful"),
+                    @ApiResponse(responseCode = "404", description = "Resource is not found")
+            }
+    )
     public Response getPublicResource(
             @Parameter(description = "Deployment protocol of the requested resource ('embedded:app:' or 'embedded:deployment:').", required = true) @PathParam("deployment-protocol") @Valid @NotNull String deploymentProtocol,
-            @Parameter(description = "The id of the deployment connected with resource requested.", required = true) @PathParam("deployment-id") @Valid @NotNull String deploymentId,
-            @Parameter(description = "The requested resource path. No deployment protocol needed.", required = true) @PathParam("resource-key") @Valid @NotNull List<PathSegment> resourceKey) throws IOException {
+            @Parameter(description = "The id of the deployment connected with requested resource.", required = true) @PathParam("deployment-id") @Valid @NotNull String deploymentId,
+            @Parameter(description = "The requested resource path. No deployment protocol is needed.", required = true) @PathParam("resource-key") @Valid @NotNull List<PathSegment> resourceKey) throws IOException {
         ResourceLoader resourceLoader = AbstractResourceLoader
                 .getResourceLoader(deploymentId, deploymentProtocol + resourceKey, PUBLIC_RESOURCES_DIRECTORY);
         String resourcePath = resourceKey.stream().map(PathSegment::getPath).collect(Collectors.joining("/"));
         String resourceMimeType = CONTENT_ANALYSER.detect(resourcePath);
+        InputStream resource = resourceLoader.getResource(resourcePath);
+        if (resource.available() == 0)
+            throw new NotFoundException(String.format("Resource %s is not found", resourceKey));
         return Response.ok()
-                .entity(resourceLoader.getResource(resourcePath))
+                .entity(resource)
                 .type(resourceMimeType)
                 .build();
     }
