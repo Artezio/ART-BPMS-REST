@@ -5,7 +5,6 @@ import com.artezio.bpm.rest.query.task.TaskQueryParams;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.bpm.validation.VariableValidator;
-import com.artezio.forms.storages.FileStorage;
 import junitx.framework.ListAssert;
 import junitx.util.PrivateAccessor;
 import org.camunda.bpm.engine.FormService;
@@ -28,14 +27,8 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
-import javax.enterprise.inject.Instance;
-import javax.enterprise.inject.spi.CDI;
-import javax.enterprise.util.AnnotationLiteral;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.File;
@@ -57,9 +50,7 @@ import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.*;
 import static org.powermock.reflect.Whitebox.setInternalState;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({CDI.class})
-@PowerMockIgnore({"com.sun.org.apache.*", "javax.xml.*", "java.xml.*", "org.xml.*", "org.w3c.dom.*"})
+@RunWith(MockitoJUnitRunner.class)
 public class TaskSvcTest extends ServiceTest {
 
     @InjectMocks
@@ -77,25 +68,10 @@ public class TaskSvcTest extends ServiceTest {
     @Mock
     private VariablesMapper variablesMapper;
     private SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSZ");
-    @Mock
-    private FileStorage fileStorage;
 
     @Before
     public void init() {
-        setupMockFileStorage();
         setInternalState(taskSvc, "taskService", getTaskService());
-        setInternalState(taskSvc, "fileStorage", fileStorage);
-    }
-
-    private void setupMockFileStorage() {
-        PowerMockito.mockStatic(CDI.class);
-        CDI mockCdi = mock(CDI.class);
-        Instance mockFileStorageInstance = mock(Instance.class);
-        Instance mockConcreteFileStorageInstance = mock(Instance.class);
-        when(CDI.current()).thenReturn(mockCdi);
-        when(mockCdi.select(FileStorage.class)).thenReturn(mockFileStorageInstance);
-        when(mockFileStorageInstance.select(any(AnnotationLiteral.class))).thenReturn(mockConcreteFileStorageInstance);
-        when(mockConcreteFileStorageInstance.get()).thenReturn(fileStorage);
     }
 
     @After
@@ -710,7 +686,7 @@ public class TaskSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testLoadForm() throws IOException {
+    public void testLoadForm() {
         String taskId = "taskId";
         String callerId = "callerId";
         List<String> callerGroups = asList("callerGroup");
