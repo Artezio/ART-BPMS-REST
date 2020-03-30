@@ -18,7 +18,7 @@
 
     <modules>
         <module>bpms-rest</module>
-        <module>bpms-rest-spa-example</module>
+        <module>bpms-rest-spa</module>
     </modules>
 
     <build>
