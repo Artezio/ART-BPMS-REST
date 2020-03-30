@@ -10,6 +10,7 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import java.security.Principal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -24,7 +25,9 @@ public class IdentitySvc {
 
     public List<String> userGroups() {
         Set<String> result = getKeycloakSecurityContext().getToken().getRealmAccess().getRoles();
-        return new ArrayList<>(result);
+        return ! result.isEmpty() 
+                ? new ArrayList<>(result)
+                : Arrays.asList("");
     }
 
     public String userId() {

@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_0rbtgtf" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="2.2.1">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_0rbtgtf" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="3.2.3">
   <bpmn:process id="testProcessStartableByAnyone" isExecutable="true">
     <bpmn:startEvent id="StartEvent_1" name="Start">
       <bpmn:outgoing>SequenceFlow_0pxkud6</bpmn:outgoing>
     </bpmn:startEvent>
-    <bpmn:sequenceFlow id="SequenceFlow_0pxkud6" sourceRef="StartEvent_1" targetRef="Task_02lcphz" />
-    <bpmn:userTask id="Task_02lcphz" name="Simple User Task">
+    <bpmn:sequenceFlow id="SequenceFlow_0pxkud6" sourceRef="StartEvent_1" targetRef="simpleUserTask" />
+    <bpmn:userTask id="simpleUserTask" name="Simple User Task">
       <bpmn:incoming>SequenceFlow_0pxkud6</bpmn:incoming>
       <bpmn:outgoing>SequenceFlow_0yt0u9r</bpmn:outgoing>
     </bpmn:userTask>
     <bpmn:endEvent id="EndEvent_1p64rsf" name="End">
       <bpmn:incoming>SequenceFlow_0yt0u9r</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:sequenceFlow id="SequenceFlow_0yt0u9r" sourceRef="Task_02lcphz" targetRef="EndEvent_1p64rsf" />
+    <bpmn:sequenceFlow id="SequenceFlow_0yt0u9r" sourceRef="simpleUserTask" targetRef="EndEvent_1p64rsf" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="testProcessStartableByAnyone">
@@ -26,7 +26,7 @@
         <di:waypoint x="209" y="120" />
         <di:waypoint x="259" y="120" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNShape id="UserTask_0h7uotj_di" bpmnElement="Task_02lcphz">
+      <bpmndi:BPMNShape id="UserTask_0h7uotj_di" bpmnElement="simpleUserTask">
         <dc:Bounds x="259" y="80" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_1p64rsf_di" bpmnElement="EndEvent_1p64rsf">

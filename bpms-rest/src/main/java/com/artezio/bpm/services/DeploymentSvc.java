@@ -1,10 +1,10 @@
 package com.artezio.bpm.services;
 
-import com.artezio.bpm.localization.BpmResourceBundleControl;
+import com.artezio.bpm.resources.AbstractResourceLoader;
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
-import com.artezio.forms.FormClient;
+import com.artezio.bpm.services.exceptions.NotFoundException;
+import com.artezio.forms.resources.ResourceLoader;
 import com.artezio.logging.Log;
-
 import de.otto.edison.hal.HalRepresentation;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,11 +12,16 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
+import org.apache.commons.io.IOUtils;
+import org.apache.tika.Tika;
 import org.camunda.bpm.application.ProcessApplicationInterface;
 import org.camunda.bpm.engine.ManagementService;
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.repository.*;
+import org.jboss.resteasy.annotations.cache.Cache;
+import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 import javax.annotation.PostConstruct;
@@ -32,21 +37,22 @@ import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
-
+import javax.ws.rs.core.PathSegment;
+import javax.ws.rs.core.Response;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import static com.artezio.logging.Log.Level.CONFIG;
+import static de.otto.edison.hal.Link.link;
 import static de.otto.edison.hal.Link.linkBuilder;
 import static de.otto.edison.hal.Links.linkingTo;
-import static javax.ws.rs.core.HttpHeaders.ACCEPT_LANGUAGE;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
 
@@ -56,8 +62,11 @@ import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
 @Path("/deployment")
 public class DeploymentSvc {
 
-    private static final String FORMS_FOLDER = "forms/";
-    private static final Map<String, ResourceBundle> RESOURCE_BUNDLE_CACHE = new ConcurrentHashMap<>();
+    public static final String PUBLIC_RESOURCES_DIRECTORY = "public";
+    private static final MediaType MEDIA_TYPE_ZIP = MediaType.valueOf("application/zip");
+    private static final int CACHE_MAX_AGE = 31536000;
+    private static final Tika CONTENT_ANALYSER = new Tika();
+
     @Inject
     private RepositoryService repositoryService;
     @Inject
@@ -66,10 +75,11 @@ public class DeploymentSvc {
     private ProcessApplicationInterface processApplication;
     @Context
     private HttpServletRequest httpRequest;
-    @Inject
-    private FormClient formClient;
+    private Logger log = Logger.getLogger(DeploymentSvc.class.getName());
 
     @PostConstruct
+    @Log(level = CONFIG, beforeExecuteMessage = "Registration existent deployments in process application",
+            afterExecuteMessage = "All existent deployments are registered in process application")
     public void registerDeployments() {
         repositoryService.createDeploymentQuery().list()
                 .forEach(this::registerInProcessApplication);
@@ -92,7 +102,7 @@ public class DeploymentSvc {
                     @ApiResponse(responseCode = "403", description = "The user is not allowed to create deployments.")
             }
     )
-    @Log(beforeExecuteMessage = "Creating deployment '{0}'", afterExecuteMessage = "Deployment '{0}' is successfully created")
+    @Log(beforeExecuteMessage = "Creating deployment '{0}'", afterExecuteMessage = "Deployment '{0}' is created")
     public DeploymentRepresentation create(
             @Parameter(description = "Name for the deployment", required = true) @QueryParam("deployment-name") @Valid @NotNull String deploymentName,
             @Parameter(
@@ -103,8 +113,10 @@ public class DeploymentSvc {
         DeploymentBuilder deploymentBuilder = repositoryService
                 .createDeployment()
                 .name(deploymentName);
-        getFormParts(input)
-                .forEach(deploymentBuilder::addInputStream);
+        getFormParts(input).entrySet()
+                .stream()
+                .peek(e -> log.info("Register to deploy: " + e.getKey()))
+                .forEach(e -> deploymentBuilder.addInputStream(e.getKey(), e.getValue()));
         Deployment deployment = deploymentBuilder.deploy();
         registerInProcessApplication(deployment);
         return DeploymentRepresentation.fromDeployment(deployment);
@@ -135,39 +147,6 @@ public class DeploymentSvc {
                 .collect(Collectors.toList());
     }
 
-    @PermitAll
-    @GET
-    @Path("/localization-resource")
-    @Produces(APPLICATION_JSON)
-    @Operation(
-            description = "Get localization resources in accordance with user preferences.",
-            externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/deployment-service-api-docs.md"),
-            responses = {
-                    @ApiResponse(
-                            responseCode = "200",
-                            description = "Request successful.",
-                            content = @Content(mediaType = APPLICATION_JSON)
-                    )
-            }
-    )
-    public Map<String, String> getLocalizationResource(
-            @Parameter(description = "The id of process definition which has the resources. Not required, if 'case-definition-id' is passed.", allowEmptyValue = true) @QueryParam("process-definition-id") String processDefinitionId,
-            @Parameter(description = "The id of case definition which has the resources. Not required, if 'process-definition-id' is passed.", allowEmptyValue = true) @QueryParam("case-definition-id") String caseDefinitionId,
-            @Parameter(
-                    description = "User preferences of languages",
-                    example = "ru,en;q=0.9,en-US;q=0.8") @NotNull @HeaderParam(ACCEPT_LANGUAGE) String languageRangePreferences) {
-        String[] preferredLanguageRanges = languageRangePreferences.replace(" ", "").split(",");
-        ResourceDefinition resourceDefinition = getResourceDefinition(processDefinitionId, caseDefinitionId);
-
-        ResourceBundle resourceBundle = Arrays.stream(preferredLanguageRanges)
-                .sorted(getLanguageRangeComparator())
-                .map(languageRange -> getResourceBundle(resourceDefinition, languageRange))
-                .findFirst()
-                .get();
-
-        return toMap(resourceBundle);
-    }
-
     @RolesAllowed("BPMSAdmin")
     @DELETE
     @Path("/{deployment-id}")
@@ -179,16 +158,79 @@ public class DeploymentSvc {
                     @ApiResponse(responseCode = "403", description = "The user is not allowed to delete deployments.")
             }
     )
-    @Log(level = CONFIG, beforeExecuteMessage = "Deleting deployment '{0}'", afterExecuteMessage = "Deployment is successfully deleted")
+    @Log(beforeExecuteMessage = "Deleting deployment '{0}'", afterExecuteMessage = "Deployment '{0}' is deleted")
     public void delete(
             @Parameter(description = "The id of the deployment.", required = true) @PathParam("deployment-id") @NotNull String deploymentId) {
         repositoryService.deleteDeployment(deploymentId, true);
     }
 
     @PermitAll
-    @Log(level = CONFIG, beforeExecuteMessage = "Getting form '{0}' from deployment resources")
-    public InputStream getResource(String deploymentId, String resourceName) {
-        return repositoryService.getResourceAsStream(deploymentId, resourceName);
+    @GET
+    @Path("/public-resources")
+    @Produces("application/hal+json")
+    @Operation(
+            description = "Get a list of links to public resources in HAL format.",
+            externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/deployment-service-api-docs.md"),
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Request successful")
+            }
+    )
+    @Log(level = CONFIG, beforeExecuteMessage = "Getting list of public resources for form '{2}'")
+    @Cache(maxAge = CACHE_MAX_AGE, isPrivate = true)
+    public HalRepresentation listPublicResources(
+            @Parameter(description = "The id of process definition which has the resources. Not required, if 'case-definition-id' is passed.", allowEmptyValue = true) @QueryParam("process-definition-id") String processDefinitionId,
+            @Parameter(description = "The id of case definition which has the resources. Not required, if 'process-definition-id' is passed.", allowEmptyValue = true) @QueryParam("case-definition-id") String caseDefinitionId,
+            @Parameter(description = "The key of a form for which resources are requested.") @QueryParam("form-key") String formKey) {
+        String deploymentId = getResourceDefinition(processDefinitionId, caseDefinitionId).getDeploymentId();
+        ResourceLoader resourceLoader = AbstractResourceLoader
+                .getResourceLoader(deploymentId, formKey, PUBLIC_RESOURCES_DIRECTORY);
+        String deploymentProtocol = AbstractResourceLoader.getProtocol(formKey);
+        List<String> resources = resourceLoader.listResourceNames();
+        String baseUrl = getBaseUrl();
+        return new HalRepresentation(
+                linkingTo()
+                        .single(link("resourcesBaseUrl",
+                                String.format("%s/deployment/public-resource/%s/%s/", baseUrl, deploymentProtocol, deploymentId)))
+                        .array(resources
+                                .stream()
+                                .map(resource -> resource.replaceFirst(PUBLIC_RESOURCES_DIRECTORY + "/", ""))
+                                .map(resource -> linkBuilder("items",
+                                        String.format("%s/deployment/public-resource/%s/%s/%s", baseUrl, deploymentProtocol, deploymentId, resource))
+                                        .withName(resource)
+                                        .build())
+                                .collect(Collectors.toList()))
+                        .build());
+    }
+
+    @PermitAll
+    @GET
+    @Path("/public-resource/{deployment-protocol}/{deployment-id}/{resource-key: .*}")
+    @Produces(MediaType.WILDCARD)
+    @Log(level = CONFIG, beforeExecuteMessage = "Getting a public resource using protocol '{0}'")
+    @Cache(maxAge = CACHE_MAX_AGE, isPrivate = true)
+    @Operation(
+            description = "Get a public resource in accordance to the protocol",
+            externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/deployment-service-api-docs.md"),
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Request successful"),
+                    @ApiResponse(responseCode = "404", description = "Resource is not found")
+            }
+    )
+    public Response getPublicResource(
+            @Parameter(description = "Deployment protocol of the requested resource ('embedded:app:' or 'embedded:deployment:').", required = true) @PathParam("deployment-protocol") @Valid @NotNull String deploymentProtocol,
+            @Parameter(description = "The id of the deployment connected with requested resource.", required = true) @PathParam("deployment-id") @Valid @NotNull String deploymentId,
+            @Parameter(description = "The requested resource path. No deployment protocol is needed.", required = true) @PathParam("resource-key") @Valid @NotNull List<PathSegment> resourceKey) throws IOException {
+        ResourceLoader resourceLoader = AbstractResourceLoader
+                .getResourceLoader(deploymentId, deploymentProtocol + resourceKey, PUBLIC_RESOURCES_DIRECTORY);
+        String resourcePath = resourceKey.stream().map(PathSegment::getPath).collect(Collectors.joining("/"));
+        String resourceMimeType = CONTENT_ANALYSER.detect(resourcePath);
+        InputStream resource = resourceLoader.getResource(resourcePath);
+        if (resource.available() == 0)
+            throw new NotFoundException(String.format("Resource %s is not found", resourceKey));
+        return Response.ok()
+                .entity(resource)
+                .type(resourceMimeType)
+                .build();
     }
 
     private void registerInProcessApplication(Deployment deployment) {
@@ -196,50 +238,13 @@ public class DeploymentSvc {
     }
 
     private Map<String, InputStream> getFormParts(MultipartFormDataInput input) {
-        return input.getFormDataMap()
-                .entrySet()
-                .stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, entry -> {
-                    try {
-                        return entry.getValue().get(0).getBody(InputStream.class, null);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                }));
-    }
-
-    private ResourceBundle getResourceBundle(ResourceDefinition resourceDefinition, String languageRange) {
-        String deploymentId = resourceDefinition.getDeploymentId();
-        String diagramResourceName = FilenameUtils.getBaseName(resourceDefinition.getResourceName());
-        String languageTag = extractLanguageTag(languageRange);
-        String resourceBundleCacheKey = String.format("%s.%s.%s", deploymentId, diagramResourceName, languageTag);
-
-        return RESOURCE_BUNDLE_CACHE.computeIfAbsent(resourceBundleCacheKey, cacheKey ->
-                ResourceBundle.getBundle(
-                        diagramResourceName,
-                        Locale.forLanguageTag(languageTag),
-                        new BpmResourceBundleControl(deploymentId, repositoryService)));
-    }
-
-    private Comparator<String> getLanguageRangeComparator() {
-        return Comparator.comparing(
-                str -> (str.contains(";q=") ? str : "1").replaceAll("[\\D&&[^.]]", ""),
-                Comparator.comparing((Function<String, Double>) Double::valueOf).reversed());
-    }
-
-    private String extractLanguageTag(String languageRange) {
-        return languageRange.split(";")[0];
+        return getFileParts(input);
     }
 
     private ResourceDefinition getResourceDefinition(String processDefinitionId, String caseDefinitionId) {
         return processDefinitionId != null
                 ? getProcessDefinition(processDefinitionId)
                 : getCaseDefinition(caseDefinitionId);
-    }
-
-    private Map<String, String> toMap(ResourceBundle resourceBundle) {
-        return resourceBundle.keySet().stream()
-                .collect(Collectors.toMap(propKey -> propKey, resourceBundle::getString));
     }
 
     private CaseDefinition getCaseDefinition(String caseDefinitionId) {
@@ -254,56 +259,45 @@ public class DeploymentSvc {
                 .singleResult();
     }
 
-    @PermitAll
-    @GET
-    @Path("/form-resources")
-    @Produces("application/hal+json")
-    @Log(level = CONFIG, beforeExecuteMessage = "Getting list of task resources")
-    //TODO document it
-    public HalRepresentation listFormResources(
-            @Parameter(description = "The id of process definition which has the resources. Not required, if 'case-definition-id' is passed.", allowEmptyValue = true) @QueryParam("process-definition-id") String processDefinitionId,
-            @Parameter(description = "The id of case definition which has the resources. Not required, if 'process-definition-id' is passed.", allowEmptyValue = true) @QueryParam("case-definition-id") String caseDefinitionId,
-            @Parameter(description = "The key of a form for which resources are requested.", allowEmptyValue = false) @QueryParam("form-key") String formKey) {
-        String deploymentId =  getResourceDefinition(processDefinitionId, caseDefinitionId).getDeploymentId();
-        Map<String, String> resources = formClient.listResources(deploymentId, formKey);
-        String baseUrl = getBaseUrl();
-        return new HalRepresentation(
-                linkingTo()
-                        .array(resources.entrySet()
-                                .stream()
-                                .map(e -> linkBuilder("items", 
-                                            baseUrl + "/deployment/form-resource/"  + deploymentId + "/"+ encodeUrl(e.getValue()))
-                                        .withName(e.getKey())
-                                        .build())
-                                .collect(Collectors.toList()))
-                        .build());
-    }
-
     private String getBaseUrl() {
         StringBuffer requestUrl = httpRequest.getRequestURL();
         return requestUrl.toString().replaceFirst("/deployment.*", "");
     }
     
-    private String encodeUrl(String unsafeUrl) {
+    Map<String, InputStream> getFileParts(MultipartFormDataInput input) {
+         return input.getFormDataMap()
+                .entrySet()
+                .stream()
+                .flatMap(e -> expandIfArchive(e.getKey(), e.getValue().get(0)).entrySet().stream())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+    
+    Map<String, InputStream> expandIfArchive(String partName, InputPart inputPart) {
         try {
-            return URLEncoder.encode(unsafeUrl, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
+            InputStream body = inputPart.getBody(InputStream.class, null);
+            return inputPart.getMediaType() != null && inputPart.getMediaType().isCompatible(MEDIA_TYPE_ZIP)
+                    ? expandZipArchive(body)
+                    : Collections.singletonMap(partName, body);
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
-
-    @PermitAll
-    @GET
-    @Path("/form-resource/{deployment-id}/{resource-key}")
-    @Produces(MediaType.APPLICATION_OCTET_STREAM)
-    @Log(level = CONFIG, beforeExecuteMessage = "Getting list of task resources")
-    //TODO document it
-    public InputStream getFormResource(
-            @Parameter(description = "The requested resource path.", required = true) @PathParam("resource-key") @Valid @NotNull String resourceKey,
-            @Parameter(description = "The id of the deployment connected with resource requested.", required = true) @PathParam("deployment-id") @Valid @NotNull String deploymentId)
-            throws UnsupportedEncodingException {
-        return formClient.getResource(deploymentId, URLDecoder.decode(resourceKey, "UTF-8"));
-    }
-
     
+    Map<String, InputStream> expandZipArchive(InputStream zipInput) {
+        try {
+            Map<String, InputStream> result = new HashMap<>();
+            ZipArchiveInputStream zip = new ZipArchiveInputStream(zipInput);
+            ZipArchiveEntry zipEntry;
+            while ((zipEntry = zip.getNextZipEntry()) != null) {
+                if (zipEntry.isDirectory())
+                    continue;
+                result.put(zipEntry.getName(), new ByteArrayInputStream(IOUtils.toByteArray(zip)));
+            }
+            zip.close();
+            return result;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+        
 }

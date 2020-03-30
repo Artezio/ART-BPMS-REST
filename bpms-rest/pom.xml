@@ -6,12 +6,12 @@
 	<parent>
 		<groupId>com.artezio.bpm</groupId>
 		<artifactId>bpm-bom</artifactId>
-		<version>0.5.2</version>
+		<version>0.6.0</version>
 	</parent>
 
 	<artifactId>bpms-rest</artifactId>
 	<packaging>war</packaging>
-	<version>0.5.2</version>
+	<version>0.6.0</version>
 
 	<properties>
 		<maven.compiler.target>1.8</maven.compiler.target>
@@ -25,6 +25,7 @@
 		<maven-war-plugin.version>3.2.2</maven-war-plugin.version>
 		<replacer.version>1.5.3</replacer.version>
 		<swagger-ui.version>3.17.0</swagger-ui.version>
+		<powermock.version>2.0.5</powermock.version>
 	</properties>
 
 	<dependencyManagement>
@@ -55,9 +56,9 @@
 
 	<dependencies>
 		<dependency>
-			<groupId>com.artezio.camunda</groupId>
+			<groupId>com.artezio.forms</groupId>
 			<artifactId>formio</artifactId>
-			<version>1.0.2</version>
+			<version>1.0.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>com.fasterxml.jackson.core</groupId>
@@ -125,6 +126,11 @@
 		<dependency>
 			<groupId>com.fasterxml.uuid</groupId>
 			<artifactId>java-uuid-generator</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.tika</groupId>
+			<artifactId>tika-core</artifactId>
+			<version>1.22</version>
 		</dependency>
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
@@ -217,25 +223,25 @@
 		<dependency>
 			<groupId>org.powermock</groupId>
 			<artifactId>powermock-module-junit4</artifactId>
-			<version>1.7.3</version>
+			<version>${powermock.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.powermock</groupId>
 			<artifactId>powermock-api-mockito2</artifactId>
-			<version>1.7.3</version>
+			<version>${powermock.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.powermock</groupId>
 			<artifactId>powermock-api-easymock</artifactId>
-			<version>1.7.3</version>
+			<version>${powermock.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.easymock</groupId>
 			<artifactId>easymock</artifactId>
-			<version>3.5.1</version>
+			<version>4.0.2</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -262,6 +268,12 @@
 			<version>2.4.6.Final</version>
 			<scope>test</scope>
 		</dependency>
+        <dependency>
+            <groupId>org.javassist</groupId>
+            <artifactId>javassist</artifactId>
+            <version>3.25.0-GA</version>
+            <scope>test</scope>
+        </dependency>
 		<dependency>
 			<groupId>org.codehaus.groovy</groupId>
 			<artifactId>groovy-all</artifactId>
@@ -278,11 +290,34 @@
 			<version>${swagger.version}</version>
 		</dependency>
 		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-compress</artifactId>
+			<version>1.20</version>
+		</dependency>
+		<dependency>
 			<groupId>de.otto.edison</groupId>
 			<artifactId>edison-hal</artifactId>
 			<version>2.1.0</version>
 		</dependency>
-    </dependencies>
+		<dependency>
+			<groupId>org.camunda.bpm.extension</groupId>
+			<artifactId>camunda-bpm-assert-scenario</artifactId>
+			<version>1.0.0</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.camunda.bpm.assert</groupId>
+			<artifactId>camunda-bpm-assert</artifactId>
+			<version>5.0.0</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.assertj</groupId>
+			<artifactId>assertj-core</artifactId>
+			<version>3.15.0</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
 	<build>
 		<finalName>${project.artifactId}</finalName>
 		<plugins>

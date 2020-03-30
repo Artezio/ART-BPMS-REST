@@ -3,7 +3,8 @@
 * [Get List](#get-list)
 * [Create](#create)
 * [Delete](#delete)
-* [Get Localization Resources](#get-localization-resources)
+* [List Public Resources](#list-public-resources)
+* [Get Public Resource](#get-public-resource)
 
 ## Get List
 Get a list of all deployments.
@@ -91,6 +92,7 @@ Content-Disposition: form-data; name="data"; filename="test.bpmn"
 
 #### Response:
 Status 200 OK.
+
 ```json
 {
     "links": [],
@@ -129,7 +131,7 @@ Delete a deployment.
 ### Request Parameters:
 | Name          | Type       | Description              | Required |
 | ------------- | ---------- | ------------------------ | -------- |
-| deployment-id | path       | The id of the deployment | Yes      |
+| deployment-id | path       | The id of a deployment | Yes      |
 
 ### Result:
 This method returns no content.
@@ -149,44 +151,91 @@ This method returns no content.
 ### Response:
 Status 204 No Content.
 
-## Get Localization Resources
-Get localization resources in accordance with user preferences.
+## List Public Resources
 
-### `GET /api/deployment/localization-resource`
+### `GET /api/deployment/public-resources`
 
 ### Request Parameters:
+| Name | Type | Description | Required |
+| ---- | ---- | ----------- | -------- |
+| processDefinitionId | String | The id of a process definition | *true |
+| caseDefinitionId | String | The id of a case definition | *true |
+| formKey | String |  | true |
 
-| Name                  | Type       | Description                                                                                           | Required |
-| --------------------- | ---------- | ----------------------------------------------------------------------------------------------------- | -------- |
-| process-definition-id | query      | The id of process definition which has the resources. Not required, if 'case-definition-id' is passed | No       |
-| case-definition-id    | query      | The id of case definition which has the resources. Not required, if 'process-definition-id' is passed | No       |
-| Accept-Language       | header     | User preferences of languages                                                                         | Yes      |
-
-**Note:** `process-definition-id` and `case-definition-id` are required despite being marked as `not required`.
-It is because the service expects one of them to be passed, but it is impossible to use disjunction in Bean Validation 2.0.
-Hence either `process-definition-id` or `case-definition-id` have to be passed. If both are passed, `process-definition-id` takes
-a precedence over `case-definition-id`.
+*\* - Params are mutually exclusive. If one is passed, another is not necessary.*
 
 ### Result:
-A JSON object which includes properties from corresponding localization resource bundle.
-
+A JSON in HAL format that contains links to download public resources.
+ 
 ### Response Codes:
-| Code | Media Type | Description |
-| ---- | ---------- | ----------- |
-| 200  | application/json | Request successful |
+
+| Code | Description |
+| ---- | ----------- |
+| 200  | Request successful |
 
 ### Example:
 
 #### Request:
-`GET -H "Accept-Language: ru,en;q=0.9,en-US;q=0.8" /api/deployment/localization-resource?process-definition-id=some-id`
+`GET api/deployment/public-resources?process-definition-id=someProcessDefinitionId&formKey=someFormKey`
 
 #### Response:
-Status 200 OK.
 ```json
 {
-  "some_property1": "some_value_1",
-  "some_property2": "some_value_2"
+  "_links": {
+    "resourcesBaseUrl": {
+      "href": "http://localhost:8080/bpms-rest/api/deployment/public-resource/embedded:deployment:/1234567890/"
+    },
+    "items": [
+      {
+        "href": "http://localhost:8080/bpms-rest/api/deployment/public-resource/embedded:deployment:/1234567890/custom-components/component.js",
+        "name": "custom-components/component.js"
+      }
+    ]
+  }
 }
 ```
 
+## Get Public Resource
+
+`GET api/deployment/public-resource/{deployment-protocol}/{deployment-id}/{resource-key: .*}`
+
+### Request Parameters:
+
+| Name | Type | Description | Required |
+| ---- | ---- | ----------- | -------- |
+| deploymentProtocol | String | Deployment protocol of the requested resource ('embedded:app:' or 'embedded:deployment:'). To get more about protocols see [Camunda Embedded Task Forms] | true |
+| deploymentId | String | The id of a deployment | true |
+| resourceKey | List | The requested resource path. No deployment protocol is needed. The path depends on used [Resource Loader]. If default resource loaders are used, the path is relative to the root of either deployment or webapp resources | true |
+
+### Result:
+
+Requested resource in a binary format.
+
+### Response Codes:
+
+| Code | Description |
+| ---- | ----------- |
+| 200  | Request successful |
+| 404  | Resource is not found |
+
+### Example:
+
+#### Request:
+
+`GET http://localhost:8080/bpms-rest/api/deployment/public-resource/embedded:deployment:/1234567890/resource-folder/resource.txt`
+
+#### Response:
+Status 200 OK.
+
+```http request
+200 OK
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: attachment; filename="resource.ext"
+Content-Length: ...
+
+[skipped content]
+```
+
+[Camunda Embedded Task Forms]: https://docs.camunda.org/manual/7.10/user-guide/task-forms/#embedded-task-forms
 [Deployment Object description]: https://docs.camunda.org/manual/7.10/reference/rest/deployment/post-deployment/#result
+[Resource Loader]: ../README.MD#resource-loaders

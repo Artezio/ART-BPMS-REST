@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "formiojs": "^4.9.0-rc.6"
+  }
+}

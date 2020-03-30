@@ -1,8 +1,10 @@
 package com.artezio.bpm.services;
 
 import com.artezio.bpm.rest.dto.repository.ProcessDefinitionRepresentation;
+import com.artezio.bpm.rest.dto.task.FormDto;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
 import com.artezio.bpm.validation.VariableValidator;
+import com.artezio.forms.storages.FileStorage;
 import junitx.framework.ListAssert;
 import org.camunda.bpm.engine.IdentityService;
 import org.camunda.bpm.engine.identity.Group;
@@ -16,11 +18,11 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.net.URISyntaxException;
 import java.util.*;
 
@@ -28,10 +30,10 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
 import static junit.framework.TestCase.*;
 import static org.easymock.EasyMock.*;
-import static org.mockito.internal.util.reflection.FieldSetter.setField;
+import static org.powermock.reflect.Whitebox.setInternalState;
 
 @RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"javax.net.ssl.*"})
+@PowerMockIgnore({"com.sun.org.apache.*", "javax.xml.*", "java.xml.*", "org.xml.*", "org.w3c.dom.*"})
 public class ProcessDefinitionSvcTest extends ServiceTest {
 
     private final String TEST_USER_ID = "testUser";
@@ -49,19 +51,16 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
     @Mock
     private VariableValidator variableValidator;
     @TestSubject
+    @InjectMocks
     private ProcessDefinitionSvc processDefinitionSvc = new ProcessDefinitionSvc();
 
     @Before
-    public void init() throws NoSuchFieldException {
+    public void init() {
         EasyMockSupport.injectMocks(this);
-        Field repositoryServiceField = processDefinitionSvc.getClass().getDeclaredField("repositoryService");
-        Field camundaFormServiceField = processDefinitionSvc.getClass().getDeclaredField("camundaFormService");
-        Field runtimeServiceField = processDefinitionSvc.getClass().getDeclaredField("runtimeService");
-        Field taskServiceField = processDefinitionSvc.getClass().getDeclaredField("taskService");
-        setField(processDefinitionSvc, repositoryServiceField, getRepositoryService());
-        setField(processDefinitionSvc, runtimeServiceField, getRuntimeService());
-        setField(processDefinitionSvc, camundaFormServiceField, getFormService());
-        setField(processDefinitionSvc, taskServiceField, taskSvc);
+        setInternalState(processDefinitionSvc, "repositoryService", getRepositoryService());
+        setInternalState(processDefinitionSvc, "camundaFormService", getFormService());
+        setInternalState(processDefinitionSvc, "runtimeService", getRuntimeService());
+        setInternalState(processDefinitionSvc, "taskService", taskSvc);
     }
 
     @After
@@ -82,11 +81,11 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
     @Test
     public void testListStartableByUser() throws IOException, URISyntaxException {
         createDeployment("test-deployment",
-                "test-process-not-startable-by-anyone.bpmn");
+                "test-process-startable-by-anyone.bpmn");
 
         List<ProcessDefinitionRepresentation> startableProcesses = processDefinitionSvc.listStartableByUser();
 
-        assertTrue(startableProcesses.isEmpty());
+        assertFalse(startableProcesses.isEmpty());
     }
 
     @Test
@@ -182,8 +181,8 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
             return null;
         });
         expect(taskSvc.getNextAssignedTask(anyObject(String.class))).andReturn(null);
-        expect(formSvc.dryValidationAndCleanupStartForm(anyString(), eq(submittedFormValues)))
-                .andReturn(validatedVariablesJson);
+        expect(formSvc.dryValidationAndCleanupStartForm(EasyMock.anyString(), EasyMock.eq(submittedFormValues), EasyMock.eq(PUBLIC_RESOURCES_DIRECTORY),
+                EasyMock.anyObject(FileStorage.class))).andReturn(validatedVariablesJson);
         expect(variablesMapper.convertVariablesToEntities(capture(processVariablesCapture), anyObject(Map.class)))
                 .andStubAnswer(processVariablesCapture::getValue);
         replay(formSvc, variablesMapper, taskSvc);
@@ -227,8 +226,8 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
             processVariablesCapture.getValue().put("testFiles", expectedFileValues);
             return null;
         });
-        expect(formSvc.dryValidationAndCleanupStartForm(anyString(), eq(submittedFormValues)))
-                .andReturn(validatedVariablesJson);
+        expect(formSvc.dryValidationAndCleanupStartForm(anyString(), eq(submittedFormValues), eq(PUBLIC_RESOURCES_DIRECTORY),
+                anyObject(FileStorage.class))).andReturn(validatedVariablesJson);
         expect(taskSvc.getNextAssignedTask(anyObject(String.class))).andReturn(null);
         expect(identitySvc.userGroups()).andReturn(asList(TEST_GROUP_ID));
         expect(variablesMapper.convertVariablesToEntities(capture(processVariablesCapture), anyObject(Map.class)))
@@ -249,7 +248,7 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
     }
 
     @Test
-    public void testLoadStartForm() throws IOException, URISyntaxException {
+    public void testLoadRenderedStartForm() throws IOException, URISyntaxException {
         createDeployment("test-deployment",
                 "test-process-with-start-form.bpmn");
         Map<String, Object> expectedInitialFormVariables = new HashMap<>();
@@ -260,25 +259,25 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
                 "\"stringFormVariable\":null," +
                 "\"stringFormVariableWithDefaultValue\":\"default-string-value\"," +
                 "\"booleanFormVariable\":null}}";
-        expect(formSvc.getStartFormWithData(EasyMock.anyString(), eq(expectedInitialFormVariables)))
+        expect(formSvc.getStartFormWithData(EasyMock.anyString(), eq(expectedInitialFormVariables), eq(PUBLIC_RESOURCES_DIRECTORY)))
                 .andReturn(formWithData);
         expect(identitySvc.userGroups()).andReturn(asList(TEST_GROUP_ID));
         replay(formSvc, identitySvc);
 
-        String actualFormWithData = processDefinitionSvc.loadStartForm("testProcessWithStartForm");
+        String actualFormWithData = processDefinitionSvc.loadRenderedStartForm("testProcessWithStartForm");
 
         assertEquals(actualFormWithData, formWithData);
         verify(formSvc);
     }
 
     @Test(expected = NotAuthorizedException.class)
-    public void testLoadStartForm_notAuthorized() throws IOException, URISyntaxException {
+    public void testLoadRenderedStartForm_notAuthorized() throws IOException, URISyntaxException {
         createDeployment("test-deployment",
                 "test-process-startable-by-testUser.bpmn");
         expect(identitySvc.userId()).andReturn(ANOTHER_USER_ID);
         replay(identitySvc);
 
-        processDefinitionSvc.loadStartForm("testProcessStartableByTestUser");
+        processDefinitionSvc.loadRenderedStartForm("testProcessStartableByTestUser");
     }
 
     @Test
@@ -392,6 +391,28 @@ public class ProcessDefinitionSvcTest extends ServiceTest {
                 return null;
             }
         };
+    }
+    
+    @Test
+    @org.camunda.bpm.engine.test.Deployment(resources = "test-process-with-start-form.bpmn")
+    public void testLoadStartFormDto() throws IOException {
+        expect(identitySvc.userGroups()).andReturn(Arrays.asList("testGroup"));
+        replay(identitySvc);
+
+        FormDto actual = processDefinitionSvc.loadStartForm("testProcessWithStartForm");
+        
+        assertEquals("testStartForm", actual.getKey());
+    }
+
+    @Test
+    @org.camunda.bpm.engine.test.Deployment(resources = "simple-test-process.bpmn")
+    public void testLoadStartFormDto_WithoutStartForm() throws IOException {
+        expect(identitySvc.userGroups()).andReturn(Arrays.asList("responsibles"));
+        replay(identitySvc);
+
+        FormDto actual = processDefinitionSvc.loadStartForm("myProcess");
+        
+        assertNull(actual.getKey());
     }
 
 }
