@@ -3,7 +3,7 @@ package com.artezio.bpm.services.exceptions;
 public class NotFoundException extends RuntimeException {
 
     public NotFoundException() {
-	super("Not found.");
+        super("Not found.");
     }
 
     public NotFoundException(String message) {

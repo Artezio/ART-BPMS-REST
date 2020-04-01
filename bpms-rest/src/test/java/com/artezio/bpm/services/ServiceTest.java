@@ -17,27 +17,20 @@ import org.camunda.bpm.engine.test.ProcessEngineRule;
 import org.camunda.bpm.engine.variable.impl.value.builder.FileValueBuilderImpl;
 import org.camunda.bpm.engine.variable.value.FileValue;
 import org.junit.Rule;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 
-import javax.enterprise.inject.Instance;
-import javax.enterprise.inject.spi.CDI;
-import javax.servlet.ServletContext;
 import javax.ws.rs.core.Response;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.io.InputStream;
-import java.nio.charset.Charset;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 abstract public class ServiceTest {
 
@@ -198,7 +191,7 @@ abstract public class ServiceTest {
         String mimeType = new Tika().detect(file);
         byte[] fileContent = Files.readAllBytes(file.toPath());
         return new FileValueBuilderImpl(file.getName())
-                .encoding(Charset.forName("UTF-8"))
+                .encoding(StandardCharsets.UTF_8)
                 .mimeType(mimeType)
                 .file(fileContent).create();
     }

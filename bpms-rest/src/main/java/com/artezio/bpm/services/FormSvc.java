@@ -1,8 +1,11 @@
 package com.artezio.bpm.services;
 
+import com.artezio.bpm.integration.CamundaFileStorage;
 import com.artezio.bpm.resources.AbstractResourceLoader;
-import com.artezio.bpm.resources.ResourceLoader;
 import com.artezio.forms.FormClient;
+import com.artezio.forms.formio.FormioClient;
+import com.artezio.forms.resources.ResourceLoader;
+import com.artezio.forms.storages.FileStorage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.camunda.bpm.engine.FormService;
@@ -19,8 +22,7 @@ public class FormSvc {
 
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
-    @Inject
-    private FormClient formClient;
+    private FormClient formClient = new FormioClient();
     @Inject
     private TaskService taskService;
     @Inject
@@ -33,7 +35,8 @@ public class FormSvc {
         String deploymentId = getDeploymentIdFromTask(taskId);
         ObjectNode data = variablesMapper.toJsonNode(variables);
         ResourceLoader resourceLoader = AbstractResourceLoader.getResourceLoader(deploymentId, formKey, formResourcesDirectory);
-        return formClient.getFormWithData(formKey, data, resourceLoader);
+        FileStorage fileStorage = new CamundaFileStorage(taskId);
+        return formClient.getFormWithData(formKey, data, resourceLoader, fileStorage);
     }
 
     public String getStartFormWithData(String processDefinitionId, Map<String, Object> variables, String formResourcesDirectory) {
@@ -44,22 +47,24 @@ public class FormSvc {
         return formClient.getFormWithData(formKey, data, resourceLoader);
     }
 
-    public String dryValidationAndCleanupTaskForm(String taskId, Map<String, Object> formVariables, Map<String, Object> taskVariables,
-                                                  String formResourcesDir) {
+    public String dryValidationAndCleanupTaskForm(String taskId, Map<String, Object> formVariables,
+                                                  Map<String, Object> taskVariables, String formResourcesDir, FileStorage fileStorage) {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = getDeploymentIdFromTask(taskId);
         ResourceLoader resourceLoader = AbstractResourceLoader.getResourceLoader(deploymentId, formKey, formResourcesDir);
         ObjectNode processVariablesJson = variablesMapper.toJsonNode(taskVariables);
         ObjectNode formVariablesJson = variablesMapper.toJsonNode(formVariables);
-        return formClient.dryValidationAndCleanup(formKey, formVariablesJson, processVariablesJson, resourceLoader);
+        return formClient.dryValidationAndCleanup(formKey, formVariablesJson, processVariablesJson, resourceLoader, fileStorage);
     }
 
-    public String dryValidationAndCleanupStartForm(String processDefinitionId, Map<String, Object> formVariables, String formResourcesDir) {
+    public String dryValidationAndCleanupStartForm(String processDefinitionId, Map<String, Object> formVariables,
+                                                   String formResourcesDir, FileStorage fileStorage) {
         String formKey = getStartFormKey(processDefinitionId);
         String deploymentId = getDeploymentIdFromProcessDefinition(processDefinitionId);
         ObjectNode formVariablesJson = variablesMapper.toJsonNode(formVariables);
         ResourceLoader resourceLoader = AbstractResourceLoader.getResourceLoader(deploymentId, formKey, formResourcesDir);
-        return formClient.dryValidationAndCleanup(formKey, formVariablesJson, JSON_MAPPER.createObjectNode(), resourceLoader);
+        return formClient.dryValidationAndCleanup(formKey, formVariablesJson, JSON_MAPPER.createObjectNode(),
+                resourceLoader, fileStorage);
     }
 
     private String getDeploymentIdFromProcessDefinition(String processDefinitionId) {
@@ -73,11 +78,18 @@ public class FormSvc {
         return formClient.shouldProcessSubmission(formKey, decision, resourceLoader);
     }
 
-    public List<String> getTaskFormFieldsNames(String taskId, String formResourcesDir) {
+    public List<String> getRootTaskFormFieldNames(String taskId, String formResourcesDir) {
         String formKey = getTaskFormKey(taskId);
         String deploymentId = getDeploymentIdFromTask(taskId);
         ResourceLoader resourceLoader = AbstractResourceLoader.getResourceLoader(deploymentId, formKey, formResourcesDir);
-        return formClient.getFormVariableNames(formKey, resourceLoader);
+        return formClient.getRootFormFieldNames(formKey, resourceLoader);
+    }
+
+    public List<String> getTaskFormFieldPaths(String taskId, String formResourcesDir) {
+        String formKey = getTaskFormKey(taskId);
+        String deploymentId = getDeploymentIdFromTask(taskId);
+        ResourceLoader resourceLoader = AbstractResourceLoader.getResourceLoader(deploymentId, formKey, formResourcesDir);
+        return formClient.getFormFieldPaths(formKey, resourceLoader);
     }
 
     private String getDeploymentIdFromTask(String taskId) {

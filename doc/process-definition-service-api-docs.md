@@ -2,7 +2,8 @@
 
 * [Start](#start)
 * [Load Start Form](#load-start-form)
-* [Get List](#get-list)
+* [Load Rendered Start Form](#load-rendered-start-form)
+* [List Startable By User](#list-startable-by-user)
 
 ## Start
 Instantiate a process definition. If process definition has a start form, all variables passed to the method will pass "clean up and validation" procedure.
@@ -64,10 +65,10 @@ Status 200 OK.
 }
 ```
 
-## Load Start Form
+## Load Rendered Start Form
 Load the start form definition for the process, if any.
 
-### `GET /api/process-definition/key/{process-definition-key}/form`
+### `GET /api/process-definition/key/{process-definition-key}/rendered-form`
 
 ### Parameters:
 | Name | Type | Description | Required |
@@ -89,7 +90,7 @@ documentation.
 ### Example:
 
 #### Request:
-Get a form from a deployment: `GET /api/process-definition/key/some-process-definition-key/form`
+Get a form from a deployment: `GET /api/process-definition/key/some-process-definition-key/rendered-form`
 
 #### Response:
 Status 200 OK.
@@ -119,7 +120,45 @@ Status 200 OK.
 }
 ```
 
-## Get List
+## Load Start Form
+Retrieves the start form key.
+
+### `GET /api/process-definition/key/{process-definition-key}/form`
+
+### Parameters:
+| Name | Type | Description | Required |
+| ---- | ---------- | ----------- | -------- |
+| process-definition-key | path | The key of the process definition, which form is loaded for | Yes |
+
+### Result:
+A JSON object containing the form key.
+
+| Name | Value | Description |
+| ----- | ----- | ----------- |
+| key | String | the form key for the task |
+| contextPath | String | The process application's context path the task belongs to. If the task does not belong to a process application deployment or a process definition at all, this property is not set. |
+
+### Response Codes:
+
+| Code | Media type | Description |
+| ---- | ---------- | ----------- |
+| 200 | application/json | Request successful |
+| 400 | application/json | Task with given id does not exist. See the Introduction for the error response format |
+
+### Example:
+
+#### Request:
+`GET /api/process-definition/key/{process-definition-key}/form`
+
+#### Response:
+```json
+{
+  "key": "aFormKey",
+  "contextPath": "http://localhost:8080/my-process-application/"
+}
+```
+
+## List Startable By User
 List process definitions startable by the user created this request.
 
 ### `GET /api/process-definition`

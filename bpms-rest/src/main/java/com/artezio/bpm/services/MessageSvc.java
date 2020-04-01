@@ -5,11 +5,10 @@ import com.artezio.bpm.rest.dto.message.CorrelationMessageRepresentation;
 import com.artezio.bpm.rest.dto.message.MessageCorrelationResultRepresentation;
 import com.artezio.bpm.rest.exception.InvalidRequestException;
 import com.artezio.bpm.rest.exception.RestException;
+import com.artezio.logging.Log;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.camunda.bpm.engine.MismatchingMessageCorrelationException;
 import org.camunda.bpm.engine.ProcessEngine;
@@ -19,7 +18,6 @@ import org.camunda.bpm.engine.runtime.MessageCorrelationBuilder;
 import org.camunda.bpm.engine.runtime.MessageCorrelationResult;
 
 import javax.annotation.security.PermitAll;
-import javax.annotation.security.RolesAllowed;
 import javax.ejb.Stateless;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -32,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static com.artezio.logging.Log.Level.CONFIG;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 
@@ -68,6 +67,7 @@ public class MessageSvc {
                     )
             }
     )
+    @Log(level = CONFIG, beforeExecuteMessage = "Sending a message", afterExecuteMessage = "Message is sent")
     public Response deliverMessage(CorrelationMessageRepresentation correlationMessageRepresentation) {
         if (correlationMessageRepresentation.getMessageName() == null) {
             throw new InvalidRequestException(BAD_REQUEST, "No message name supplied");

@@ -3,10 +3,10 @@ package com.artezio.bpm.services;
 import com.artezio.bpm.rest.dto.SignalRepresentation;
 import com.artezio.bpm.rest.dto.VariableValueRepresentation;
 import com.artezio.bpm.rest.exception.InvalidRequestException;
+import com.artezio.logging.Log;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.ProcessEngines;
@@ -14,7 +14,6 @@ import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.runtime.SignalEventReceivedBuilder;
 
 import javax.annotation.security.PermitAll;
-import javax.annotation.security.RolesAllowed;
 import javax.ejb.Stateless;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -24,6 +23,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import java.util.Map;
 
+import static com.artezio.logging.Log.Level.CONFIG;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 
@@ -67,6 +67,7 @@ public class SignalSvc {
                     )
             }
     )
+    @Log(level = CONFIG, beforeExecuteMessage = "Sending a signal", afterExecuteMessage = "Signal is sent")
     public void throwSignal(SignalRepresentation signalRepresentation) {
         String name = signalRepresentation.getName();
         if (name == null) {

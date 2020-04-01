@@ -3,6 +3,8 @@
 * [Get List](#get-list)
 * [Create](#create)
 * [Delete](#delete)
+* [List Public Resources](#list-public-resources)
+* [Get Public Resource](#get-public-resource)
 
 ## Get List
 Get a list of all deployments.
@@ -90,6 +92,7 @@ Content-Disposition: form-data; name="data"; filename="test.bpmn"
 
 #### Response:
 Status 200 OK.
+
 ```json
 {
     "links": [],
@@ -128,7 +131,7 @@ Delete a deployment.
 ### Request Parameters:
 | Name          | Type       | Description              | Required |
 | ------------- | ---------- | ------------------------ | -------- |
-| deployment-id | path       | The id of the deployment | Yes      |
+| deployment-id | path       | The id of a deployment | Yes      |
 
 ### Result:
 This method returns no content.
@@ -148,4 +151,91 @@ This method returns no content.
 ### Response:
 Status 204 No Content.
 
+## List Public Resources
+
+### `GET /api/deployment/public-resources`
+
+### Request Parameters:
+| Name | Type | Description | Required |
+| ---- | ---- | ----------- | -------- |
+| processDefinitionId | String | The id of a process definition | *true |
+| caseDefinitionId | String | The id of a case definition | *true |
+| formKey | String |  | true |
+
+*\* - Params are mutually exclusive. If one is passed, another is not necessary.*
+
+### Result:
+A JSON in HAL format that contains links to download public resources.
+ 
+### Response Codes:
+
+| Code | Description |
+| ---- | ----------- |
+| 200  | Request successful |
+
+### Example:
+
+#### Request:
+`GET api/deployment/public-resources?process-definition-id=someProcessDefinitionId&formKey=someFormKey`
+
+#### Response:
+```json
+{
+  "_links": {
+    "resourcesBaseUrl": {
+      "href": "http://localhost:8080/bpms-rest/api/deployment/public-resource/embedded:deployment:/1234567890/"
+    },
+    "items": [
+      {
+        "href": "http://localhost:8080/bpms-rest/api/deployment/public-resource/embedded:deployment:/1234567890/custom-components/component.js",
+        "name": "custom-components/component.js"
+      }
+    ]
+  }
+}
+```
+
+## Get Public Resource
+
+`GET api/deployment/public-resource/{deployment-protocol}/{deployment-id}/{resource-key: .*}`
+
+### Request Parameters:
+
+| Name | Type | Description | Required |
+| ---- | ---- | ----------- | -------- |
+| deploymentProtocol | String | Deployment protocol of the requested resource ('embedded:app:' or 'embedded:deployment:'). To get more about protocols see [Camunda Embedded Task Forms] | true |
+| deploymentId | String | The id of a deployment | true |
+| resourceKey | List | The requested resource path. No deployment protocol is needed. The path depends on used [Resource Loader]. If default resource loaders are used, the path is relative to the root of either deployment or webapp resources | true |
+
+### Result:
+
+Requested resource in a binary format.
+
+### Response Codes:
+
+| Code | Description |
+| ---- | ----------- |
+| 200  | Request successful |
+| 404  | Resource is not found |
+
+### Example:
+
+#### Request:
+
+`GET http://localhost:8080/bpms-rest/api/deployment/public-resource/embedded:deployment:/1234567890/resource-folder/resource.txt`
+
+#### Response:
+Status 200 OK.
+
+```http request
+200 OK
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: attachment; filename="resource.ext"
+Content-Length: ...
+
+[skipped content]
+```
+
+[Camunda Embedded Task Forms]: https://docs.camunda.org/manual/7.10/user-guide/task-forms/#embedded-task-forms
 [Deployment Object description]: https://docs.camunda.org/manual/7.10/reference/rest/deployment/post-deployment/#result
+[Resource Loader]: ../README.MD#resource-loaders

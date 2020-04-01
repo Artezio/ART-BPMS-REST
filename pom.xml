@@ -6,7 +6,7 @@
 
     <groupId>com.artezio.bpm</groupId>
     <artifactId>bpm-bom</artifactId>
-    <version>0.5.4</version>
+    <version>0.6.0</version>
     <packaging>pom</packaging>
 
     <properties>
@@ -18,7 +18,7 @@
 
     <modules>
         <module>bpms-rest</module>
-        <module>bpms-rest-spa-example</module>
+        <module>bpms-rest-spa</module>
     </modules>
 
     <build>

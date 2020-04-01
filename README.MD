@@ -2,20 +2,20 @@
 
 ART-BPMS-REST is a module which adds a simple interface for working with Deployments, Processes, Cases and Tasks through a set of [REST endpoints]
 and integration of form client for providing intercommunication between [Camunda] platform and this client. Form client provides
-form-specific operations: getting forms, validation and so on (see [Form Client]). 
+form-specific operations: getting forms, validation and so on (see [FormClient]). 
 
 Features:
 * Simple interface for working with Deployments, Processes, Cases and Tasks
-* Integration of form clients
+* Integration with form clients
 * Robust Data validation using both java validation and a form client validation
-* File uploading/downloading from FileStorage, which can be replaced with custom FileStorage implementations
-* Camunda protocols for storing embedded forms [User Task Forms] 
+* File uploading/downloading using FileStorage, which can be replaced with custom FileStorage implementations
+* Camunda protocols for storing resources 
 * Logging 
 * Caching (forms, decisions etc.)
 * Default implementation of Message Correlation and Signal services
 
 >Note:
->ART-BPMS-REST has its own implementation of [Form Client] called [FormioClient]. Given document assumes use of this implementation and
+>Given document assumes use of [FormioClient] implementation of [FormClient] interface and
 >[Formio Builder] application for designing forms. But you can use your own implementation and a way to build forms.
 
 ---
@@ -38,8 +38,8 @@ Features:
     * [Validation](#validation)
     * [Mapping submitted data to Java Classes](#mapping-submitted-data-to-java-classes)
    * [Steps to create and use forms in BPMN](#steps-to-create-and-use-forms-in-bpmn)
-   * [Form Client](#form-client)
    * [File storage](#file-storage)
+   * [Resource Loaders](#resource-loaders)
    * [Bpms-rest SPA example](#bpms-rest-spa-example)
 ---
 
@@ -114,7 +114,7 @@ Urls of all resources described on [ART-BPMS-REST Environment Resources](#art-bp
 
 1. Keycloak Server 7.0.1.Final and corresponding Keycloak Client Adapter.
 
-**Note:**This requirement is for the case of using the default implementation of [Form Client].
+**Note:**This requirement is for the case of using the default implementation of [FormClient].
 1. NodeJs v12.4.1
 
 #### Installation
@@ -336,41 +336,19 @@ Process variable `userInfo` will be stored as class `com.artezio.bpm.model.UserI
     Make [Load form] request. In a result of the request you will get the form definition in `json` view. Use any of numerous [Formio players] to
     depict and work with forms on a client side.
 
-### Form Client
+### Resource Loaders
+Resource loaders are intended to load resources from different sources such as: bpm deployment, webapp, database, file system etc.
+Each resource loader corresponds to a deployment protocol. There are two resource loaders by default: `AppResourceLoader` and `DeploymentResourceLoader`.
 
-`com.artezio.forms.FormClient` is an interface involving methods to work with forms. To provide your own implementation of 
-this interface you have to implement the following methods:
+#### AppResourceLoader
+This loader communicates with a web application to download resources. To invoke this loader you either must specify `embedded:app:` deployment protocol or
+specify no protocols.
 
-* `getFormWithData(String deploymentId, String formPath, ObjectNode taskVariables)`
-   Basing on `deploymentId` and `formPath` returns a correspondent form filled up with data which is already in a process.
-   Form format and storage is up to your implementation. `taskVariables` are passed to give information about current variables in a process.
-
-* `dryValidationAndCleanup(String deploymentId, String formPath, ObjectNode submittedVariables, ObjectNode taskVariables)` 
-   Perform validation and cleanup of `submittedVariables` against a form which can be got using `deploymentId` and `formPath`.
-   The difference between validation and cleanup is that the validation checks up whether variable values are correct or not regarding to
-   the form fields while cleanup just removes variables which don't correspond to the form fields. `taskVariables` are passed
-   to give information about existing variables in a process. It is useful in a case when the process has readonly variables
-   and they must not be overwritten. 
-
-* `shouldProcessSubmission(String deploymentId, String formPath, String submissionState)`
-   This method is intended for making a decision if a process should be canceled or not. If the process continues, everything goes by a normal flow
-   with validations, submission and so on. If the process is cancelled, there will not be validation and submission, hence submitted variables will not
-   get into the process. `submissionState` value is submitted with other form fields and has to be placed in `state` variable.
-   A place of the decision returned in accordance to `submissionState` is up to your implementation.
-  
-* `getFormVariableNames(String deploymentId, String formPath)`
-   Returns form field names. Form field name list should contains fields with payload.
-
-To include your implementation into ART-BPMS-REST just add it as a dependency in `bpms-rest/pom.xml` instead of `com.artezio.camunda:formio`.
-
+#### DeploymentResourceLoader
+This loader communicates with a bpm deployment to download resources. To invoke this loader you must specify `embedded:deployment:` deployment protocol.  
 
 ### File Storage
-By default all files are encoded in Base64 and stored in Camunda database as base64 data urls ([RFC 2397](https://tools.ietf.org/html/rfc2397)). 
-It's possible to add a custom FileStorage implementation to store files anywhere else, including filesystem, external FTP server, etc. It could be done by implementing 
-`com.artezio.bpm.services.integration.FileStorage` interface and making it a CDI bean visible to BPMS-REST module. Only one such implementation is allowed on the classpath. 
-
-When a file gets deserialized into Camunda's engine, FileStorage implementation will be called to store the file. 
-When a file gets serialized from Camunda's engine, FileStorage implementation will be called to retrieve the file.
+ART-BPMS-REST uses [Camunda File Storage] as an implementation of [File Storage]. This implementation stores files in Camunda database. 
 
 ### Bpms-rest SPA example
 
@@ -384,10 +362,12 @@ To check that it works see [ART-BPMS-REST environment resources](#art-bpms-rest-
 
 [Art Mvn Repository]: https://github.com/Artezio/ART-MVN-REPO/packages/109083/versions
 [Camunda]: https://camunda.com/
+[Camunda File Storage]: /bpms-rest/src/main/java/com/artezio/bpm/integration/CamundaFileStorage.java
 [Configuring the Keycloak Subsystem]: https://www.keycloak.org/docs/7.0/getting_started/index.html#configuring-the-subsystem
 [Create deployment]: /doc/deployment-service-api-docs.md#create
-[Form Client]: #form-client
-[FormioClient]: https://github.com/Artezio/camunda-formio
+[File Storage]: https://github.com/Artezio/formio-client/blob/master/src/main/java/com/artezio/forms/storages/FileStorage.java
+[FormClient]: https://github.com/Artezio/formio-client/blob/master/src/main/java/com/artezio/forms/FormClient.java
+[FormioClient]: https://github.com/Artezio/formio-client/blob/master/src/main/java/com/artezio/forms/formio/FormioClient.java
 [Form.io]: https://www.form.io/
 [Formio Builder]: https://github.com/Artezio/FormIO-editor
 [Load form]: /doc/task-service-api-docs.md#load-form
