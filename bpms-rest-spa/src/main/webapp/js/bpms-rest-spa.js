@@ -433,7 +433,7 @@ var ProcessStartForms = {
                 return data;
             })
             .then(data => {
-                Formio
+                return Formio
                     .createForm(
                         document.getElementById('formio'),
                         data, { readOnly: false, noAlerts: true })
@@ -486,6 +486,7 @@ var ProcessStartForms = {
                                 );
                             return submission;
                         });
+                        return form;
                     });
             }, (xhr, textStatus) => {
                 if (xhr.status === 401) {
@@ -498,12 +499,14 @@ var ProcessStartForms = {
                     }
                 }
             })
-            .then(() => {
-                const formioContainer = document.getElementById('formio');
-                const fileComponents = formioContainer.querySelectorAll('.formio-component-file');
-                fileComponents.forEach(fileComponent => {
-                    const links = fileComponent.querySelectorAll('a');
-                    links.forEach(correctLinkHref);
+            .then(form => {
+                form.on('render', () => {
+                    const formioContainer = document.getElementById('formio');
+                    const fileComponents = formioContainer.querySelectorAll('.formio-component-file');
+                    fileComponents.forEach(fileComponent => {
+                        const links = fileComponent.querySelectorAll('a');
+                        links.forEach(correctLinkHref);
+                    })
                 })
             })
             .finally(() => {
@@ -552,7 +555,7 @@ var TaskForms = {
                 return data;
             })
             .then(data => {
-                Formio
+                return Formio
                     .createForm(
                         document.getElementById('formio'),
                         data, { readOnly: false, noAlerts: true })
@@ -596,6 +599,7 @@ var TaskForms = {
                                     });
                             return submission;
                         });
+                        return form;
                     });
             }, (xhr, textStatus) => {
                 if (xhr.status === 401) {
@@ -604,13 +608,15 @@ var TaskForms = {
                     showError(xhr.responseJSON);
                 }
             })
-            .then(() => {
-                const formioContainer = document.getElementById('formio');
-                const fileComponents = formioContainer.querySelectorAll('.formio-component-file');
-                fileComponents.forEach(fileComponent => {
-                    const links = fileComponent.querySelectorAll('a');
-                    links.forEach(correctLinkHref);
-                })
+            .then(form => {
+                form.on('render', () => {
+                    const formioContainer = document.getElementById('formio');
+                    const fileComponents = formioContainer.querySelectorAll('.formio-component-file');
+                    fileComponents.forEach(fileComponent => {
+                        const links = fileComponent.querySelectorAll('a');
+                        links.forEach(correctLinkHref);
+                    })
+                });
             })
             .finally(() => {
                 metaData.originalBaseUrl && setBaseUrl(metaData.originalBaseUrl);
