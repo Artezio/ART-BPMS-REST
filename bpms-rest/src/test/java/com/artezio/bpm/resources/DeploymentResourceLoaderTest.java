@@ -46,7 +46,7 @@ public class DeploymentResourceLoaderTest {
                 .createDeploymentQuery()
                 .list()
                 .stream()
-                .min(Comparator.comparing(org.camunda.bpm.engine.repository.Deployment::getDeploymentTime))
+                .max(Comparator.comparing(org.camunda.bpm.engine.repository.Deployment::getDeploymentTime))
                 .get()
                 .getId();
     }
