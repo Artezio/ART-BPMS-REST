@@ -388,6 +388,15 @@ function detachLoader() {
     loader.remove();
 }
 
+function correctLinkHref(link) {
+    const regExp = /(.*)https?:\/\//;
+    const exes = link.href.match(regExp)[1];
+    const correctedHref = link.href.slice(exes.length);
+    let outerHtml = link.outerHTML;
+    outerHtml = outerHtml.replace(/href="([^"]*)"/, `href="${correctedHref}"`)
+    link.outerHTML = outerHtml;
+}
+
 var ProcessStartForms = {
     submit: function (processDefinitionKey, data) {
         clearErrors();
@@ -489,6 +498,14 @@ var ProcessStartForms = {
                     }
                 }
             })
+            .then(() => {
+                const formioContainer = document.getElementById('formio');
+                const fileComponents = formioContainer.querySelectorAll('.formio-component-file');
+                fileComponents.forEach(fileComponent => {
+                    const links = fileComponent.querySelectorAll('a');
+                    links.forEach(correctLinkHref);
+                })
+            })
             .finally(() => {
                 metaData.originalBaseUrl && setBaseUrl(metaData.originalBaseUrl);
                 metaData.originalBaseUrl = null;
@@ -586,6 +603,14 @@ var TaskForms = {
                 } else {
                     showError(xhr.responseJSON);
                 }
+            })
+            .then(() => {
+                const formioContainer = document.getElementById('formio');
+                const fileComponents = formioContainer.querySelectorAll('.formio-component-file');
+                fileComponents.forEach(fileComponent => {
+                    const links = fileComponent.querySelectorAll('a');
+                    links.forEach(correctLinkHref);
+                })
             })
             .finally(() => {
                 metaData.originalBaseUrl && setBaseUrl(metaData.originalBaseUrl);
