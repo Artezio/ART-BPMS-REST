@@ -194,15 +194,22 @@ ART-BPMS-REST application can be used as a standalone web application.
 
 ART-BPMS-REST application can be included into another application as a part of ear archive.
 
-1. Download the application. See [Application Download](#application-download) section.
-2. Add the module to your EAR project's POM
+1. Open your EAR project's pom
+2. Add the reference to the artezio mvn repository:
+    ```xml
+    <repository>
+        <id>artezio</id>
+        <url>https://nexus.artezio.net/repository/maven-releases</url>
+    </repository>
+    ```
+2. Add the dependency
     ```xml
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>com.artezio.bpm</groupId>
                 <artifactId>bpm-bom</artifactId>
-                <version>1.0</version>
+                <version>${bpm-bom.version}</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
