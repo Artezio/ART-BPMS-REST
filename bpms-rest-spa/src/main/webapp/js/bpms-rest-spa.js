@@ -388,6 +388,15 @@ function detachLoader() {
     loader.remove();
 }
 
+function correctLinkHref(link) {
+    const regExp = /(.*)https?:\/\//;
+    const exes = link.href.match(regExp)[1];
+    const correctedHref = link.href.slice(exes.length);
+    let outerHtml = link.outerHTML;
+    outerHtml = outerHtml.replace(/href="([^"]*)"/, `href="${correctedHref}"`)
+    link.outerHTML = outerHtml;
+}
+
 var ProcessStartForms = {
     submit: function (processDefinitionKey, data) {
         clearErrors();
@@ -433,8 +442,8 @@ var ProcessStartForms = {
                             data: data.data
                         };
                         window.formMock = form;
-                        let fileComponentNames = findFileComponentNames(form);
-                        merge(data.data, form.data, fileComponentNames);
+                        // let fileComponentNames = findFileComponentNames(form);
+                        // merge(data.data, form.data, fileComponentNames);
                         internationalize(form.components);
 
                         form.redraw();
@@ -544,8 +553,8 @@ var TaskForms = {
                             data: data.data
                         }
                         window.formMock = form;
-                        let fileComponentNames = findFileComponentNames(form);
-                        merge(data.data, form.data, fileComponentNames);
+                        // let fileComponentNames = findFileComponentNames(form);
+                        // merge(data.data, form.data, fileComponentNames);
                         form.redraw();
 
                         let submitValidation = form.checkValidity;
@@ -595,67 +604,67 @@ var TaskForms = {
     }
 };
 
-function merge(sourceData, targetData, fileComponentNames) {
+// function merge(sourceData, targetData, fileComponentNames) {
 
-    function isBase64DataUrl(url) {
-        const base64DataUrlRegex = /^\s*data:([a-z-]+\/?[a-z-]+(;[a-z\-]+\=[a-z\-]+)?)?(;base64)?,[a-z0-9\!\$\&\'\,\(\)\*\+\,\;\=\-\.\_\~\:\@\/\?\%\s]*\s*$/i;
-        return !!url.match(base64DataUrlRegex);
-    }
+//     function isBase64DataUrl(url) {
+//         const base64DataUrlRegex = /^\s*data:([a-z-]+\/?[a-z-]+(;[a-z\-]+\=[a-z\-]+)?)?(;base64)?,[a-z0-9\!\$\&\'\,\(\)\*\+\,\;\=\-\.\_\~\:\@\/\?\%\s]*\s*$/i;
+//         return !!url.match(base64DataUrlRegex);
+//     }
 
-    function getUrl(file) {
-        if ((file.storage === "url") && (fileStorageUrl != null) && (fileStorageUrl !== "")) {
-            if (isBase64DataUrl(file.url)) {
-                return file.url;
-            } else {
-                return fileStorageUrl + "/" + file.url
-            }
-        } else {
-            return file.url;
-        }
-    }
+//     function getUrl(file) {
+//         if ((file.storage === "url") && (fileStorageUrl != null) && (fileStorageUrl !== "")) {
+//             if (isBase64DataUrl(file.url)) {
+//                 return file.url;
+//             } else {
+//                 return fileStorageUrl + "/" + file.url
+//             }
+//         } else {
+//             return file.url;
+//         }
+//     }
 
-    for (let key in sourceData) {
-        if (targetData.hasOwnProperty(key)) {
-            if (sourceData[key] instanceof Object && !Array.isArray(sourceData[key])) {
-                merge(sourceData[key], targetData[key], fileComponentNames);
-            } else {
-                let result = sourceData[key];
-                if (fileComponentNames.includes(key)) {
-                    result = result.map(value => {
-                        var url = value.url;
-                        value.url = getUrl(value);
-                        if (isBase64DataUrl(url)) {
-                            value.storage = "base64";
-                        }
-                        return value;
-                    });
-                }
-                targetData[key] = result;
-            }
-        }
-    }
-}
+//     for (let key in sourceData) {
+//         if (targetData.hasOwnProperty(key)) {
+//             if (sourceData[key] instanceof Object && !Array.isArray(sourceData[key])) {
+//                 merge(sourceData[key], targetData[key], fileComponentNames);
+//             } else {
+//                 let result = sourceData[key];
+//                 if (fileComponentNames.includes(key)) {
+//                     result = result.map(value => {
+//                         var url = value.url;
+//                         value.url = getUrl(value);
+//                         if (isBase64DataUrl(url)) {
+//                             value.storage = "base64";
+//                         }
+//                         return value;
+//                     });
+//                 }
+//                 targetData[key] = result;
+//             }
+//         }
+//     }
+// }
 
-function findFileComponentNames(container) {
-    if (container.components) {
-        return container.components
-            .map(component => {
-                switch (component.type) {
-                    case 'form': {
-                        return component.components
-                            ? findFileComponentNames(component.components)
-                            : findFileComponentNames(component.component.components);
-                    }
-                    case 'components':
-                    case 'container': return findFileComponentNames(component);
-                    case 'file': return component.key;
-                    default: [];
-                }
-            })
-            .flat()
-            .filter(distinctAndNonUndefinedFilter);
-    }
-}
+// function findFileComponentNames(container) {
+//     if (container.components) {
+//         return container.components
+//             .map(component => {
+//                 switch (component.type) {
+//                     case 'form': {
+//                         return component.components
+//                             ? findFileComponentNames(component.components)
+//                             : findFileComponentNames(component.component.components);
+//                     }
+//                     case 'components':
+//                     case 'container': return findFileComponentNames(component);
+//                     case 'file': return component.key;
+//                     default: [];
+//                 }
+//             })
+//             .flat()
+//             .filter(distinctAndNonUndefinedFilter);
+//     }
+// }
 
 const distinctAndNonUndefinedFilter = (value, index, array) => {
     return array.indexOf(value) === index && value !== undefined;

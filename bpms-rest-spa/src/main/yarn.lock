@@ -109,9 +109,9 @@ dragula@^3.7.2:
     crossvent "1.5.4"
 
 eventemitter2@^6.0.0:
-  version "6.3.1"
-  resolved "https://registry.yarnpkg.com/eventemitter2/-/eventemitter2-6.3.1.tgz#14ec7db8c659aa9b36ad2ce4bfcaba95ad525536"
-  integrity sha512-cxfu3g0IBn/JEhAPV33NZTi8llQQ5j62D0Yf4ir1U9uQ1DlRZLL3Hh2E/+TWDprSy4BETWvrGBZMUexuC2b6Lw==
+  version "6.2.1"
+  resolved "https://registry.yarnpkg.com/eventemitter2/-/eventemitter2-6.2.1.tgz#cec423117a8ce45c471092d0bb01a0aff1ed5e47"
+  integrity sha512-38fV8WMnn95y1ugsY8Iu25hhFTHYSqR+JkDVNSuKmi5/sF79Zt+EpA0N6yCGv/PSCZhIRZlyaIBY3q8ed7ZikA==
 
 fast-deep-equal@^2.0.1:
   version "2.0.1"
@@ -194,9 +194,9 @@ i18next@^19.0.3:
     "@babel/runtime" "^7.3.1"
 
 idb@^5.0.0:
-  version "5.0.2"
-  resolved "https://registry.yarnpkg.com/idb/-/idb-5.0.2.tgz#294e5dd0f1930519dd07393a793cd4edfac93834"
-  integrity sha512-53yU1RbSPkSkQxufmNgcBkxxnbsTMGaYCv2NwQDmBP75muYj4Z75DsvCqhCCivYcC1XaXDi9tZSUOfDQFxuABA==
+  version "5.0.1"
+  resolved "https://registry.yarnpkg.com/idb/-/idb-5.0.1.tgz#aad7d045490a3be133885cd0ce15b334a83ce3ac"
+  integrity sha512-jdFnxTvz3JZ5AQP4nAb0x7bnisFNO5KqafsarDn/aehIn84UcVY3z96mq6WiqNe8z7OpZWZ0xG1ORbkwuBp5Mw==
 
 ismobilejs@^1.0.3:
   version "1.0.3"
