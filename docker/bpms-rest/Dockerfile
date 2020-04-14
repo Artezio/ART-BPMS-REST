@@ -1,3 +1,15 @@
+# Download and build bpms-rest from source code
+FROM maven:3.6.3-jdk-11-openj9 as maven_builder
+
+RUN apt-get update &&\
+    apt-get install -y git &&\
+    apt-get clean
+RUN cd / &&\
+	git clone https://github.com/Artezio/ART-BPMS-REST.git &&\
+	cd /ART-BPMS-REST &&\
+	mvn clean install -DskipTests=true
+
+# Add built application to Wildfly
 FROM jboss/wildfly:17.0.1.Final as wildfly
 
 ARG JBOSS_CLI_ADMIN_LOGIN=admin
@@ -33,6 +45,9 @@ ENV JBOSS_ARGS ""
 
 ENV JDBC_POSTGRES_VERSION 42.2.2
 ENV JDBC_MYSQL_VERSION 5.1.46
+
+# Deploy WAR
+COPY --chown=jboss:0 --from=maven_builder /ART-BPMS-REST/bpms-rest/target/bpms-rest.war /opt/jboss/wildfly/standalone/deployments/bpms-rest.war
 
 # Install database drivers
 COPY --chown=jboss:0 tools /opt/jboss/tools/bpms-rest/
