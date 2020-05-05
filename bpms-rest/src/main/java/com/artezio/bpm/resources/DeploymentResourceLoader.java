@@ -16,7 +16,8 @@ import java.util.stream.Collectors;
 public class DeploymentResourceLoader extends AbstractResourceLoader {
 
     private static final String PROCESS_ENGINE_NAME = System.getenv("PROCESS_ENGINE_NAME");
-    private static final Map<String, byte[]> RESOURCES_CACHE = Collections.synchronizedMap(new LRUMap<>());
+    private static final int DEPLOYMENT_RESOURCES_CACHE_SIZE = Integer.parseInt(System.getProperty("DEPLOYMENT_RESOURCES_CACHE_SIZE", "1000"));
+    private static final Map<String, byte[]> RESOURCES_CACHE = Collections.synchronizedMap(new LRUMap<>(DEPLOYMENT_RESOURCES_CACHE_SIZE));
     protected String deploymentId;
 
     public DeploymentResourceLoader(String deploymentId, String rootDir) {
