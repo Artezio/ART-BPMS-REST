@@ -54,4 +54,9 @@ public class AppResourceLoader extends AbstractResourceLoader {
         }
     }
 
+    @Override
+    public String getGroupId() {
+        return APP_PROTOCOL; 
+    }
+
 }
