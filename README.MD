@@ -1,30 +1,27 @@
 # ART-BPMS-REST
 
-ART-BPMS-REST is a module which adds a simple interface for working with Deployments, Processes, Cases and Tasks through a set of [REST endpoints]
-and integration of form client for providing intercommunication between [Camunda] platform and this client. Form client provides
-form-specific operations: getting forms, validation and so on (see [FormClient]). 
+ART-BPMS-REST is a module which provides a simple interface to communicate with [Camunda] and simplifies work with bpm process'
+forms through [Form Client] that takes the responsibility for validation, form fields manipulation etc.
 
 Features:
-* Simple interface for working with Deployments, Processes, Cases and Tasks
-* Integration with form clients
-* Robust Data validation using both java validation and a form client validation
-* File uploading/downloading using FileStorage, which can be replaced with custom FileStorage implementations
-* Camunda protocols for storing resources 
-* Logging 
-* Caching (forms, decisions etc.)
+* Simple set of [REST endpoints] to communicate with [Camunda] platform
+* Integration with [Form Client]
+* Robust data validation using both java validation and form client validation
+* Possibility to skip submitted data validation (useful while cancel operation)
+* File conversion between different formats, controlled by file converters  
+* Files uploading/downloading using file storages
+* Bpm resources storing/loading using resource loaders
+* Caching
 * Default implementation of Message Correlation and Signal services
 
 >Note:
->Given document assumes use of [FormioClient] implementation of [FormClient] interface and
->[Formio Builder] application for designing forms. But you can use your own implementation and a way to build forms.
+>Given document assumes use of [Formio Client] implementation of [Form Client] interface.
 
 ---
 * [Architecture Overview](#architecture-overview)
 * [Security](#security)
 * [Environment Installation](#environment-installation)
     * [Docker](#docker)
-        * [Full installation](#full-installation)
-        * [Partial installation](#partial-installation)
     * [Manual](#manual)
         * [Requirements](#requirements)
         * [Installation](#installation)
@@ -34,13 +31,13 @@ Features:
     * [WAR module](#war-module)
     * [EAR module](#ear-module)
 * [Usage](#usage)
-    * [How To Work With Forms](#how-to-work-with-forms)
+    * [Work With Forms](#work-with-forms)
+        * [Form Creating Notes](#form-creating-notes)
     * [Validation](#validation)
-    * [Mapping submitted data to Java Classes](#mapping-submitted-data-to-java-classes)
-   * [Steps to create and use forms in BPMN](#steps-to-create-and-use-forms-in-bpmn)
-   * [File storage](#file-storage)
-   * [Resource Loaders](#resource-loaders)
-   * [Bpms-rest SPA example](#bpms-rest-spa-example)
+    * [Mapping Submitted Data to Java Classes](#mapping-submitted-data-to-java-classes)
+    * [File storage](#file-storage)
+    * [Resource Loaders](#resource-loaders)
+    * [Bpms-rest SPA example](#bpms-rest-spa-example)
 ---
 
 ## Architecture Overview
@@ -66,39 +63,12 @@ The Identity Service provides user info including user roles. **NOTE! Current ve
 
 ![](doc/deployment-diagram.png)
 
-ART-BPMS-REST environment includes Wildfly, Relational Database, Keycloak and Camunda Cockpit tool. You can either install
-the environment fully or partially selecting particular components you need.  
-
 ### Docker
-
-#### Full installation
 
 1. Clone this repository `git clone http://github.com/Artezio/ART-BPMS-REST.git`
 2. Open console and go to `ART_BPMS_REST_HOME_DIR/docker`
 3. To change default values of docker variables edit `.env` file. See [Docker variables](/doc/docker-variables.md) for full description of the variables
 4. Run `docker-compose up`
-
-Urls of all resources described on [ART-BPMS-REST Environment Resources](#art-bpms-rest-environment-resources) table.
-
-#### Partial installation
-
-Each appllication of the environment  (`bpms-rest`, `keycloak`, `cockpit`) has its own `Dockerfile`, therefore you can run the components separately:
-
-1. Open console and go to `ART_BPMS_REST_HOME_DIR/docker/APPLICATION_DIR`
-2. Run 
-    ```
-    docker build --build-arg {arg_name=arg_val} --tag {name:tag} .
-    docker run -it -p {host_app_port}:{container_app_port} {container}
-    ```
-
-For more information about `build` and `run` commands see [Docker CLI Run] and [Docker CLI Build]. <br/>
-
->**Note:**
->`cockpit` runs along with other camunda apps (Tasklist, Admin), hence it has more environment variables than described in `.env` file.
->If you run `cockpit` separately, check [Camunda BPM Platform] for an actual list of the environment variables.
-
->**Note:**
->If you run `cockpit` for the first time, you are asked for creating a new admin user.
 
 Urls of all resources described on [ART-BPMS-REST Environment Resources](#art-bpms-rest-environment-resources) table.
 
@@ -114,21 +84,21 @@ Urls of all resources described on [ART-BPMS-REST Environment Resources](#art-bp
 
 1. Keycloak Server 7.0.1.Final and corresponding Keycloak Client Adapter.
 
-**Note:**This requirement is for the case of using the default implementation of [FormClient].
+**Note:**This is required for the default implementation of [Form Client].
 1. NodeJs v12.4.1
 
 #### Installation
 
-1. Java. Download [Java] and install it.
+1. Java. [Download Java] and install it.
 
-1. Wildfly Application server. Download [Wildfly] and unpack it. **NOTE! You could use another JavaEE8-approved server, but there are no guarantees on its workability.**
+1. Wildfly Application server. [Download Wildfly] and unpack it. **NOTE! You could use another JavaEE8-approved server, but there are no guarantees on its workability.**
 
 1. Since ART-BPMS-REST is based on Camunda Procces Engine 7.10 it requires to use the database supported by this version of Camunda Process Engine.
    See [Supported Database Produces] page for relevant list of supported databases. Install downloaded database product and create an empty database.
 
-1. Keycloak Server. Download [Keycloak Server] and unpack it.
+1. Keycloak Server. [Download Keycloak Server] and unpack it.
 
-1. Keycloak Client Adapter. Download [Keycloak Client Adapter] for Wildfly 17. Unpack the Keycloak Adapter archive to the WildFly home directory.
+1. Keycloak Client Adapter. [Download Keycloak Client Adapter] for Wildfly 17. Unpack the Keycloak Adapter archive to the WildFly home directory.
    To configure the adapter execute:
 
       Linux/Unix:
@@ -150,6 +120,7 @@ Urls of all resources described on [ART-BPMS-REST Environment Resources](#art-bp
 
 1. Datasource profile. Add datasource with jndi name `java:/datasources/CamundaDS` which will be used by Camunda engine. Set datasource options according to database and JDBC driver.
 
+**Note:**This is required for the default implementation of [Form Client].
 1. Check out [Formio Client] for information about installation nodejs.
 
 Urls of all resources described on [ART-BPMS-REST Environment Resources](#art-bpms-rest-environment-resources) table.
@@ -167,42 +138,47 @@ Urls of all resources described on [ART-BPMS-REST Environment Resources](#art-bp
 |ART-BPMS-REST API documentation*|http://localhost:8080/bpms-rest/swagger-ui.html|bpmsadmin:1|
 |ART-BPMS-REST SPA application**|http://localhost:8080/bpms-rest-spa||
 
-\* — it will be available when ART-BPMS-REST is deployed (see [Deploy section](#application-deploy))
-\** - it will be availble when ART-BPMS-REST SPA application is deployed
+\* — it will be available when bpms-rest.war is deployed (see [Deploy section](#application-deploy))
+\** - it will be availble when bpms-rest-spa.war is deployed
 >**Note**: Table contains paths with default environment variables values.
 
 ## Application Download
-1 . Download ART-BPMS-REST from this repository and package it:
+1. Run in a console
    ```
    git clone http://github.com/Artezio/ART-BPMS-REST.git
    cd ART-BPMS-REST
-   mvn install
+   mvn package
    ```   
 2. The artifact will be in `ART_BPMS_REST_HOME_DIR\bpms-rest\target\`
 
 ## Application Deploy
 
+ART-BPMS-REST application can be used as either a standalone web application or a part of enterprise application.
+
 ### WAR module
 
-ART-BPMS-REST application can be used as a standalone web application.
-
 1. Download the application. See [Application Download](#application-download) section.
-2. Deploy it on the server
-3. Open [bpms-rest app] for REST API description
+2. Deploy it to a server
+3. Open [bpms-rest] for REST API description
 
 ### EAR module
 
-ART-BPMS-REST application can be included into another application as a part of ear archive.
-
-1. Download the application. See [Application Download](#application-download) section.
-2. Add the module to your EAR project's POM
+1. Open your EAR project's pom
+2. Add the reference to the artezio mvn repository:
+    ```xml
+    <repository>
+        <id>artezio</id>
+        <url>https://nexus.artezio.net/repository/maven-releases</url>
+    </repository>
+    ```
+2. Add the dependency
     ```xml
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>com.artezio.bpm</groupId>
                 <artifactId>bpm-bom</artifactId>
-                <version>1.0</version>
+                <version>${bpm-bom.version}</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -227,29 +203,60 @@ ART-BPMS-REST application can be included into another application as a part of 
     >   </web>
     > </module>
     > ```
-4. Deploy `.ear` archive on the server
-5. Open [bpms-rest app] for REST API description
+4. Deploy the archive on the server
+5. Open [bpms-rest] for REST API description
 
 ## Usage
 
-### How To Work With Forms
+ART-BPMS-REST provides main methods of [Camunda Rest] for deployments, processes and tasks such as: create, list, delete, get form and so on.
+See [Rest Endpoints] for full information about provided methods. 
 
-Forms for [FormioClient] are designed using [Formio Builder]. But you can build forms in any appropriate way regardless of using [FormioClient] or another client.
-To point [Camunda] to a form you have to specify `formKey` on a diagram in a corresponding element.  
+### Work With Forms 
+
+1. Create forms using [Formio Builder]. 
+2. Add created forms to a process archive. All forms have to be put into `public/` directory in a process archive. If `formKey` is a path
+you have to create corresponding directories under the directory `public/`. For example, for a form with `formKey`: `embedded:deployment:/forms/demo/someFormKey.json`,
+the path to the form in the process archive will be `public/forms/demo/someFormKey.json`.
+3. On a bpm diagram specify `formKey` in a corresponding element. As forms are bpm resources then resource loading protocol
+must be specified (or you can omit the protocol to use default one). See [Resource Loaders](#resource-loaders) for additional information.
 
 Example:<br/>
 
 ![](doc/user-task-form-key-example.png)
 
-To add forms to a process archive you have to add them along with another the archive's resources, after that these forms becomes visible to ART-BPMS-REST
-so they will be automatically deployed with the archive's resources such as BPMN diagrams.
+4. Deploy process with forms to Camunda.
+5. Make [Load form] or [Load start form] request. In result of the request you will get the form definition in `json` format. Use any of numerous [Formio players] to
+render and work with forms on a client side.
 
-Overall, the workflow looks like this:
-1. Build forms
-1. Either add `formKey` to `Start Event` or BPMN User Tasks with `formKey` pointing to constructed forms
-1. Deploy process with forms into Camunda
-1. Start the process using the BPMS-REST by either submitting a start form or starting the process without the start form
-1. Request and submit task forms using BPMS-REST
+#### Form Creating Notes
+
+1. *Nested forms*. When adding `Nested Form` component note that its key has to match the nested form file name without extension.
+For example, for a form file `someForm.json` the corresponding `Nested Form` component has to have key `someForm`.
+
+2. *Disabling nested forms.* If you need to disable a nested form and all its child components:
+    * Open settings of `Nested Form` component
+    * Go to `Display` tab and check `disabled` checkbox
+    * Go to `Form` tab and uncheck `Save as reference` checkbox
+
+3. *Actions.* If you need to have an opportunity to cancel process evaluation and skip validation, you have to provide
+info about submission state:
+    * Add `Button` to the form you are creating
+    
+    ![](doc/button-component.png)
+    
+    * In an opened window on `Display` page choose `Action` equal to `Save in state` and give a name to the state that
+      will be passed (e.g. `cancelled`)
+    
+    ![](doc/button-component-action-setup.png)
+    
+    * On `API` page add custom property with the name `isSubmissionProcessed` and set the boolean value (e.g. `false`)
+    
+    ![](doc/button-component-properties-setup.png)
+    
+    * Save settings
+    
+After that the `state` variable will be passed with the rest form fields and in accordance to the value of `isSubmissionProcessed`
+variable the validation will either be performed or not.    
 
 ### Validation
 
@@ -258,7 +265,7 @@ On every submit, form data is validated several times:
 1. After submitting, the data is sent to form client to perform dry cleanup and validation (i.e. all extra submitted data which was not present in the form will be removed)
 1. After dry validation all Java Objects which have `javax.validation` constraints are validated using JavaBeans Validation service
 
-### Mapping submitted data to Java classes
+### Mapping Submitted Data to Java classes
 
 When the data is submitted from a form to [Camunda], it's unknown to which Java class json object corresponds, so all objects are stored as Maps in Process Variables.
 It is more convenient to contain variables as java classes because in this occasion you can use advantages of java classes. For example if a class is marked
@@ -291,51 +298,6 @@ Let's assume the following data is submitted with Process Extensions set as in t
 
 Process variable `userInfo` will be stored as class `com.artezio.bpm.model.UserInfo`, and process variable `marriageInfo` will be stored as `Map`.
 
-### Steps to create and use forms in BPMN
-
-1. Create a form using [Formio Builder]
-   
-1. Depending on how you make a deployment choose one of the following ways:
-
-    * In a Process Application Archive:
-    
-        1. Put created forms to `/src/main/resources/` directory
-        1. Make forms visible to Camunda resource scanner. `processes.xml` file is used for resources declaration. 
-            There are two ways to register forms in `processes.xml`:
-            * List each form in `process-archive` - `<resource/>` elements
-                ```xml
-                <process-archive ...>
-                    <resource>/forms/form1</resource>
-                    <resource>/forms/form2</resource>
-                    ...
-                </process-archive>
-                ```
-            * Automatically scan for all forms with specified prefixes
-                ```xml
-                <process-archive ...>
-                    <properties>
-                        <property name="resourceRootPath>/forms/</property>
-                        <property name="additionalResourceSuffixes">json</property>
-                        ...
-                    </properties>
-                    ...
-                </process-archive>   
-                ```
-           This tells camunda engine to include all resources found in a given path (including subdirectories) and ending with any of enlisted suffixes.
-           For more information about how to add resources to a deployment see [Process Archive].
-        1. Build the Process Application archive and deploy
-         
-    * Using REST API:
-        
-        To make a deployment through REST API you have to make [Create deployment] request. Add all 
-        forms into request body along with BPMN diagrams and other resources. Resources in the deployment will have the same name as a
-        `name` attribute value in the request.
-
-1. Get task form:
-    
-    Make [Load form] request. In a result of the request you will get the form definition in `json` view. Use any of numerous [Formio players] to
-    depict and work with forms on a client side.
-
 ### Resource Loaders
 Resource loaders are intended to load resources from different sources such as: bpm deployment, webapp, database, file system etc.
 Each resource loader corresponds to a deployment protocol. There are two resource loaders by default: `AppResourceLoader` and `DeploymentResourceLoader`.
@@ -360,30 +322,28 @@ module contains such an application in the form of SPA application. Step to get 
 
 To check that it works see [ART-BPMS-REST environment resources](#art-bpms-rest-environment-resources) for an url to the application. 
 
-[Art Mvn Repository]: https://github.com/Artezio/ART-MVN-REPO/packages/109083/versions
 [Camunda]: https://camunda.com/
 [Camunda File Storage]: /bpms-rest/src/main/java/com/artezio/bpm/integration/CamundaFileStorage.java
 [Configuring the Keycloak Subsystem]: https://www.keycloak.org/docs/7.0/getting_started/index.html#configuring-the-subsystem
 [Create deployment]: /doc/deployment-service-api-docs.md#create
 [File Storage]: https://github.com/Artezio/formio-client/blob/master/src/main/java/com/artezio/forms/storages/FileStorage.java
-[FormClient]: https://github.com/Artezio/formio-client/blob/master/src/main/java/com/artezio/forms/FormClient.java
-[FormioClient]: https://github.com/Artezio/formio-client/blob/master/src/main/java/com/artezio/forms/formio/FormioClient.java
-[Form.io]: https://www.form.io/
+[Form Client]: https://github.com/Artezio/formio-client/blob/master/src/main/java/com/artezio/forms/FormClient.java
+[Formio Client]: https://github.com/Artezio/formio-client/blob/master/src/main/java/com/artezio/forms/formio/FormioClient.java
 [Formio Builder]: https://github.com/Artezio/FormIO-editor
 [Load form]: /doc/task-service-api-docs.md#load-form
+[Load start form]: /doc/process-definition-service-api-docs.md#load-rendered-start-form
 [Formio players]: https://help.form.io/developer/frameworks
-[Java]: https://www.oracle.com/technetwork/java/javase/downloads/index.html
-[Keycloak Server]: https://www.keycloak.org/archive/downloads-7.0.1.html
-[Keycloak Client Adapter]: https://www.keycloak.org/archive/downloads-7.0.1.html
+[Download Java]: https://www.oracle.com/technetwork/java/javase/downloads/index.html
+[Download Keycloak Server]: https://www.keycloak.org/archive/downloads-7.0.1.html
+[Download Keycloak Client Adapter]: https://www.keycloak.org/archive/downloads-7.0.1.html
 [Supported Database Produces]: https://docs.camunda.org/manual/7.10/introduction/supported-environments/#supported-database-products
 [Process Archive]: https://docs.camunda.org/manual/7.10/reference/deployment-descriptors/tags/process-archive/
-[Java]: https://java.com
 [JSR 303]: https://beanvalidation.org/1.0/spec/
 [Maven]: https://maven.apache.org/
 [Git]: https://git-scm.com/
 [Keycloak]: https://www.keycloak.org/
 [NodeJs]: https://nodejs.org
-[Wildfly]: https://wildfly.org/downloads/
+[Download Wildfly]: https://wildfly.org/downloads/
 [Docker CLI Run]: https://docs.docker.com/engine/reference/commandline/run/
 [Docker CLI Build]: https://docs.docker.com/engine/reference/commandline/build/
 [Camunda BPM Platform]: https://github.com/camunda/docker-camunda-bpm-platform#camunda-bpm-platform-docker-images

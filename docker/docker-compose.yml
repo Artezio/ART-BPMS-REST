@@ -88,5 +88,6 @@ services:
         KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
     environment:
       KEYCLOAK_PORT: ${KEYCLOAK_PORT}
+      DB_VENDOR: ${DB_VENDOR}
     ports:
       - "${KEYCLOAK_PORT}:${KEYCLOAK_PORT}"

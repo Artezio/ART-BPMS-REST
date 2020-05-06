@@ -11,7 +11,6 @@
 
 	<artifactId>bpms-rest</artifactId>
 	<packaging>war</packaging>
-	<version>0.6.0</version>
 
 	<properties>
 		<maven.compiler.target>1.8</maven.compiler.target>
@@ -128,6 +127,11 @@
 			<artifactId>java-uuid-generator</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-collections4</artifactId>
+			<version>4.1</version>
+		</dependency>
+		<dependency>
 			<groupId>org.apache.tika</groupId>
 			<artifactId>tika-core</artifactId>
 			<version>1.22</version>
@@ -153,7 +157,7 @@
 		<dependency>
 			<groupId>org.hibernate.validator</groupId>
 			<artifactId>hibernate-validator</artifactId>
-			<version>6.0.13.Final</version>
+			<version>6.1.0.Final</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
