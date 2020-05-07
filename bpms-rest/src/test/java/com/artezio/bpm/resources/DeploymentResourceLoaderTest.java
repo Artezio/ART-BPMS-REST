@@ -1,5 +1,6 @@
 package com.artezio.bpm.resources;
 
+import com.artezio.forms.resources.ResourceLoader;
 import org.camunda.bpm.engine.test.Deployment;
 import org.camunda.bpm.engine.test.ProcessEngineRule;
 import org.junit.Rule;
@@ -45,7 +46,7 @@ public class DeploymentResourceLoaderTest {
                 .createDeploymentQuery()
                 .list()
                 .stream()
-                .min(Comparator.comparing(org.camunda.bpm.engine.repository.Deployment::getDeploymentTime))
+                .max(Comparator.comparing(org.camunda.bpm.engine.repository.Deployment::getDeploymentTime))
                 .get()
                 .getId();
     }

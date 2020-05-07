@@ -7,11 +7,10 @@
     <parent>
         <groupId>com.artezio.bpm</groupId>
         <artifactId>bpm-bom</artifactId>
-        <version>0.5.4</version>
+        <version>0.6.0</version>
     </parent>
     
     <artifactId>bpms-rest-spa</artifactId>
-    <version>1.0</version>
     <packaging>war</packaging>
 
     <build>

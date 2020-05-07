@@ -281,13 +281,13 @@ A JSON array of task objects. For information about task object see [Task Object
 ## Download File
 Download a file which is a variable in the scope of a task.
 
-### `GET /api/task/{task-id}/file`
+### `GET /api/task/{task-id}/file/{file-id}`
 
 ### Parameters:
 | Name | Type | Description | Required |
 | ---- | ---------- | ----------- | -------- |
-| task-id | path | The id of the task having requested file it its scope | Yes |
-| filePath | query | Path to requested file. It means either chain of forward slash-separated variables from the top variable to the file variable (e.g. `var1/var2/fileVar`), or just file variable name (e.g. `fileVar`)  | Yes |
+| task-id | path | The id of a task that has a requested file it its scope | Yes |
+| file-id | path | The id of a requested file in a file storage  | Yes |
 
 ### Result:
 Requested file in a binary format.
@@ -297,21 +297,20 @@ Requested file in a binary format.
 | Code | Media Type | Description |
 | ---- | ---------- | ----------- |
 | 200 | \*/\* | Request successful |
-| 403 |  | The user doesn't have an access to download the file. |
-| 404 |  | Requested file is not found. |
+| 403 |  | The user doesn't have an access to download the file |
+| 404 |  | Requested file is not found |
 
 ### Example:
 
 #### Request:
 
-`GET /api/task/some-task-id/file/?filePath=/var1/var2/fileVar`
+`GET /api/task/some-task-id/file/var1.var2.file`
 
 #### Response:
-Status 200 OK.
 ```http request
 200 OK
-Content-Type: some/type; charset=utf-8
-Content-Disposition: attachment; filename="fileFromFileVar.ext"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: attachment; filename="file.txt"
 Content-Length: ...
 
 [skipped content]

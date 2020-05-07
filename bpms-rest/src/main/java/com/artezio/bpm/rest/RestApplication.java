@@ -2,6 +2,7 @@ package com.artezio.bpm.rest;
 
 import com.artezio.bpm.services.*;
 import com.artezio.ws.rs.ExceptionMapper;
+import com.artezio.ws.rs.PragmaRemover;
 import io.swagger.v3.jaxrs2.integration.resources.OpenApiResource;
 
 import javax.ws.rs.ApplicationPath;
@@ -22,8 +23,8 @@ public class RestApplication extends Application {
         classes.add(SignalSvc.class);
 
         classes.add(ExceptionMapper.class);
-
         classes.add(OpenApiResource.class);
+        classes.add(PragmaRemover.class);
 
         return classes;
     }
