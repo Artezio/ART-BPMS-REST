@@ -31,6 +31,11 @@ public class AbstractResourceLoaderTest {
         public List<String> listResourceNames() {
             return null;
         }
+
+        @Override
+        public String getGroupId() {
+            return null;
+        }
     };
 
     @Test
