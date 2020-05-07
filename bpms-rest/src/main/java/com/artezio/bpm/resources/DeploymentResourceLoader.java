@@ -67,4 +67,9 @@ public class DeploymentResourceLoader extends AbstractResourceLoader {
                 : ProcessEngines.getProcessEngine(processEngineName);
     }
 
+    @Override
+    public String getGroupId() {
+        return DEPLOYMENT_PROTOCOL + deploymentId;
+    }
+
 }
