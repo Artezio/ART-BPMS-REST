@@ -1,7 +1,7 @@
 # ART-BPMS-REST
 
 ART-BPMS-REST is a module which provides a simple interface to communicate with [Camunda] and simplifies work with bpm process'
-forms through [Form Client] that takes the responsibility for validation, form fields manipulation, forms caching etc.
+forms through [Form Client] that takes the responsibility for validation, form fields manipulation etc.
 
 Features:
 * Simple set of [REST endpoints] to communicate with [Camunda] platform
@@ -32,11 +32,12 @@ Features:
     * [EAR module](#ear-module)
 * [Usage](#usage)
     * [Work With Forms](#work-with-forms)
+        * [Form Creating Notes](#form-creating-notes)
     * [Validation](#validation)
     * [Mapping Submitted Data to Java Classes](#mapping-submitted-data-to-java-classes)
-   * [File storage](#file-storage)
-   * [Resource Loaders](#resource-loaders)
-   * [Bpms-rest SPA example](#bpms-rest-spa-example)
+    * [File storage](#file-storage)
+    * [Resource Loaders](#resource-loaders)
+    * [Bpms-rest SPA example](#bpms-rest-spa-example)
 ---
 
 ## Architecture Overview
@@ -210,7 +211,7 @@ ART-BPMS-REST application can be used as either a standalone web application or 
 ART-BPMS-REST provides main methods of [Camunda Rest] for deployments, processes and tasks such as: create, list, delete, get form and so on.
 See [Rest Endpoints] for full information about provided methods. 
 
-### Work With Forms
+### Work With Forms 
 
 1. Create forms using [Formio Builder]. 
 2. Add created forms to a process archive. All forms have to be put into `public/` directory in a process archive. If `formKey` is a path
@@ -222,9 +223,40 @@ must be specified (or you can omit the protocol to use default one). See [Resour
 Example:<br/>
 
 ![](doc/user-task-form-key-example.png)
+
 4. Deploy process with forms to Camunda.
 5. Make [Load form] or [Load start form] request. In result of the request you will get the form definition in `json` format. Use any of numerous [Formio players] to
 render and work with forms on a client side.
+
+#### Form Creating Notes
+
+1. *Nested forms*. When adding `Nested Form` component note that its key has to match the nested form file name without extension.
+For example, for a form file `someForm.json` the corresponding `Nested Form` component has to have key `someForm`.
+
+2. *Disabling nested forms.* If you need to disable a nested form and all its child components:
+    * Open settings of `Nested Form` component
+    * Go to `Display` tab and check `disabled` checkbox
+    * Go to `Form` tab and uncheck `Save as reference` checkbox
+
+3. *Actions.* If you need to have an opportunity to cancel process evaluation and skip validation, you have to provide
+info about submission state:
+    * Add `Button` to the form you are creating
+    
+    ![](doc/button-component.png)
+    
+    * In an opened window on `Display` page choose `Action` equal to `Save in state` and give a name to the state that
+      will be passed (e.g. `cancelled`)
+    
+    ![](doc/button-component-action-setup.png)
+    
+    * On `API` page add custom property with the name `isSubmissionProcessed` and set the boolean value (e.g. `false`)
+    
+    ![](doc/button-component-properties-setup.png)
+    
+    * Save settings
+    
+After that the `state` variable will be passed with the rest form fields and in accordance to the value of `isSubmissionProcessed`
+variable the validation will either be performed or not.    
 
 ### Validation
 

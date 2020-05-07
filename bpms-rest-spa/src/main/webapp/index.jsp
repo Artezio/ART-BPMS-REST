@@ -6,9 +6,7 @@
 
 <%
     final String KEYCLOAK_SERVER_URL = System.getProperty("KEYCLOAK_SERVER_URL", "http://localhost:8180/auth");
-    String contextPath = request.getContextPath();
-    StringBuffer requestUrl = request.getRequestURL();
-    final String BPMS_REST_API = String.format("%s/bpms-rest/api", requestUrl.substring(0, requestUrl.indexOf(contextPath)));
+    final String BPMS_REST_API = System.getProperty("BPMS_REST_API", "http://localhost:8080/bpms-rest/api");
     final String KEYCLOAK_REALM = System.getProperty("KEYCLOAK_REALM", "master");
     final String KEYCLOAK_CLIENT_ID = System.getProperty("KEYCLOAK_CLIENT_ID", "bpms-rest");
     final String FILE_STORAGE_URL = System.getenv("FILE_STORAGE_URL");
@@ -19,11 +17,11 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <link rel='stylesheet' href='css/bootstrap-4.1.3.min.css'>
-    <link rel="stylesheet" href="css/formio.full.min.css">
+    <link rel="stylesheet" href="css/formio-4.9.22.full.min.css">
     <link rel="stylesheet" href="css/index.css">
     <script src="<%=KEYCLOAK_SERVER_URL%>/js/keycloak.js" type="application/javascript"></script>
     <script src="js/lib/jquery-3.3.1.min.js" type="application/javascript"></script>
-    <script src="js/lib/formio.full.min.js" type="application/javascript"></script>
+    <script src="js/lib/formio-4.9.22.full.min.js" type="application/javascript"></script>
     <script src="js/lib/bootstrap-4.1.3.min.js" type="application/javascript"></script>
     <script src='js/bpms-rest-spa.js' type="application/javascript"></script>
     <style type="text/css">

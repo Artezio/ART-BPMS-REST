@@ -1,18 +1,23 @@
 package com.artezio.bpm.resources;
 
+import org.apache.commons.collections4.map.LRUMap;
 import org.camunda.bpm.BpmPlatform;
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.ProcessEngines;
 import org.camunda.bpm.engine.RepositoryService;
 
-import java.io.InputStream;
+import java.io.*;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class DeploymentResourceLoader extends AbstractResourceLoader {
 
-    private final static String PROCESS_ENGINE_NAME = System.getenv("PROCESS_ENGINE_NAME");
+    private static final String PROCESS_ENGINE_NAME = System.getenv("PROCESS_ENGINE_NAME");
+    private static final int DEPLOYMENT_RESOURCES_CACHE_SIZE = Integer.parseInt(System.getProperty("DEPLOYMENT_RESOURCES_CACHE_SIZE", "1000"));
+    private static final Map<String, byte[]> RESOURCES_CACHE = Collections.synchronizedMap(new LRUMap<>(DEPLOYMENT_RESOURCES_CACHE_SIZE));
     protected String deploymentId;
 
     public DeploymentResourceLoader(String deploymentId, String rootDir) {
@@ -22,9 +27,19 @@ public class DeploymentResourceLoader extends AbstractResourceLoader {
 
     @Override
     public InputStream getResource(String resourceKey) {
-        String resourcePath = rootDirectory + "/" + getResourcePath(resourceKey);
+        String cacheKey = String.format("%s.%s", deploymentId, resourceKey);
+        byte[] resource = RESOURCES_CACHE.computeIfAbsent(cacheKey, key -> getResourceBytes(resourceKey));
+        return new ByteArrayInputStream(resource);
+    }
+
+    private byte[] getResourceBytes(String resourceKey) {
+        String resourcePath = String.format("%s/%s", rootDirectory, getResourcePath(resourceKey));
         resourcePath = resourcePath.replaceAll("[/]{2,}", "/");
-        return getRepositoryService().getResourceAsStream(deploymentId, resourcePath);
+        try(InputStream resource = getRepositoryService().getResourceAsStream(deploymentId, resourcePath)) {
+            return resource.readAllBytes();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -50,6 +65,11 @@ public class DeploymentResourceLoader extends AbstractResourceLoader {
         return defaultProcessEngine != null
                 ? defaultProcessEngine
                 : ProcessEngines.getProcessEngine(processEngineName);
+    }
+
+    @Override
+    public String getGroupId() {
+        return DEPLOYMENT_PROTOCOL + deploymentId;
     }
 
 }
