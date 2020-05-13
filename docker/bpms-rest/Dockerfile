@@ -77,5 +77,7 @@ USER jboss
 EXPOSE 8080
 EXPOSE 9990
 EXPOSE 8787
+EXPOSE 8443
+EXPOSE 9993
 
 CMD ["/opt/jboss/tools/bpms-rest/docker-entrypoint.sh"]

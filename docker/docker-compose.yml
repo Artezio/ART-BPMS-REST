@@ -48,7 +48,9 @@ services:
 
     ports:
       - "${BPMS_REST_APP_PORT}:8080"
+      - "${BPMS_REST_HTTPS_APP_PORT}:8443"
       - "${BPMS_REST_MANAGEMENT_PORT}:9990"
+      - "${BPMS_REST_HTTPS_MANAGEMENT_PORT}:9993"
       - "${BPMS_REST_DEBUG_PORT}:8787"
 
   cockpit:
@@ -77,6 +79,7 @@ services:
       JAVA_OPTS: ${CAMUNDA_PLATFORM_JAVA_OPTS}
     ports:
       - "${COCKPIT_PORT}:8080"
+      - "${COCKPIT_HTTPS_PORT}:${COCKPIT_HTTPS_PORT}"
 
   keycloak:
     container_name: keycloak
@@ -91,3 +94,4 @@ services:
       DB_VENDOR: ${DB_VENDOR}
     ports:
       - "${KEYCLOAK_PORT}:${KEYCLOAK_PORT}"
+      - "${KEYCLOAK_HTTPS_PORT}:${KEYCLOAK_HTTPS_PORT}"
