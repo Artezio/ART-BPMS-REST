@@ -38,7 +38,7 @@ public class SignalSvc {
     private RuntimeService runtimeService;
 
     @POST
-    @RolesAllowed("NOTIFICATIONS_RECEIVER")
+    @RolesAllowed("NotificationsReceiver")
     @Consumes(MediaType.APPLICATION_JSON)
     @Operation(
             description = "A signal is an event of global scope (broadcast semantics) and is delivered to all active handlers.",
