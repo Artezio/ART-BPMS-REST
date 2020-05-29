@@ -1,0 +1,28 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /bpms-rest
+
+spring:
+  datasource:
+    type: org.apache.tomcat.jdbc.pool.DataSource
+    url: jdbc:postgresql://localhost:5432/camunda
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: root
+    tomcat:
+      validation-query: SELECT 1
+      default-transaction-isolation: 2
+  main:
+    banner-mode: "off"
+
+keycloak:
+  auth-server-url: http://localhost:8180/auth
+  realm: master
+  resource: bpms-rest
+  public-client: true
+  ssl-required: none
+  principal-attribute: preferred_username
+  use-resource-role-mappings: true
+  enable-basic-auth: true
+  cors: true

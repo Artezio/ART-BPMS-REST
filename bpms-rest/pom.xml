@@ -10,14 +10,13 @@
 	</parent>
 
 	<artifactId>bpms-rest</artifactId>
-	<packaging>war</packaging>
 
 	<properties>
 		<maven.compiler.target>1.8</maven.compiler.target>
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<flowable.version>6.2.0</flowable.version>
-		<keycloak.version>7.0.0</keycloak.version>
+		<keycloak.version>7.0.1</keycloak.version>
 		<resteasy.version>3.6.3.Final</resteasy.version>
 		<swagger.version>2.0.0</swagger.version>
 		<maven-dependency-plugin.version>3.1.1</maven-dependency-plugin.version>
@@ -25,16 +24,24 @@
 		<replacer.version>1.5.3</replacer.version>
 		<swagger-ui.version>3.17.0</swagger-ui.version>
 		<powermock.version>2.0.5</powermock.version>
+		<spring-boot.version>2.1.13.RELEASE</spring-boot.version>
 	</properties>
 
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
+				<groupId>org.camunda.bpm.springboot.project</groupId>
+				<artifactId>camunda-bpm-spring-boot-starter-root</artifactId>
+				<version>3.2.10</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
 				<groupId>org.camunda.bpm</groupId>
 				<artifactId>camunda-bom</artifactId>
 				<version>${camunda.version}</version>
-				<scope>import</scope>
 				<type>pom</type>
+				<scope>import</scope>
 			</dependency>
 			<dependency>
 				<groupId>org.keycloak.bom</groupId>
@@ -73,7 +80,6 @@
 		<dependency>
 			<groupId>com.jayway.jsonpath</groupId>
 			<artifactId>json-path</artifactId>
-			<version>2.2.0</version>
 		</dependency>
 		<dependency>
 			<groupId>net.minidev</groupId>
@@ -81,12 +87,25 @@
 			<version>2.3</version>
 		</dependency>
 		<dependency>
-			<groupId>org.camunda.bpm</groupId>
-			<artifactId>camunda-engine</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-jta-atomikos</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.camunda.bpm</groupId>
-			<artifactId>camunda-engine-cdi</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-jersey</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.glassfish.jersey.media</groupId>
+			<artifactId>jersey-media-multipart</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.camunda.bpm.springboot</groupId>
+			<artifactId>camunda-bpm-spring-boot-starter</artifactId>
+			<version>3.2.10</version>
 		</dependency>
 		<dependency>
 			<groupId>org.camunda.bpm</groupId>
@@ -114,8 +133,8 @@
 			<artifactId>camunda-engine-plugin-connect</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.camunda.bpm.javaee</groupId>
-			<artifactId>camunda-ejb-client</artifactId>
+			<groupId>org.keycloak</groupId>
+			<artifactId>keycloak-spring-boot-starter</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.keycloak</groupId>
@@ -123,8 +142,12 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>com.fasterxml.uuid</groupId>
-			<artifactId>java-uuid-generator</artifactId>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.tomcat</groupId>
+			<artifactId>tomcat-jdbc</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
@@ -137,33 +160,10 @@
 			<version>1.22</version>
 		</dependency>
 		<dependency>
-			<groupId>org.jboss.resteasy</groupId>
-			<artifactId>resteasy-client</artifactId>
-			<version>${resteasy.version}</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.jboss.resteasy</groupId>
-			<artifactId>resteasy-multipart-provider</artifactId>
-			<version>${resteasy.version}</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
 			<groupId>javax</groupId>
 			<artifactId>javaee-api</artifactId>
 			<version>8.0</version>
 			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.hibernate.validator</groupId>
-			<artifactId>hibernate-validator</artifactId>
-			<version>6.1.0.Final</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.hibernate.validator</groupId>
-			<artifactId>hibernate-validator-annotation-processor</artifactId>
-			<version>6.0.13.Final</version>
 		</dependency>
 		<dependency>
 			<groupId>org.glassfish</groupId>
@@ -174,17 +174,11 @@
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
 			<artifactId>gson</artifactId>
-			<version>2.8.2</version>
 		</dependency>
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
-			<version>1.4.198</version>
-		</dependency>
-		<dependency>
-			<groupId>com.thetransactioncompany</groupId>
-			<artifactId>cors-filter</artifactId>
-			<version>2.6</version>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
@@ -223,6 +217,7 @@
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-jdk14</artifactId>
 			<version>1.7.13</version>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.powermock</groupId>
@@ -251,8 +246,6 @@
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
-			<version>1.7.25</version>
-			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -272,12 +265,6 @@
 			<version>2.4.6.Final</version>
 			<scope>test</scope>
 		</dependency>
-        <dependency>
-            <groupId>org.javassist</groupId>
-            <artifactId>javassist</artifactId>
-            <version>3.25.0-GA</version>
-            <scope>test</scope>
-        </dependency>
 		<dependency>
 			<groupId>org.codehaus.groovy</groupId>
 			<artifactId>groovy-all</artifactId>
@@ -291,7 +278,7 @@
 		<dependency>
 			<groupId>io.swagger.core.v3</groupId>
 			<artifactId>swagger-jaxrs2</artifactId>
-			<version>${swagger.version}</version>
+			<version>2.0.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
@@ -325,100 +312,6 @@
 	<build>
 		<finalName>${project.artifactId}</finalName>
 		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-war-plugin</artifactId>
-				<version>2.6</version>
-				<configuration>
-					<failOnMissingWebXml>false</failOnMissingWebXml>
-					<archive>
-						<manifestEntries>
-							<Implementation-Version>${project.version}-${maven.build.timestamp}</Implementation-Version>
-						</manifestEntries>
-					</archive>
-					<webResources>
-						<resource>
-							<directory>
-								${project.build.directory}/swagger-ui/META-INF/resources/webjars/swagger-ui/${swagger-ui.version}
-							</directory>
-							<includes>
-								<include>**/*.*</include>
-							</includes>
-							<targetPath>/</targetPath>
-						</resource>
-					</webResources>
-				</configuration>
-			</plugin>
-			<plugin>
-				<artifactId>maven-dependency-plugin</artifactId>
-				<version>${maven-dependency-plugin.version}</version>
-				<executions>
-					<execution>
-						<id>unpack-swagger-ui</id>
-						<phase>prepare-package</phase>
-						<goals>
-							<goal>unpack</goal>
-						</goals>
-						<configuration>
-							<artifactItems>
-								<artifactItem>
-									<groupId>org.webjars</groupId>
-									<artifactId>swagger-ui</artifactId>
-									<version>${swagger-ui.version}</version>
-								</artifactItem>
-							</artifactItems>
-							<outputDirectory>${project.build.directory}/swagger-ui</outputDirectory>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>com.coderplus.maven.plugins</groupId>
-				<artifactId>copy-rename-maven-plugin</artifactId>
-				<version>1.0</version>
-				<executions>
-					<execution>
-						<id>rename</id>
-						<phase>prepare-package</phase>
-						<goals>
-							<goal>rename</goal>
-						</goals>
-						<configuration>
-							<sourceFile>
-								${project.build.directory}/swagger-ui/META-INF/resources/webjars/swagger-ui/${swagger-ui.version}/index.html
-							</sourceFile>
-							<destinationFile>
-								${project.build.directory}/swagger-ui/META-INF/resources/webjars/swagger-ui/${swagger-ui.version}/swagger-ui.html
-							</destinationFile>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>com.google.code.maven-replacer-plugin</groupId>
-				<artifactId>replacer</artifactId>
-				<version>${replacer.version}</version>
-				<executions>
-					<execution>
-						<phase>prepare-package</phase>
-						<goals>
-							<goal>replace</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<file>
-						${project.build.directory}/swagger-ui/META-INF/resources/webjars/swagger-ui/${swagger-ui.version}/swagger-ui.html
-					</file>
-					<replacements>
-						<replacement>
-							<token>http://petstore.swagger.io/v2/swagger.json</token>
-							<!--suppress UnresolvedMavenProperty -->
-							<value>${host}/api/openapi.json</value>
-						</replacement>
-					</replacements>
-				</configuration>
-			</plugin>
 			<plugin>
 				<groupId>ca.szc.maven</groupId>
 				<artifactId>jsonpath-maven-plugin</artifactId>

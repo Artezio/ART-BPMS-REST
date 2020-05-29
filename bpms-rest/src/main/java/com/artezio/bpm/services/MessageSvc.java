@@ -16,9 +16,10 @@ import org.camunda.bpm.engine.ProcessEngines;
 import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.runtime.MessageCorrelationBuilder;
 import org.camunda.bpm.engine.runtime.MessageCorrelationResult;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.context.annotation.RequestScope;
 
 import javax.annotation.security.RolesAllowed;
-import javax.ejb.Stateless;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
@@ -34,14 +35,19 @@ import static com.artezio.logging.Log.Level.CONFIG;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 
-@Stateless
+@RequestScope
+@Controller
 @Path("/message")
 public class MessageSvc {
 
     private static final String PROCESS_ENGINE_NAME = "default";
 
+    private final RuntimeService runtimeService;
+
     @Inject
-    private RuntimeService runtimeService;
+    public MessageSvc(RuntimeService runtimeService) {
+        this.runtimeService = runtimeService;
+    }
 
     @POST
     @RolesAllowed("NotificationsReceiver")

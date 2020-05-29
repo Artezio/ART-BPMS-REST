@@ -10,25 +10,31 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.camunda.bpm.engine.FormService;
 import org.camunda.bpm.engine.TaskService;
 import org.camunda.bpm.engine.task.Task;
+import org.springframework.stereotype.Service;
+import org.springframework.web.context.annotation.RequestScope;
 
 import javax.inject.Inject;
-import javax.inject.Named;
 import java.util.List;
 import java.util.Map;
 
-@Named
+@Service
+@RequestScope
 public class FormSvc {
 
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
+    private final FormClient formClient;
+    private final TaskService taskService;
+    private final FormService formService;
+    private final VariablesMapper variablesMapper;
+
     @Inject
-    private FormClient formClient;
-    @Inject
-    private TaskService taskService;
-    @Inject
-    private FormService formService;
-    @Inject
-    private VariablesMapper variablesMapper;
+    public FormSvc(FormClient formClient, TaskService taskService, FormService formService, VariablesMapper variablesMapper) {
+        this.formClient = formClient;
+        this.taskService = taskService;
+        this.formService = formService;
+        this.variablesMapper = variablesMapper;
+    }
 
     public String getTaskFormWithData(String taskId, Map<String, Object> variables, String formResourcesDirectory) {
         String formKey = getTaskFormKey(taskId);

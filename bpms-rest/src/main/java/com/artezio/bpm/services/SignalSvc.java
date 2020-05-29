@@ -12,9 +12,10 @@ import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.ProcessEngines;
 import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.runtime.SignalEventReceivedBuilder;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.context.annotation.RequestScope;
 
 import javax.annotation.security.RolesAllowed;
-import javax.ejb.Stateless;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
@@ -27,15 +28,20 @@ import static com.artezio.logging.Log.Level.CONFIG;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 
-@Stateless
+@Controller
+@RequestScope
 @Path("/signal")
 @Produces(MediaType.APPLICATION_JSON)
 public class SignalSvc {
 
     private static final String PROCESS_ENGINE_NAME = "default";
 
+    private final RuntimeService runtimeService;
+
     @Inject
-    private RuntimeService runtimeService;
+    public SignalSvc(RuntimeService runtimeService) {
+        this.runtimeService = runtimeService;
+    }
 
     @POST
     @RolesAllowed("NotificationsReceiver")

@@ -2,7 +2,6 @@ package com.artezio.bpm.services;
 
 import com.artezio.bpm.resources.AbstractResourceLoader;
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
-import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.forms.resources.ResourceLoader;
 import com.artezio.logging.Log;
 import de.otto.edison.hal.HalRepresentation;
@@ -20,22 +19,21 @@ import org.camunda.bpm.application.ProcessApplicationInterface;
 import org.camunda.bpm.engine.ManagementService;
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.repository.*;
-import org.jboss.resteasy.annotations.cache.Cache;
-import org.jboss.resteasy.plugins.providers.multipart.InputPart;
-import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
+import org.glassfish.jersey.media.multipart.BodyPart;
+import org.glassfish.jersey.media.multipart.FormDataMultiPart;
+import org.springframework.context.annotation.DependsOn;
+import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.PostMapping;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.security.PermitAll;
 import javax.annotation.security.RolesAllowed;
-import javax.ejb.DependsOn;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
-import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.PathSegment;
 import javax.ws.rs.core.Response;
@@ -56,9 +54,9 @@ import static de.otto.edison.hal.Links.linkingTo;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
 
-@Startup
-@DependsOn("DefaultEjbProcessApplication")
-@Singleton
+@Transactional
+@Controller
+@DependsOn("org.camunda.bpm.spring.boot.starter.SpringBootProcessApplication")
 @Path("/deployment")
 public class DeploymentSvc {
 
@@ -67,15 +65,20 @@ public class DeploymentSvc {
     private static final int CACHE_MAX_AGE = 31536000;
     private static final Tika CONTENT_ANALYSER = new Tika();
 
-    @Inject
-    private RepositoryService repositoryService;
-    @Inject
-    private ManagementService managementService;
-    @Inject
-    private ProcessApplicationInterface processApplication;
-    @Context
-    private HttpServletRequest httpRequest;
+    private final ProcessApplicationInterface processApplication;
+    private final RepositoryService repositoryService;
+    private final ManagementService managementService;
+    private final HttpServletRequest httpRequest;
     private Logger log = Logger.getLogger(DeploymentSvc.class.getName());
+
+    @Inject
+    public DeploymentSvc(ProcessApplicationInterface processApplication, RepositoryService repositoryService,
+                         ManagementService managementService, HttpServletRequest httpRequest) {
+        this.processApplication = processApplication;
+        this.repositoryService = repositoryService;
+        this.managementService = managementService;
+        this.httpRequest = httpRequest;
+    }
 
     @PostConstruct
     @Log(level = CONFIG, beforeExecuteMessage = "Registration existent deployments in process application",
@@ -85,6 +88,7 @@ public class DeploymentSvc {
                 .forEach(this::registerInProcessApplication);
     }
 
+    @PostMapping("/create")
     @RolesAllowed("BPMSAdmin")
     @POST
     @Path("/create")
@@ -109,7 +113,7 @@ public class DeploymentSvc {
                     description = "Resources which the deployment will consist of",
                     required = true,
                     allowEmptyValue = true,
-                    content = @Content(mediaType = MULTIPART_FORM_DATA)) @Valid @NotNull MultipartFormDataInput input) {
+                    content = @Content(mediaType = MULTIPART_FORM_DATA)) @Valid @NotNull FormDataMultiPart input) {
         DeploymentBuilder deploymentBuilder = repositoryService
                 .createDeployment()
                 .name(deploymentName);
@@ -176,7 +180,7 @@ public class DeploymentSvc {
             }
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of public resources for form '{2}'")
-    @Cache(maxAge = CACHE_MAX_AGE, isPrivate = true)
+//    @Cache(maxAge = CACHE_MAX_AGE, isPrivate = true)
     public HalRepresentation listPublicResources(
             @Parameter(description = "The id of process definition which has the resources. Not required, if 'case-definition-id' is passed.", allowEmptyValue = true) @QueryParam("process-definition-id") String processDefinitionId,
             @Parameter(description = "The id of case definition which has the resources. Not required, if 'process-definition-id' is passed.", allowEmptyValue = true) @QueryParam("case-definition-id") String caseDefinitionId,
@@ -207,7 +211,7 @@ public class DeploymentSvc {
     @Path("/public-resource/{deployment-protocol}/{deployment-id}/{resource-key: .*}")
     @Produces(MediaType.WILDCARD)
     @Log(level = CONFIG, beforeExecuteMessage = "Getting a public resource using protocol '{0}'")
-    @Cache(maxAge = CACHE_MAX_AGE, isPrivate = true)
+//    @Cache(maxAge = CACHE_MAX_AGE, isPrivate = true)
     @Operation(
             description = "Get a public resource in accordance to the protocol",
             externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/deployment-service-api-docs.md"),
@@ -237,7 +241,7 @@ public class DeploymentSvc {
         managementService.registerProcessApplication(deployment.getId(), processApplication.getReference());
     }
 
-    private Map<String, InputStream> getFormParts(MultipartFormDataInput input) {
+    private Map<String, InputStream> getFormParts(FormDataMultiPart input) {
         return getFileParts(input);
     }
 
@@ -264,23 +268,19 @@ public class DeploymentSvc {
         return requestUrl.toString().replaceFirst("/deployment.*", "");
     }
     
-    Map<String, InputStream> getFileParts(MultipartFormDataInput input) {
-         return input.getFormDataMap()
+    Map<String, InputStream> getFileParts(FormDataMultiPart input) {
+         return input.getFields()
                 .entrySet()
                 .stream()
                 .flatMap(e -> expandIfArchive(e.getKey(), e.getValue().get(0)).entrySet().stream())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
     
-    Map<String, InputStream> expandIfArchive(String partName, InputPart inputPart) {
-        try {
-            InputStream body = inputPart.getBody(InputStream.class, null);
-            return inputPart.getMediaType() != null && inputPart.getMediaType().isCompatible(MEDIA_TYPE_ZIP)
+    Map<String, InputStream> expandIfArchive(String partName, BodyPart inputPart) {
+        InputStream body = inputPart.getEntityAs(InputStream.class);
+        return inputPart.getMediaType() != null && inputPart.getMediaType().isCompatible(MEDIA_TYPE_ZIP)
                     ? expandZipArchive(body)
                     : Collections.singletonMap(partName, body);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
     
     Map<String, InputStream> expandZipArchive(InputStream zipInput) {

@@ -4,7 +4,6 @@ import com.artezio.bpm.integration.CamundaFileStorage;
 import com.artezio.bpm.rest.dto.task.TaskRepresentation;
 import com.artezio.bpm.rest.query.task.TaskQueryParams;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
-import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.bpm.validation.VariableValidator;
 import com.artezio.forms.storages.FileStorage;
 import com.artezio.forms.storages.FileStorageEntity;
@@ -32,9 +31,11 @@ import org.camunda.bpm.model.bpmn.instance.ExtensionElements;
 import org.camunda.bpm.model.bpmn.instance.Process;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperties;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperty;
+import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.annotation.RequestScope;
 
 import javax.annotation.security.PermitAll;
-import javax.ejb.Stateless;
 import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -54,28 +55,36 @@ import static java.util.Collections.emptyMap;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 @Path("/task")
-@Stateless
+@Controller
+@Transactional
+@RequestScope
 public class TaskSvc {
 
     private static final String DECISION_VARIABLE_NAME = "decision";
     private static final String STATE_VARIABLE_NAME = "state";
 
+    private final TaskService taskService;
+    private final IdentitySvc identityService;
+    private final FormService camundaFormService;
+    private final FormSvc formService;
+    private final VariablesMapper variablesMapper;
+    private final CaseService caseService;
+    private final RepositoryService repositoryService;
+    private final VariableValidator variableValidator;
+
     @Inject
-    private TaskService taskService;
-    @Inject
-    private IdentitySvc identityService;
-    @Inject
-    private FormService camundaFormService;
-    @Inject
-    private FormSvc formService;
-    @Inject
-    private VariablesMapper variablesMapper;
-    @Inject
-    private CaseService caseService;
-    @Inject
-    private RepositoryService repositoryService;
-    @Inject
-    private VariableValidator variableValidator;
+    public TaskSvc(TaskService taskService, IdentitySvc identityService, FormService camundaFormService,
+                   FormSvc formService, VariablesMapper variablesMapper, CaseService caseService,
+                   RepositoryService repositoryService, VariableValidator variableValidator) {
+        this.taskService = taskService;
+        this.identityService = identityService;
+        this.camundaFormService = camundaFormService;
+        this.formService = formService;
+        this.variablesMapper = variablesMapper;
+        this.caseService = caseService;
+        this.repositoryService = repositoryService;
+        this.variableValidator = variableValidator;
+    }
 
     @GET
     @Path("available")

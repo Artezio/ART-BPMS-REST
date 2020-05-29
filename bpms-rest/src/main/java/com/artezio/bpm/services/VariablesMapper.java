@@ -2,11 +2,12 @@ package com.artezio.bpm.services;
 
 import com.artezio.logging.Log;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.stereotype.Service;
+import org.springframework.web.context.annotation.RequestScope;
 import spinjar.com.fasterxml.jackson.databind.DeserializationFeature;
 import spinjar.com.fasterxml.jackson.databind.JsonNode;
 import spinjar.com.fasterxml.jackson.databind.ObjectMapper;
 
-import javax.inject.Named;
 import java.io.IOException;
 import java.util.AbstractMap;
 import java.util.Map;
@@ -14,7 +15,8 @@ import java.util.stream.Collectors;
 
 import static com.artezio.logging.Log.Level.CONFIG;
 
-@Named
+@Service
+@RequestScope
 public class VariablesMapper {
 
     public final static String EXTENSION_NAME_PREFIX = "entity.";

@@ -2,26 +2,27 @@ package com.artezio.bpm.services;
 
 import org.keycloak.KeycloakPrincipal;
 import org.keycloak.KeycloakSecurityContext;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.web.context.annotation.RequestScope;
 
-import javax.annotation.Resource;
-import javax.ejb.SessionContext;
-import javax.ejb.Stateless;
-import javax.inject.Inject;
-import javax.inject.Named;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
-@Named
-@Stateless
+@Service
+@RequestScope
 public class IdentitySvc {
 
-    @Inject
-    private Principal loggedUser;
-    @Resource
-    private SessionContext sessionContext;
+    private final Principal loggedUser;
+
+    public IdentitySvc() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        this.loggedUser = (Principal) authentication.getPrincipal();
+    }
 
     public List<String> userGroups() {
         Set<String> result = getKeycloakSecurityContext().getToken().getRealmAccess().getRoles();
@@ -39,7 +40,7 @@ public class IdentitySvc {
     }
 
     private KeycloakSecurityContext getKeycloakSecurityContext() {
-        KeycloakPrincipal<?> keycloakPrincipal = (KeycloakPrincipal<?>) (sessionContext.getCallerPrincipal());
+        KeycloakPrincipal<?> keycloakPrincipal = (KeycloakPrincipal<?>) loggedUser;
         return keycloakPrincipal.getKeycloakSecurityContext();
     }
 

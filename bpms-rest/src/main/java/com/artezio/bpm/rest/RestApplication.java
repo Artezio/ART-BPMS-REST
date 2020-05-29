@@ -4,29 +4,31 @@ import com.artezio.bpm.services.*;
 import com.artezio.ws.rs.ExceptionMapper;
 import com.artezio.ws.rs.PragmaRemover;
 import io.swagger.v3.jaxrs2.integration.resources.OpenApiResource;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.springframework.stereotype.Component;
 
 import javax.ws.rs.ApplicationPath;
-import javax.ws.rs.core.Application;
-import java.util.HashSet;
-import java.util.Set;
 
+@Component
 @ApplicationPath("/api")
-public class RestApplication extends Application {
+public class RestApplication extends ResourceConfig {
 
-    @Override
-    public Set<Class<?>> getClasses() {
-        Set<Class<?>> classes = new HashSet<>();
-        classes.add(DeploymentSvc.class);
-        classes.add(ProcessDefinitionSvc.class);
-        classes.add(TaskSvc.class);
-        classes.add(MessageSvc.class);
-        classes.add(SignalSvc.class);
+    public RestApplication() {
+        registerEndpoints();
 
-        classes.add(ExceptionMapper.class);
-        classes.add(OpenApiResource.class);
-        classes.add(PragmaRemover.class);
+        register(ExceptionMapper.class);
+        register(PragmaRemover.class);
+        register(MultiPartFeature.class);
+    }
 
-        return classes;
+    public void registerEndpoints() {
+        register(DeploymentSvc.class);
+        register(ProcessDefinitionSvc.class);
+        register(TaskSvc.class);
+        register(MessageSvc.class);
+        register(SignalSvc.class);
+        register(OpenApiResource.class);
     }
 
 }

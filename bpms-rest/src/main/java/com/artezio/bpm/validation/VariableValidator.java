@@ -1,7 +1,9 @@
 package com.artezio.bpm.validation;
 
+import org.springframework.stereotype.Service;
+import org.springframework.web.context.annotation.RequestScope;
+
 import javax.inject.Inject;
-import javax.inject.Named;
 import javax.validation.ValidationException;
 import javax.validation.Validator;
 import java.util.Collection;
@@ -9,11 +11,16 @@ import java.util.Comparator;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Named
+@Service
+@RequestScope
 public class VariableValidator {
 
+    private final Validator validator;
+
     @Inject
-    private Validator validator;
+    public VariableValidator(Validator validator) {
+        this.validator = validator;
+    }
 
     @SuppressWarnings("unchecked")
     public void validate(Map<String, Object> variables) {

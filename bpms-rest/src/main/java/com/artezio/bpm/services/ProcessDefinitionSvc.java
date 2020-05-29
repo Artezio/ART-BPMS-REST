@@ -29,9 +29,11 @@ import org.camunda.bpm.model.bpmn.instance.ExtensionElements;
 import org.camunda.bpm.model.bpmn.instance.Process;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperties;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperty;
+import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.annotation.RequestScope;
 
 import javax.annotation.security.PermitAll;
-import javax.ejb.Stateless;
 import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -48,26 +50,34 @@ import static com.artezio.logging.Log.Level.CONFIG;
 import static java.util.Collections.emptyMap;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+@Transactional
+@Controller
+@RequestScope
 @Path("/process-definition")
-@Stateless
 public class ProcessDefinitionSvc {
 
+    private final IdentitySvc identityService;
+    private final FormService camundaFormService;
+    private final FormSvc formService;
+    private final RuntimeService runtimeService;
+    private final RepositoryService repositoryService;
+    private final VariablesMapper variablesMapper;
+    private final TaskSvc taskService;
+    private final VariableValidator variableValidator;
+
     @Inject
-    private IdentitySvc identityService;
-    @Inject
-    private FormService camundaFormService;
-    @Inject
-    private FormSvc formService;
-    @Inject
-    private RuntimeService runtimeService;
-    @Inject
-    private RepositoryService repositoryService;
-    @Inject
-    private VariablesMapper variablesMapper;
-    @Inject
-    private TaskSvc taskService;
-    @Inject
-    private VariableValidator variableValidator;
+    public ProcessDefinitionSvc(IdentitySvc identityService, FormService camundaFormService, FormSvc formService,
+                                RuntimeService runtimeService, RepositoryService repositoryService,
+                                VariablesMapper variablesMapper, TaskSvc taskService, VariableValidator variableValidator) {
+        this.identityService = identityService;
+        this.camundaFormService = camundaFormService;
+        this.formService = formService;
+        this.runtimeService = runtimeService;
+        this.repositoryService = repositoryService;
+        this.variablesMapper = variablesMapper;
+        this.taskService = taskService;
+        this.variableValidator = variableValidator;
+    }
 
     @PermitAll
     @GET

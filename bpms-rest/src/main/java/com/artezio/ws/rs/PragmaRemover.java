@@ -13,7 +13,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.ext.Provider;
 
 import static javax.ws.rs.core.HttpHeaders.CACHE_CONTROL;
-import static org.jboss.resteasy.util.HttpHeaderNames.PRAGMA;
+import static org.springframework.http.HttpHeaders.PRAGMA;
 
 @Priority(Priorities.HEADER_DECORATOR - 1)
 @Provider

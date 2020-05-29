@@ -2,49 +2,43 @@ package com.artezio.ws.rs;
 
 import com.artezio.bpm.rest.exception.RestException;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
-import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.camunda.bpm.engine.exception.DeploymentResourceNotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 
-import javax.ejb.EJBAccessException;
-import javax.ejb.EJBException;
 import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.ext.Provider;
 import java.util.HashMap;
 import java.util.Map;
-import org.camunda.bpm.engine.exception.DeploymentResourceNotFoundException;
 
 import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 
 @Provider
 public class ExceptionMapper implements javax.ws.rs.ext.ExceptionMapper<Throwable> {
 
-    private final static String JSON_ATTRIBUTE_ERROR_MESAGE = "errorMessage";
+    private final static String JSON_ATTRIBUTE_ERROR_MESSAGE = "errorMessage";
     private final static String JSON_ATTRIBUTE_CAUSE = "cause";
 
-    @Context
+    @Autowired
     private HttpServletResponse response;
 
     @SuppressWarnings("serial")
-    private final static Map<Class<?>, Status> EXCEPTION_HTTP_STATUS = new HashMap<Class<?>, Status>() {
+    private final static Map<Class<?>, Status> EXCEPTION_HTTP_STATUS = new HashMap<>() {
         {
-            put(EJBAccessException.class, Status.FORBIDDEN);
-            put(NotFoundException.class, Status.NOT_FOUND);
+            put(AccessDeniedException.class, Status.FORBIDDEN);
             put(NotAuthorizedException.class, Status.FORBIDDEN);
             put(DeploymentResourceNotFoundException.class, Status.NOT_FOUND);
         }
     };
 
     @Override
-    public Response toResponse(Throwable ex) {
-        Throwable exception = ex instanceof EJBException && ex.getCause() != null
-                ? ex.getCause()
-                : ex;
+    public Response toResponse(Throwable exception) {
         Status status = findResponseStatus(exception);
         response.setContentType(MediaType.APPLICATION_JSON);
         response.setHeader("Content-Disposition", "");
@@ -69,7 +63,7 @@ public class ExceptionMapper implements javax.ws.rs.ext.ExceptionMapper<Throwabl
         ObjectNode currentJsonError = JsonNodeFactory.instance.objectNode();
         ObjectNode resultJsonError = currentJsonError;
         while (exception != null) {
-            currentJsonError.put(JSON_ATTRIBUTE_ERROR_MESAGE, exception.getMessage());
+            currentJsonError.put(JSON_ATTRIBUTE_ERROR_MESSAGE, exception.getMessage());
             currentJsonError.set(JSON_ATTRIBUTE_CAUSE, JsonNodeFactory.instance.objectNode());
             exception = exception.getCause();
             currentJsonError = (ObjectNode) currentJsonError.findValue(JSON_ATTRIBUTE_CAUSE);
