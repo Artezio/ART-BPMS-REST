@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>com.artezio.bpm</groupId>
 		<artifactId>bpm-bom</artifactId>
-		<version>0.7.0</version>
+		<version>0.9.0</version>
 	</parent>
 
 	<artifactId>bpms-rest</artifactId>
