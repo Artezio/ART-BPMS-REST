@@ -13,7 +13,7 @@ import org.camunda.bpm.engine.ProcessEngines;
 import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.runtime.SignalEventReceivedBuilder;
 
-import javax.annotation.security.PermitAll;
+import javax.annotation.security.RolesAllowed;
 import javax.ejb.Stateless;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -38,7 +38,7 @@ public class SignalSvc {
     private RuntimeService runtimeService;
 
     @POST
-    @PermitAll
+    @RolesAllowed("NotificationsReceiver")
     @Consumes(MediaType.APPLICATION_JSON)
     @Operation(
             description = "A signal is an event of global scope (broadcast semantics) and is delivered to all active handlers.",

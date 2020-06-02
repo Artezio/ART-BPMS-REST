@@ -16,4 +16,7 @@ USER camunda
 
 RUN rm -fr /camunda/webapps/camunda-invoice
 
+ENV COCKPIT_HTTPS_PORT 8445
+
 EXPOSE 8080
+EXPOSE ${COCKPIT_HTTPS_PORT}

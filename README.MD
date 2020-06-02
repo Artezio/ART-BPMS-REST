@@ -72,6 +72,20 @@ The Identity Service provides user info including user roles. **NOTE! Current ve
 
 Urls of all resources described on [ART-BPMS-REST Environment Resources](#art-bpms-rest-environment-resources) table.
 
+>**Important:** by default ssl connection is not required. If you want to make connections to use ssl, enable it for keycloak login
+>and keycloak adapter:
+>
+>Keycloak login:
+>1. Open keycloak admin panel
+>2. Go to 'Login' tab on 'Realm Settings' page
+>3. Select appropriate option for 'Require SSL'
+>
+>Keycloak adapter:
+>1. Open wildfly admin panel
+>2. Go to 'Configuration -> Keycloak' page
+>3. Select a deployment secured by keycloak
+>4. Enter appropriate value for 'SSL Required' option. Valid values: `none`, `all`, `external` 
+
 ### Manual
 
 #### Requirements

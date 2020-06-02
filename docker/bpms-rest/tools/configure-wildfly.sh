@@ -14,6 +14,7 @@ $JBOSS_CLI --commands="embed-server --server-config=standalone.xml"\
   	enable-basic-auth=true, \
   	enable-cors=true, \
 	public-client=true, \
+	ssl-required=none, \
 	auth-server-url=\${env.KEYCLOAK_SERVER_URL}, \
 	principal-attribute=\${env.KEYCLOAK_USERNAME_ATTRIBUTE})"\
 ,stop-embedded-server
