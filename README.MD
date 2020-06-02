@@ -49,6 +49,7 @@ Features:
 Application REST API is based on JAX-RS with EJB technology. The application specifies that users having the given roles are allowed access to REST API in declarative way. Authentication must be implemented in an application server in a vendor specific way according to an identity management solution. REST endpoints are secured as follows:
 * A user accessing REST endpoints must be authenticated
 * A user accessing Deployment REST endpoints must have role `BPMSAdmin`
+* A user accessing Message and Signal REST endpoints must have role `NotificationsReceiver`
 * A user accessing other REST endpoints can have any roles
 * A user without roles won't be able to start any process or complete any task
 
