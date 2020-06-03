@@ -2,6 +2,7 @@ package com.artezio.bpm.services;
 
 import com.artezio.bpm.resources.AbstractResourceLoader;
 import com.artezio.bpm.rest.dto.repository.DeploymentRepresentation;
+import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.forms.resources.ResourceLoader;
 import com.artezio.logging.Log;
 import de.otto.edison.hal.HalRepresentation;
@@ -19,24 +20,22 @@ import org.camunda.bpm.application.ProcessApplicationInterface;
 import org.camunda.bpm.engine.ManagementService;
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.repository.*;
-import org.glassfish.jersey.media.multipart.BodyPart;
-import org.glassfish.jersey.media.multipart.FormDataMultiPart;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.DependsOn;
-import org.springframework.stereotype.Controller;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.security.PermitAll;
 import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.PathSegment;
-import javax.ws.rs.core.Response;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -51,13 +50,12 @@ import static com.artezio.logging.Log.Level.CONFIG;
 import static de.otto.edison.hal.Link.link;
 import static de.otto.edison.hal.Link.linkBuilder;
 import static de.otto.edison.hal.Links.linkingTo;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import static javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA;
+import static org.springframework.http.MediaType.*;
 
 @Transactional
-@Controller
+@RestController
 @DependsOn("org.camunda.bpm.spring.boot.starter.SpringBootProcessApplication")
-@Path("/deployment")
+@RequestMapping("/api/deployment")
 public class DeploymentSvc {
 
     public static final String PUBLIC_RESOURCES_DIRECTORY = "public";
@@ -68,16 +66,14 @@ public class DeploymentSvc {
     private final ProcessApplicationInterface processApplication;
     private final RepositoryService repositoryService;
     private final ManagementService managementService;
-    private final HttpServletRequest httpRequest;
     private Logger log = Logger.getLogger(DeploymentSvc.class.getName());
 
-    @Inject
+    @Autowired
     public DeploymentSvc(ProcessApplicationInterface processApplication, RepositoryService repositoryService,
-                         ManagementService managementService, HttpServletRequest httpRequest) {
+                         ManagementService managementService) {
         this.processApplication = processApplication;
         this.repositoryService = repositoryService;
         this.managementService = managementService;
-        this.httpRequest = httpRequest;
     }
 
     @PostConstruct
@@ -88,12 +84,8 @@ public class DeploymentSvc {
                 .forEach(this::registerInProcessApplication);
     }
 
-    @PostMapping("/create")
+    @PostMapping(value = "/create", consumes = MULTIPART_FORM_DATA_VALUE, produces = APPLICATION_JSON_VALUE)
     @RolesAllowed("BPMSAdmin")
-    @POST
-    @Path("/create")
-    @Consumes(MULTIPART_FORM_DATA)
-    @Produces(APPLICATION_JSON)
     @Operation(
             description = "Create a deployment with specified resources.",
             externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/deployment-service-api-docs.md"),
@@ -101,23 +93,23 @@ public class DeploymentSvc {
                     @ApiResponse(
                             responseCode = "200",
                             description = "Request successful.",
-                            content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(ref = "#/components/schemas/DeploymentRepresentation"))
+                            content = @Content(mediaType = APPLICATION_JSON_VALUE, schema = @Schema(ref = "#/components/schemas/DeploymentRepresentation"))
                     ),
                     @ApiResponse(responseCode = "403", description = "The user is not allowed to create deployments.")
             }
     )
     @Log(beforeExecuteMessage = "Creating deployment '{0}'", afterExecuteMessage = "Deployment '{0}' is created")
     public DeploymentRepresentation create(
-            @Parameter(description = "Name for the deployment", required = true) @QueryParam("deployment-name") @Valid @NotNull String deploymentName,
+            @Parameter(description = "Name for the deployment", required = true) @RequestParam("deployment-name") @Valid @NotNull String deploymentName,
             @Parameter(
                     description = "Resources which the deployment will consist of",
                     required = true,
                     allowEmptyValue = true,
-                    content = @Content(mediaType = MULTIPART_FORM_DATA)) @Valid @NotNull FormDataMultiPart input) {
+                    content = @Content(mediaType = MULTIPART_FORM_DATA_VALUE)) @Valid @NotNull @RequestParam List<MultipartFile> files) {
         DeploymentBuilder deploymentBuilder = repositoryService
                 .createDeployment()
                 .name(deploymentName);
-        getFormParts(input).entrySet()
+        getFormParts(files).entrySet()
                 .stream()
                 .peek(e -> log.info("Register to deploy: " + e.getKey()))
                 .forEach(e -> deploymentBuilder.addInputStream(e.getKey(), e.getValue()));
@@ -127,9 +119,7 @@ public class DeploymentSvc {
     }
 
     @RolesAllowed("BPMSAdmin")
-    @GET
-    @Path("/")
-    @Produces(APPLICATION_JSON)
+    @GetMapping(value = "/", produces = APPLICATION_JSON_VALUE)
     @Operation(
             description = "Get a list of all deployments.",
             externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/deployment-service-api-docs.md"),
@@ -137,7 +127,7 @@ public class DeploymentSvc {
                     @ApiResponse(
                             responseCode = "200",
                             description = "Request successful.",
-                            content = @Content(mediaType = APPLICATION_JSON, schema = @Schema(ref = "#/components/schemas/DeploymentRepresentation"))
+                            content = @Content(mediaType = APPLICATION_JSON_VALUE, schema = @Schema(ref = "#/components/schemas/DeploymentRepresentation"))
                     )
             }
     )
@@ -152,8 +142,7 @@ public class DeploymentSvc {
     }
 
     @RolesAllowed("BPMSAdmin")
-    @DELETE
-    @Path("/{deployment-id}")
+    @DeleteMapping(value = "/{deployment-id}")
     @Operation(
             description = "Delete the deployment with specified id.",
             externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/deployment-service-api-docs.md"),
@@ -164,14 +153,12 @@ public class DeploymentSvc {
     )
     @Log(beforeExecuteMessage = "Deleting deployment '{0}'", afterExecuteMessage = "Deployment '{0}' is deleted")
     public void delete(
-            @Parameter(description = "The id of the deployment.", required = true) @PathParam("deployment-id") @NotNull String deploymentId) {
+            @Parameter(description = "The id of the deployment.", required = true) @PathVariable("deployment-id") @NotNull String deploymentId) {
         repositoryService.deleteDeployment(deploymentId, true);
     }
 
     @PermitAll
-    @GET
-    @Path("/public-resources")
-    @Produces("application/hal+json")
+    @GetMapping(value = "/public-resources", produces = "application/hal+json")
     @Operation(
             description = "Get a list of links to public resources in HAL format.",
             externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/deployment-service-api-docs.md"),
@@ -182,9 +169,9 @@ public class DeploymentSvc {
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of public resources for form '{2}'")
 //    @Cache(maxAge = CACHE_MAX_AGE, isPrivate = true)
     public HalRepresentation listPublicResources(
-            @Parameter(description = "The id of process definition which has the resources. Not required, if 'case-definition-id' is passed.", allowEmptyValue = true) @QueryParam("process-definition-id") String processDefinitionId,
-            @Parameter(description = "The id of case definition which has the resources. Not required, if 'process-definition-id' is passed.", allowEmptyValue = true) @QueryParam("case-definition-id") String caseDefinitionId,
-            @Parameter(description = "The key of a form for which resources are requested.") @QueryParam("form-key") String formKey) {
+            @Parameter(description = "The id of process definition which has the resources. Not required, if 'case-definition-id' is passed.", allowEmptyValue = true) @RequestParam(value = "process-definition-id", required = false) String processDefinitionId,
+            @Parameter(description = "The id of case definition which has the resources. Not required, if 'process-definition-id' is passed.", allowEmptyValue = true) @RequestParam(value = "case-definition-id", required = false) String caseDefinitionId,
+            @Parameter(description = "The key of a form for which resources are requested.") @RequestParam("form-key") String formKey) {
         String deploymentId = getResourceDefinition(processDefinitionId, caseDefinitionId).getDeploymentId();
         ResourceLoader resourceLoader = AbstractResourceLoader
                 .getResourceLoader(deploymentId, formKey, PUBLIC_RESOURCES_DIRECTORY);
@@ -207,9 +194,7 @@ public class DeploymentSvc {
     }
 
     @PermitAll
-    @GET
-    @Path("/public-resource/{deployment-protocol}/{deployment-id}/{resource-key: .*}")
-    @Produces(MediaType.WILDCARD)
+    @GetMapping(value = "/public-resource/{deployment-protocol}/{deployment-id}/{resource-key:.*}", produces = ALL_VALUE)
     @Log(level = CONFIG, beforeExecuteMessage = "Getting a public resource using protocol '{0}'")
 //    @Cache(maxAge = CACHE_MAX_AGE, isPrivate = true)
     @Operation(
@@ -220,28 +205,27 @@ public class DeploymentSvc {
                     @ApiResponse(responseCode = "404", description = "Resource is not found")
             }
     )
-    public Response getPublicResource(
-            @Parameter(description = "Deployment protocol of the requested resource ('embedded:app:' or 'embedded:deployment:').", required = true) @PathParam("deployment-protocol") @Valid @NotNull String deploymentProtocol,
-            @Parameter(description = "The id of the deployment connected with requested resource.", required = true) @PathParam("deployment-id") @Valid @NotNull String deploymentId,
-            @Parameter(description = "The requested resource path. No deployment protocol is needed.", required = true) @PathParam("resource-key") @Valid @NotNull List<PathSegment> resourceKey) throws IOException {
+    public ResponseEntity<InputStream> getPublicResource(
+            @Parameter(description = "Deployment protocol of the requested resource ('embedded:app:' or 'embedded:deployment:').", required = true) @PathVariable("deployment-protocol") @Valid @NotNull String deploymentProtocol,
+            @Parameter(description = "The id of the deployment connected with requested resource.", required = true) @PathVariable("deployment-id") @Valid @NotNull String deploymentId,
+            @Parameter(description = "The requested resource path. No deployment protocol is needed.", required = true) @PathVariable("resource-key") @Valid @NotNull List<PathSegment> resourceKey) throws IOException {
         ResourceLoader resourceLoader = AbstractResourceLoader
                 .getResourceLoader(deploymentId, deploymentProtocol + resourceKey, PUBLIC_RESOURCES_DIRECTORY);
         String resourcePath = resourceKey.stream().map(PathSegment::getPath).collect(Collectors.joining("/"));
-        String resourceMimeType = CONTENT_ANALYSER.detect(resourcePath);
+        MediaType resourceMimeType = MediaType.valueOf(CONTENT_ANALYSER.detect(resourcePath));
         InputStream resource = resourceLoader.getResource(resourcePath);
         if (resource.available() == 0)
             throw new NotFoundException(String.format("Resource %s is not found", resourceKey));
-        return Response.ok()
-                .entity(resource)
-                .type(resourceMimeType)
-                .build();
+        return ResponseEntity.ok()
+                .contentType(resourceMimeType)
+                .body(resource);
     }
 
     private void registerInProcessApplication(Deployment deployment) {
         managementService.registerProcessApplication(deployment.getId(), processApplication.getReference());
     }
 
-    private Map<String, InputStream> getFormParts(FormDataMultiPart input) {
+    private Map<String, InputStream> getFormParts(List<MultipartFile> input) {
         return getFileParts(input);
     }
 
@@ -264,25 +248,28 @@ public class DeploymentSvc {
     }
 
     private String getBaseUrl() {
-        StringBuffer requestUrl = httpRequest.getRequestURL();
+        ServletRequestAttributes requestAttributes = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+        StringBuffer requestUrl = requestAttributes.getRequest().getRequestURL();
         return requestUrl.toString().replaceFirst("/deployment.*", "");
     }
-    
-    Map<String, InputStream> getFileParts(FormDataMultiPart input) {
-         return input.getFields()
-                .entrySet()
+
+    Map<String, InputStream> getFileParts(List<MultipartFile> files) {
+        return files
                 .stream()
-                .flatMap(e -> expandIfArchive(e.getKey(), e.getValue().get(0)).entrySet().stream())
+                .flatMap(file -> expandIfArchive(file).entrySet().stream())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
-    
-    Map<String, InputStream> expandIfArchive(String partName, BodyPart inputPart) {
-        InputStream body = inputPart.getEntityAs(InputStream.class);
-        return inputPart.getMediaType() != null && inputPart.getMediaType().isCompatible(MEDIA_TYPE_ZIP)
-                    ? expandZipArchive(body)
-                    : Collections.singletonMap(partName, body);
+
+    Map<String, InputStream> expandIfArchive(MultipartFile file) {
+        try {
+            return file.getContentType() != null && file.getContentType().equals(MEDIA_TYPE_ZIP.toString())
+                    ? expandZipArchive(file.getInputStream())
+                    : Collections.singletonMap(file.getOriginalFilename(), file.getInputStream());
+        } catch (IOException e) {
+            throw new RuntimeException("Error while extracting file content", e);
+        }
     }
-    
+
     Map<String, InputStream> expandZipArchive(InputStream zipInput) {
         try {
             Map<String, InputStream> result = new HashMap<>();
@@ -299,5 +286,5 @@ public class DeploymentSvc {
             throw new RuntimeException(e);
         }
     }
-        
+
 }

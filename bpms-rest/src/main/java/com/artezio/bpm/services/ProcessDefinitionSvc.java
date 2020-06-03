@@ -29,15 +29,13 @@ import org.camunda.bpm.model.bpmn.instance.ExtensionElements;
 import org.camunda.bpm.model.bpmn.instance.Process;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperties;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperty;
-import org.springframework.stereotype.Controller;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.annotation.RequestScope;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.security.PermitAll;
-import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import javax.ws.rs.*;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -51,9 +49,8 @@ import static java.util.Collections.emptyMap;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 @Transactional
-@Controller
-@RequestScope
-@Path("/process-definition")
+@RestController
+@RequestMapping("/api/process-definition")
 public class ProcessDefinitionSvc {
 
     private final IdentitySvc identityService;
@@ -65,7 +62,7 @@ public class ProcessDefinitionSvc {
     private final TaskSvc taskService;
     private final VariableValidator variableValidator;
 
-    @Inject
+    @Autowired
     public ProcessDefinitionSvc(IdentitySvc identityService, FormService camundaFormService, FormSvc formService,
                                 RuntimeService runtimeService, RepositoryService repositoryService,
                                 VariablesMapper variablesMapper, TaskSvc taskService, VariableValidator variableValidator) {
@@ -80,9 +77,7 @@ public class ProcessDefinitionSvc {
     }
 
     @PermitAll
-    @GET
-    @Path("/")
-    @Produces(APPLICATION_JSON)
+    @GetMapping(value = "/", produces = APPLICATION_JSON)
     @Operation(
             description = "List process definitions startable by the user created this request.",
             externalDocs = @ExternalDocumentation(
@@ -111,10 +106,7 @@ public class ProcessDefinitionSvc {
                 .collect(Collectors.toList());
     }
 
-    @POST
-    @Path("/key/{process-definition-key}/start")
-    @Consumes(APPLICATION_JSON)
-    @Produces(APPLICATION_JSON)
+    @PostMapping(value = "/key/{process-definition-key}/start", consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
     @PermitAll
     @Operation(
             description = "Instantiate a process definition.",
@@ -136,7 +128,7 @@ public class ProcessDefinitionSvc {
     )
     @Log(beforeExecuteMessage = "Starting process '{0}'", afterExecuteMessage = "Process '{0}' is started")
     public TaskRepresentation start(
-            @Parameter(description = "The key of the process definition to be started.") @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey,
+            @Parameter(description = "The key of the process definition to be started.") @PathVariable("process-definition-key") @Valid @NotNull String processDefinitionKey,
             @RequestBody(description = "A JSON object with variables.") Map<String, Object> inputVariables) throws IOException {
         ProcessDefinition processDefinition = getLastProcessDefinition(processDefinitionKey);
         ensureStartableByUser(processDefinition);
@@ -146,9 +138,7 @@ public class ProcessDefinitionSvc {
         return TaskRepresentation.fromEntity(taskService.getNextAssignedTask(processInstance.getProcessInstanceId()));
     }
 
-    @GET
-    @Path("key/{process-definition-key}/rendered-form")
-    @Produces(APPLICATION_JSON)
+    @GetMapping(value = "key/{process-definition-key}/rendered-form", produces = APPLICATION_JSON)
     @PermitAll
     @Operation(
             description = "Load the start form definition with data.",
@@ -173,7 +163,7 @@ public class ProcessDefinitionSvc {
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Loading start form for process '{0}'")
     public String loadRenderedStartForm(
-            @Parameter(description = "The key of the process definition, which form is loaded for.") @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey) throws IOException {
+            @Parameter(description = "The key of the process definition, which form is loaded for.") @PathVariable("process-definition-key") @Valid @NotNull String processDefinitionKey) throws IOException {
         ProcessDefinition processDefinition = getLastProcessDefinition(processDefinitionKey);
         ensureStartableByUser(processDefinition);
         FormData formData = camundaFormService.getStartFormData(processDefinition.getId());
@@ -181,9 +171,7 @@ public class ProcessDefinitionSvc {
         return formService.getStartFormWithData(processDefinition.getId(), startFormVariables, PUBLIC_RESOURCES_DIRECTORY);
     }
 
-    @GET
-    @Path("key/{process-definition-key}/form")
-    @Produces(APPLICATION_JSON)
+    @GetMapping(value = "key/{process-definition-key}/form", produces = APPLICATION_JSON)
     @PermitAll
     @Operation(
             description = "Retrieves the start form key.",
@@ -204,7 +192,7 @@ public class ProcessDefinitionSvc {
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Loading start form info for process '{0}'")
     public FormDto loadStartForm( 
-            @Parameter(description = "The key of the process definition, which form is loaded for.") @PathParam("process-definition-key") @Valid @NotNull String processDefinitionKey) throws IOException {
+            @Parameter(description = "The key of the process definition, which form is loaded for.") @PathVariable("process-definition-key") @Valid @NotNull String processDefinitionKey) throws IOException {
         ProcessDefinition processDefinition = getLastProcessDefinition(processDefinitionKey);
         ensureStartableByUser(processDefinition);
         FormData formData = camundaFormService.getStartFormData(processDefinition.getId());

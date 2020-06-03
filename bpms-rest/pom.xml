@@ -96,11 +96,16 @@
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-jersey</artifactId>
+			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.glassfish.jersey.media</groupId>
-			<artifactId>jersey-media-multipart</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>commons-fileupload</groupId>
+			<artifactId>commons-fileupload</artifactId>
+			<version>1.4</version>
 		</dependency>
 		<dependency>
 			<groupId>org.camunda.bpm.springboot</groupId>
@@ -183,7 +188,6 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.12</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -205,13 +209,7 @@
 		<dependency>
 			<groupId>org.hsqldb</groupId>
 			<artifactId>hsqldb</artifactId>
-			<version>2.4.0</version>
 			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>commons-io</groupId>
-			<artifactId>commons-io</artifactId>
-			<version>2.6</version>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -260,12 +258,6 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.jboss.weld.se</groupId>
-			<artifactId>weld-se</artifactId>
-			<version>2.4.6.Final</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
 			<groupId>org.codehaus.groovy</groupId>
 			<artifactId>groovy-all</artifactId>
 			<version>2.4.13</version>
@@ -290,24 +282,24 @@
 			<artifactId>edison-hal</artifactId>
 			<version>2.1.0</version>
 		</dependency>
-		<dependency>
-			<groupId>org.camunda.bpm.extension</groupId>
-			<artifactId>camunda-bpm-assert-scenario</artifactId>
-			<version>1.0.0</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.camunda.bpm.assert</groupId>
-			<artifactId>camunda-bpm-assert</artifactId>
-			<version>5.0.0</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.assertj</groupId>
-			<artifactId>assertj-core</artifactId>
-			<version>3.15.0</version>
-			<scope>test</scope>
-		</dependency>
+<!--		<dependency>-->
+<!--			<groupId>org.camunda.bpm.extension</groupId>-->
+<!--			<artifactId>camunda-bpm-assert-scenario</artifactId>-->
+<!--			<version>1.0.0</version>-->
+<!--			<scope>test</scope>-->
+<!--		</dependency>-->
+<!--		<dependency>-->
+<!--			<groupId>org.camunda.bpm.assert</groupId>-->
+<!--			<artifactId>camunda-bpm-assert</artifactId>-->
+<!--			<version>5.0.0</version>-->
+<!--			<scope>test</scope>-->
+<!--		</dependency>-->
+<!--		<dependency>-->
+<!--			<groupId>org.assertj</groupId>-->
+<!--			<artifactId>assertj-core</artifactId>-->
+<!--			<version>3.15.0</version>-->
+<!--			<scope>test</scope>-->
+<!--		</dependency>-->
 	</dependencies>
 	<build>
 		<finalName>${project.artifactId}</finalName>

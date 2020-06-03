@@ -31,15 +31,15 @@ import org.camunda.bpm.model.bpmn.instance.ExtensionElements;
 import org.camunda.bpm.model.bpmn.instance.Process;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperties;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperty;
-import org.springframework.stereotype.Controller;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.annotation.RequestScope;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.security.PermitAll;
-import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import javax.ws.rs.*;
+import javax.ws.rs.BeanParam;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.*;
@@ -54,10 +54,9 @@ import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.emptyMap;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
-@Path("/task")
-@Controller
+@RestController
+@RequestMapping("/api/task")
 @Transactional
-@RequestScope
 public class TaskSvc {
 
     private static final String DECISION_VARIABLE_NAME = "decision";
@@ -72,7 +71,7 @@ public class TaskSvc {
     private final RepositoryService repositoryService;
     private final VariableValidator variableValidator;
 
-    @Inject
+    @Autowired
     public TaskSvc(TaskService taskService, IdentitySvc identityService, FormService camundaFormService,
                    FormSvc formService, VariablesMapper variablesMapper, CaseService caseService,
                    RepositoryService repositoryService, VariableValidator variableValidator) {
@@ -86,9 +85,7 @@ public class TaskSvc {
         this.variableValidator = variableValidator;
     }
 
-    @GET
-    @Path("available")
-    @Produces(APPLICATION_JSON)
+    @GetMapping(value = "/available", produces = APPLICATION_JSON)
     @PermitAll
     @Operation(
             description = "List of tasks available to the user who is completing this request.",
@@ -221,9 +218,7 @@ public class TaskSvc {
                 .collect(Collectors.toList());
     }
 
-    @GET
-    @Path("assigned")
-    @Produces(APPLICATION_JSON)
+    @GetMapping(value = "assigned", produces = APPLICATION_JSON)
     @PermitAll
     @Operation(
             description = "List of tasks assigned to the user who is completing this request.",
@@ -297,8 +292,7 @@ public class TaskSvc {
                 .collect(Collectors.toList());
     }
 
-    @POST
-    @Path("{task-id}/claim")
+    @PostMapping(value = "{task-id}/claim")
     @PermitAll
     @Operation(
             description = "Assign a task to the user who is completing this request.",
@@ -317,14 +311,12 @@ public class TaskSvc {
     )
     @Log(beforeExecuteMessage = "Claiming task '{0}'", afterExecuteMessage = "Task '{0}' is claimed")
     public void claim(
-            @Parameter(description = "The id of the task which is going to be assigned", required = true) @PathParam(value = "task-id") @Valid @NotNull String taskId) {
+            @Parameter(description = "The id of the task which is going to be assigned", required = true) @PathVariable(value = "task-id") @Valid @NotNull String taskId) {
         ensureUserHasAccess(taskId);
         taskService.claim(taskId, identityService.userId());
     }
 
-    @GET
-    @Path("{task-id}/form")
-    @Produces(APPLICATION_JSON)
+    @GetMapping(value = "{task-id}/form", produces = APPLICATION_JSON)
     @PermitAll
     @Operation(
             description = "Load a form for a task.",
@@ -345,15 +337,14 @@ public class TaskSvc {
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Loading form for user task '{0}'")
     public String loadForm(
-            @Parameter(description = "The id of the task which form is requested for.", required = true) @PathParam("task-id") @Valid @NotNull String taskId) {
+            @Parameter(description = "The id of the task which form is requested for.", required = true) @PathVariable("task-id") @Valid @NotNull String taskId) {
         ensureUserHasAccess(taskId);
         List<String> formFieldsNames = formService.getRootTaskFormFieldNames(taskId, PUBLIC_RESOURCES_DIRECTORY);
         VariableMap taskVariables = taskService.getVariablesTyped(taskId, formFieldsNames, true);
         return formService.getTaskFormWithData(taskId, taskVariables, PUBLIC_RESOURCES_DIRECTORY);
     }
 
-    @GET
-    @Path("{task-id}/file/{file-id}")
+    @GetMapping(value = "{task-id}/file/{file-id}")
     @PermitAll
     @Operation(
             description = "Download a file existing in a scope of the task.",
@@ -377,8 +368,8 @@ public class TaskSvc {
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Downloading file '{1}'", afterExecuteMessage = "File '{1}' is downloaded")
     public Response downloadFile(
-            @Parameter(description = "An id of the task which has in its scope requested file as variable.", required = true) @PathParam("task-id") @Valid @NotNull String taskId,
-            @Parameter(description = "Id of requested file.", required = true) @PathParam("file-id") @Valid @NotNull String fileId) {
+            @Parameter(description = "An id of the task which has in its scope requested file as variable.", required = true) @PathVariable("task-id") @Valid @NotNull String taskId,
+            @Parameter(description = "Id of requested file.", required = true) @PathVariable("file-id") @Valid @NotNull String fileId) {
         ensureUserHasAccess(taskId);
         checkIfFileAvailable(taskId, fileId);
         FileStorageEntity fileStorageEntity = new CamundaFileStorage(taskId).retrieve(fileId);
@@ -388,10 +379,7 @@ public class TaskSvc {
                 .build();
     }
 
-    @POST
-    @Path("{task-id}/complete")
-    @Consumes(APPLICATION_JSON)
-    @Produces(APPLICATION_JSON)
+    @PostMapping(value = "{task-id}/complete", consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
     @PermitAll
     @Operation(
             description = "Complete a task using input variables.",
@@ -419,7 +407,7 @@ public class TaskSvc {
     )
     @Log(beforeExecuteMessage = "Completing task '{0}'", afterExecuteMessage = "Task '{0}' is completed")
     public TaskRepresentation complete(
-            @Parameter(description = "The id of the task to be completed.", required = true) @PathParam("task-id") @Valid @NotNull String taskId,
+            @Parameter(description = "The id of the task to be completed.", required = true) @PathVariable("task-id") @Valid @NotNull String taskId,
             @RequestBody(description = "The variables which will be passed to a process after completing the task.") Map<String, Object> inputVariables)
             throws IOException {
         Task task = taskService.createTaskQuery()

@@ -1,10 +1,7 @@
 package com.artezio.bpm.resources;
 
-import javax.enterprise.inject.spi.CDI;
-import javax.servlet.ServletContext;
 import java.io.File;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Arrays;
@@ -15,17 +12,14 @@ import java.util.stream.Stream;
 
 public class AppResourceLoader extends AbstractResourceLoader {
 
-    private ServletContext servletContext;
-
     public AppResourceLoader(String rootDirectory) {
-        super(rootDirectory);
-        this.servletContext = CDI.current().select(ServletContext.class).get();
+        super(rootDirectory.startsWith("/") ? rootDirectory : "/" + rootDirectory);
     }
 
     @Override
     public InputStream getResource(String resourceKey) {
         resourceKey = getResourcePath(resourceKey);
-        return servletContext.getResourceAsStream(rootDirectory + "/" + resourceKey);
+        return getClass().getResourceAsStream(rootDirectory + "/" + resourceKey);
     }
 
     @Override
@@ -37,8 +31,7 @@ public class AppResourceLoader extends AbstractResourceLoader {
 
     private List<String> listResourceNames(String resourcesDirectory) {
         try {
-            String resourcePath = resourcesDirectory.startsWith("/") ? resourcesDirectory : "/" + resourcesDirectory;
-            URL url = servletContext.getResource(resourcePath);
+            URL url = getClass().getResource(resourcesDirectory);
             if (url == null) return Collections.emptyList();
             File resource = new File(url.toURI());
             return Arrays.stream(resource.listFiles())
@@ -49,7 +42,7 @@ public class AppResourceLoader extends AbstractResourceLoader {
                                 : Stream.of(resourceName);
                     })
                     .collect(Collectors.toList());
-        } catch (MalformedURLException | URISyntaxException e) {
+        } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
     }

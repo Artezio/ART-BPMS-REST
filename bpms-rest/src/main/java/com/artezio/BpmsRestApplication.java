@@ -12,11 +12,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.jta.JtaTransactionManager;
+import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import javax.sql.DataSource;
 import javax.transaction.TransactionManager;
 
 @SpringBootApplication
+@EnableWebMvc
 @EnableProcessApplication
 public class BpmsRestApplication {
 

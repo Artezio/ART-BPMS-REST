@@ -16,15 +16,13 @@ import org.camunda.bpm.engine.ProcessEngines;
 import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.runtime.MessageCorrelationBuilder;
 import org.camunda.bpm.engine.runtime.MessageCorrelationResult;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.context.annotation.RequestScope;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.ArrayList;
@@ -35,24 +33,22 @@ import static com.artezio.logging.Log.Level.CONFIG;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 
-@RequestScope
-@Controller
-@Path("/message")
+@RestController
+@RequestMapping("/api/message")
+@Transactional
 public class MessageSvc {
 
     private static final String PROCESS_ENGINE_NAME = "default";
 
     private final RuntimeService runtimeService;
 
-    @Inject
+    @Autowired
     public MessageSvc(RuntimeService runtimeService) {
         this.runtimeService = runtimeService;
     }
 
-    @POST
+    @GetMapping(consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
     @RolesAllowed("NotificationsReceiver")
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
     @Operation(
             description = "A signal is an event of global scope (broadcast semantics) and is delivered to all active handlers.",
             externalDocs = @ExternalDocumentation(url = "https://github.com/Artezio/ART-BPMS-REST/blob/master/doc/message-service-api-docs.md"),
