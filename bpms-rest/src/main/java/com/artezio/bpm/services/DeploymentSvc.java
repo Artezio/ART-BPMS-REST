@@ -22,6 +22,7 @@ import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.DependsOn;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,9 +34,9 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.annotation.PostConstruct;
 import javax.annotation.security.PermitAll;
 import javax.annotation.security.RolesAllowed;
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import javax.ws.rs.core.PathSegment;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -55,7 +56,7 @@ import static org.springframework.http.MediaType.*;
 @Transactional
 @RestController
 @DependsOn("org.camunda.bpm.spring.boot.starter.SpringBootProcessApplication")
-@RequestMapping("/api/deployment")
+@RequestMapping("/deployment")
 public class DeploymentSvc {
 
     public static final String PUBLIC_RESOURCES_DIRECTORY = "public";
@@ -194,7 +195,7 @@ public class DeploymentSvc {
     }
 
     @PermitAll
-    @GetMapping(value = "/public-resource/{deployment-protocol}/{deployment-id}/{resource-key:.*}", produces = ALL_VALUE)
+    @GetMapping(value = "/public-resource/{deployment-protocol}/{deployment-id}/{resource-key:.+}/**", produces = ALL_VALUE)
     @Log(level = CONFIG, beforeExecuteMessage = "Getting a public resource using protocol '{0}'")
 //    @Cache(maxAge = CACHE_MAX_AGE, isPrivate = true)
     @Operation(
@@ -205,20 +206,29 @@ public class DeploymentSvc {
                     @ApiResponse(responseCode = "404", description = "Resource is not found")
             }
     )
-    public ResponseEntity<InputStream> getPublicResource(
+    //TODO This method invokes getFullResourceKeyFromRequest. It is a workaround due to spring's using AntPathMatcher to match
+    // requested urls against path templates declared for methods. AntPathMatcher splits urls into parts using '/' as a
+    // delimiter, hence it cannot assign multiple url parts into a single variable.
+    public ResponseEntity<InputStreamResource> getPublicResource(
             @Parameter(description = "Deployment protocol of the requested resource ('embedded:app:' or 'embedded:deployment:').", required = true) @PathVariable("deployment-protocol") @Valid @NotNull String deploymentProtocol,
             @Parameter(description = "The id of the deployment connected with requested resource.", required = true) @PathVariable("deployment-id") @Valid @NotNull String deploymentId,
-            @Parameter(description = "The requested resource path. No deployment protocol is needed.", required = true) @PathVariable("resource-key") @Valid @NotNull List<PathSegment> resourceKey) throws IOException {
+            @Parameter(description = "The requested resource path. No deployment protocol is needed.", required = true) @PathVariable("resource-key") @Valid @NotNull String resourceKey) throws IOException {
+        resourceKey = getFullResourceKeyFromRequest(resourceKey);
         ResourceLoader resourceLoader = AbstractResourceLoader
                 .getResourceLoader(deploymentId, deploymentProtocol + resourceKey, PUBLIC_RESOURCES_DIRECTORY);
-        String resourcePath = resourceKey.stream().map(PathSegment::getPath).collect(Collectors.joining("/"));
-        MediaType resourceMimeType = MediaType.valueOf(CONTENT_ANALYSER.detect(resourcePath));
-        InputStream resource = resourceLoader.getResource(resourcePath);
+        MediaType resourceMimeType = MediaType.valueOf(CONTENT_ANALYSER.detect(resourceKey));
+        InputStream resource = resourceLoader.getResource(resourceKey);
         if (resource.available() == 0)
             throw new NotFoundException(String.format("Resource %s is not found", resourceKey));
         return ResponseEntity.ok()
                 .contentType(resourceMimeType)
-                .body(resource);
+                .body(new InputStreamResource(resource));
+    }
+
+    private String getFullResourceKeyFromRequest(String resourceKey) {
+        ServletRequestAttributes requestAttributes = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+        HttpServletRequest request = requestAttributes.getRequest();
+        return request.getRequestURI().substring(request.getRequestURI().indexOf(resourceKey));
     }
 
     private void registerInProcessApplication(Deployment deployment) {

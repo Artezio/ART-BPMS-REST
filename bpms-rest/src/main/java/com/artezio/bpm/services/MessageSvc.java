@@ -34,7 +34,7 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 
 @RestController
-@RequestMapping("/api/message")
+@RequestMapping("/message")
 @Transactional
 public class MessageSvc {
 

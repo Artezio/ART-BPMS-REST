@@ -26,7 +26,7 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 
 @RestController
-@RequestMapping(value = "/api/signal")
+@RequestMapping(value = "/signal")
 @Transactional
 public class SignalSvc {
 

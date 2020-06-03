@@ -50,7 +50,7 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 @Transactional
 @RestController
-@RequestMapping("/api/process-definition")
+@RequestMapping("/process-definition")
 public class ProcessDefinitionSvc {
 
     private final IdentitySvc identityService;
@@ -138,7 +138,7 @@ public class ProcessDefinitionSvc {
         return TaskRepresentation.fromEntity(taskService.getNextAssignedTask(processInstance.getProcessInstanceId()));
     }
 
-    @GetMapping(value = "key/{process-definition-key}/rendered-form", produces = APPLICATION_JSON)
+    @GetMapping(value = "/key/{process-definition-key}/rendered-form", produces = APPLICATION_JSON)
     @PermitAll
     @Operation(
             description = "Load the start form definition with data.",
@@ -163,7 +163,7 @@ public class ProcessDefinitionSvc {
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Loading start form for process '{0}'")
     public String loadRenderedStartForm(
-            @Parameter(description = "The key of the process definition, which form is loaded for.") @PathVariable("process-definition-key") @Valid @NotNull String processDefinitionKey) throws IOException {
+            @Parameter(description = "The key of the process definition, which form is loaded for.") @PathVariable("process-definition-key") @Valid @NotNull String processDefinitionKey) {
         ProcessDefinition processDefinition = getLastProcessDefinition(processDefinitionKey);
         ensureStartableByUser(processDefinition);
         FormData formData = camundaFormService.getStartFormData(processDefinition.getId());
@@ -171,7 +171,7 @@ public class ProcessDefinitionSvc {
         return formService.getStartFormWithData(processDefinition.getId(), startFormVariables, PUBLIC_RESOURCES_DIRECTORY);
     }
 
-    @GetMapping(value = "key/{process-definition-key}/form", produces = APPLICATION_JSON)
+    @GetMapping(value = "/key/{process-definition-key}/form", produces = APPLICATION_JSON)
     @PermitAll
     @Operation(
             description = "Retrieves the start form key.",
@@ -192,7 +192,7 @@ public class ProcessDefinitionSvc {
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Loading start form info for process '{0}'")
     public FormDto loadStartForm( 
-            @Parameter(description = "The key of the process definition, which form is loaded for.") @PathVariable("process-definition-key") @Valid @NotNull String processDefinitionKey) throws IOException {
+            @Parameter(description = "The key of the process definition, which form is loaded for.") @PathVariable("process-definition-key") @Valid @NotNull String processDefinitionKey) {
         ProcessDefinition processDefinition = getLastProcessDefinition(processDefinitionKey);
         ensureStartableByUser(processDefinition);
         FormData formData = camundaFormService.getStartFormData(processDefinition.getId());

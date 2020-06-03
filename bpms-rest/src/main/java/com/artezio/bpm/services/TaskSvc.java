@@ -55,7 +55,7 @@ import static java.util.Collections.emptyMap;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 @RestController
-@RequestMapping("/api/task")
+@RequestMapping("/task")
 @Transactional
 public class TaskSvc {
 
@@ -218,7 +218,7 @@ public class TaskSvc {
                 .collect(Collectors.toList());
     }
 
-    @GetMapping(value = "assigned", produces = APPLICATION_JSON)
+    @GetMapping(value = "/assigned", produces = APPLICATION_JSON)
     @PermitAll
     @Operation(
             description = "List of tasks assigned to the user who is completing this request.",
@@ -292,7 +292,7 @@ public class TaskSvc {
                 .collect(Collectors.toList());
     }
 
-    @PostMapping(value = "{task-id}/claim")
+    @PostMapping(value = "/{task-id}/claim")
     @PermitAll
     @Operation(
             description = "Assign a task to the user who is completing this request.",
@@ -316,7 +316,7 @@ public class TaskSvc {
         taskService.claim(taskId, identityService.userId());
     }
 
-    @GetMapping(value = "{task-id}/form", produces = APPLICATION_JSON)
+    @GetMapping(value = "/{task-id}/form", produces = APPLICATION_JSON)
     @PermitAll
     @Operation(
             description = "Load a form for a task.",
@@ -344,7 +344,7 @@ public class TaskSvc {
         return formService.getTaskFormWithData(taskId, taskVariables, PUBLIC_RESOURCES_DIRECTORY);
     }
 
-    @GetMapping(value = "{task-id}/file/{file-id}")
+    @GetMapping(value = "/{task-id}/file/{file-id}")
     @PermitAll
     @Operation(
             description = "Download a file existing in a scope of the task.",
@@ -379,7 +379,7 @@ public class TaskSvc {
                 .build();
     }
 
-    @PostMapping(value = "{task-id}/complete", consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
+    @PostMapping(value = "/{task-id}/complete", consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
     @PermitAll
     @Operation(
             description = "Complete a task using input variables.",
