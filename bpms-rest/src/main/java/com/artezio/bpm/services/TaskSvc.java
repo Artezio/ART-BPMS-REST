@@ -4,6 +4,7 @@ import com.artezio.bpm.integration.CamundaFileStorage;
 import com.artezio.bpm.rest.dto.task.TaskRepresentation;
 import com.artezio.bpm.rest.query.task.TaskQueryParams;
 import com.artezio.bpm.services.exceptions.NotAuthorizedException;
+import com.artezio.bpm.services.exceptions.NotFoundException;
 import com.artezio.bpm.validation.VariableValidator;
 import com.artezio.forms.storages.FileStorage;
 import com.artezio.forms.storages.FileStorageEntity;
@@ -32,15 +33,15 @@ import org.camunda.bpm.model.bpmn.instance.Process;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperties;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperty;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.security.PermitAll;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import javax.ws.rs.BeanParam;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.*;
 import java.util.function.Consumer;
@@ -52,7 +53,7 @@ import static com.artezio.logging.Log.Level.CONFIG;
 import static io.swagger.v3.oas.annotations.enums.ParameterIn.QUERY;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.emptyMap;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @RestController
 @RequestMapping("/task")
@@ -85,7 +86,7 @@ public class TaskSvc {
         this.variableValidator = variableValidator;
     }
 
-    @GetMapping(value = "/available", produces = APPLICATION_JSON)
+    @GetMapping(value = "/available", produces = APPLICATION_JSON_VALUE)
     @PermitAll
     @Operation(
             description = "List of tasks available to the user who is completing this request.",
@@ -196,14 +197,15 @@ public class TaskSvc {
                     @ApiResponse(
                             responseCode = "200",
                             content = @Content(
-                                    mediaType = APPLICATION_JSON,
+                                    mediaType = APPLICATION_JSON_VALUE,
                                     array = @ArraySchema(schema = @Schema(implementation = TaskRepresentation.class))
                             )
                     )
             }
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of available tasks")
-    public @ApiResponse List<TaskRepresentation> listAvailable(@BeanParam TaskQueryParams queryParams) {
+    public @ApiResponse List<TaskRepresentation> listAvailable(
+            @org.springframework.web.bind.annotation.RequestBody TaskQueryParams queryParams) {
         TaskQuery taskQuery = createTaskQuery(queryParams)
                 .or()
                 .taskCandidateGroupIn(identityService.userGroups())
@@ -218,7 +220,7 @@ public class TaskSvc {
                 .collect(Collectors.toList());
     }
 
-    @GetMapping(value = "/assigned", produces = APPLICATION_JSON)
+    @GetMapping(value = "/assigned", produces = APPLICATION_JSON_VALUE)
     @PermitAll
     @Operation(
             description = "List of tasks assigned to the user who is completing this request.",
@@ -273,14 +275,14 @@ public class TaskSvc {
                     @ApiResponse(
                             responseCode = "200",
                             content = @Content(
-                                    mediaType = APPLICATION_JSON,
+                                    mediaType = APPLICATION_JSON_VALUE,
                                     array = @ArraySchema(schema = @Schema(implementation = TaskRepresentation.class))
                             )
                     )
             }
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Getting list of assigned task")
-    public List<TaskRepresentation> listAssigned(@BeanParam TaskQueryParams queryParams) {
+    public List<TaskRepresentation> listAssigned(@org.springframework.web.bind.annotation.RequestBody TaskQueryParams queryParams) {
         TaskQuery taskQuery = createTaskQuery(queryParams)
                 .taskAssignee(identityService.userId())
                 .initializeFormKeys();
@@ -316,7 +318,7 @@ public class TaskSvc {
         taskService.claim(taskId, identityService.userId());
     }
 
-    @GetMapping(value = "/{task-id}/form", produces = APPLICATION_JSON)
+    @GetMapping(value = "/{task-id}/form", produces = APPLICATION_JSON_VALUE)
     @PermitAll
     @Operation(
             description = "Load a form for a task.",
@@ -327,7 +329,7 @@ public class TaskSvc {
                     @ApiResponse(
                             responseCode = "200",
                             description = "Form definition for the task with specified id.",
-                            content = @Content(mediaType = APPLICATION_JSON)
+                            content = @Content(mediaType = APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(
                             responseCode = "403",
@@ -367,19 +369,20 @@ public class TaskSvc {
             }
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Downloading file '{1}'", afterExecuteMessage = "File '{1}' is downloaded")
-    public Response downloadFile(
+    public ResponseEntity<InputStreamResource> downloadFile(
             @Parameter(description = "An id of the task which has in its scope requested file as variable.", required = true) @PathVariable("task-id") @Valid @NotNull String taskId,
             @Parameter(description = "Id of requested file.", required = true) @PathVariable("file-id") @Valid @NotNull String fileId) {
         ensureUserHasAccess(taskId);
         checkIfFileAvailable(taskId, fileId);
         FileStorageEntity fileStorageEntity = new CamundaFileStorage(taskId).retrieve(fileId);
-        return Response
-                .ok(fileStorageEntity.getContent(), fileStorageEntity.getMimeType())
+        return ResponseEntity
+                .ok()
+                .contentType(MediaType.valueOf(fileStorageEntity.getMimeType()))
                 .header("Content-Disposition", "attachment; filename=" + fileStorageEntity.getName())
-                .build();
+                .body(new InputStreamResource(fileStorageEntity.getContent()));
     }
 
-    @PostMapping(value = "/{task-id}/complete", consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
+    @PostMapping(value = "/{task-id}/complete", consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
     @PermitAll
     @Operation(
             description = "Complete a task using input variables.",
@@ -391,7 +394,7 @@ public class TaskSvc {
                             responseCode = "200",
                             description = "There is a task assigned to a user.",
                             content = @Content(
-                                    mediaType = APPLICATION_JSON,
+                                    mediaType = APPLICATION_JSON_VALUE,
                                     schema = @Schema(ref = "#/components/schemas/TaskRepresentation")
                             )
                     ),

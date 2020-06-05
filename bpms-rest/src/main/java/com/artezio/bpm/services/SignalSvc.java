@@ -22,8 +22,8 @@ import javax.annotation.security.RolesAllowed;
 import java.util.Map;
 
 import static com.artezio.logging.Log.Level.CONFIG;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @RestController
 @RequestMapping(value = "/signal")
@@ -39,7 +39,7 @@ public class SignalSvc {
         this.runtimeService = runtimeService;
     }
 
-    @PostMapping(consumes = APPLICATION_JSON)
+    @PostMapping(consumes = APPLICATION_JSON_VALUE)
     @RolesAllowed("NotificationsReceiver")
     @Operation(
             description = "A signal is an event of global scope (broadcast semantics) and is delivered to all active handlers.",
@@ -54,17 +54,17 @@ public class SignalSvc {
                             description = "* If no name was given\n" +
                                           "* If the variable value or type is invalid, for example if the value could not be parsed to an integer value or the passed variable type is not supported\n" +
                                           "* If a tenant id and an execution id is specified",
-                            content = @Content(mediaType = APPLICATION_JSON)
+                            content = @Content(mediaType = APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(
                             responseCode = "403",
                             description = "If the user is not allowed to throw a signal event",
-                            content = @Content(mediaType = APPLICATION_JSON)
+                            content = @Content(mediaType = APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(
                             responseCode = "500",
                             description = "If a single execution is specified and no such execution exists or has not subscribed to the signal",
-                            content = @Content(mediaType = APPLICATION_JSON)
+                            content = @Content(mediaType = APPLICATION_JSON_VALUE)
                     )
             }
     )

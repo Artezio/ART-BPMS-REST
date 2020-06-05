@@ -46,7 +46,7 @@ import static com.artezio.bpm.services.DeploymentSvc.PUBLIC_RESOURCES_DIRECTORY;
 import static com.artezio.bpm.services.VariablesMapper.EXTENSION_NAME_PREFIX;
 import static com.artezio.logging.Log.Level.CONFIG;
 import static java.util.Collections.emptyMap;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @Transactional
 @RestController
@@ -77,7 +77,7 @@ public class ProcessDefinitionSvc {
     }
 
     @PermitAll
-    @GetMapping(value = "/", produces = APPLICATION_JSON)
+    @GetMapping(value = "/", produces = APPLICATION_JSON_VALUE)
     @Operation(
             description = "List process definitions startable by the user created this request.",
             externalDocs = @ExternalDocumentation(
@@ -88,7 +88,7 @@ public class ProcessDefinitionSvc {
                             responseCode = "200",
                             description = "Successful request.",
                             content = @Content(
-                                    mediaType = APPLICATION_JSON,
+                                    mediaType = APPLICATION_JSON_VALUE,
                                     schema = @Schema(ref = "#/components/schemas/ProcessDefinitionRepresentation")
                             )
                     )
@@ -106,7 +106,7 @@ public class ProcessDefinitionSvc {
                 .collect(Collectors.toList());
     }
 
-    @PostMapping(value = "/key/{process-definition-key}/start", consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
+    @PostMapping(value = "/key/{process-definition-key}/start", consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
     @PermitAll
     @Operation(
             description = "Instantiate a process definition.",
@@ -118,7 +118,7 @@ public class ProcessDefinitionSvc {
                             responseCode = "200",
                             description = "Request successful.",
                             content = @Content(
-                                    mediaType = APPLICATION_JSON,
+                                    mediaType = APPLICATION_JSON_VALUE,
                                     schema = @Schema(ref = "#/components/schemas/TaskRepresentation")
                             )
                     ),
@@ -138,7 +138,7 @@ public class ProcessDefinitionSvc {
         return TaskRepresentation.fromEntity(taskService.getNextAssignedTask(processInstance.getProcessInstanceId()));
     }
 
-    @GetMapping(value = "/key/{process-definition-key}/rendered-form", produces = APPLICATION_JSON)
+    @GetMapping(value = "/key/{process-definition-key}/rendered-form", produces = APPLICATION_JSON_VALUE)
     @PermitAll
     @Operation(
             description = "Load the start form definition with data.",
@@ -149,7 +149,7 @@ public class ProcessDefinitionSvc {
                     @ApiResponse(
                             responseCode = "200",
                             description = "Request successful.",
-                            content = @Content(mediaType = APPLICATION_JSON)
+                            content = @Content(mediaType = APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(
                             responseCode = "403",
@@ -171,7 +171,7 @@ public class ProcessDefinitionSvc {
         return formService.getStartFormWithData(processDefinition.getId(), startFormVariables, PUBLIC_RESOURCES_DIRECTORY);
     }
 
-    @GetMapping(value = "/key/{process-definition-key}/form", produces = APPLICATION_JSON)
+    @GetMapping(value = "/key/{process-definition-key}/form", produces = APPLICATION_JSON_VALUE)
     @PermitAll
     @Operation(
             description = "Retrieves the start form key.",
@@ -182,7 +182,7 @@ public class ProcessDefinitionSvc {
                     @ApiResponse(
                             responseCode = "200",
                             description = "Request successful.",
-                            content = @Content(mediaType = APPLICATION_JSON)
+                            content = @Content(mediaType = APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(
                             responseCode = "400",

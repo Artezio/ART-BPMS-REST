@@ -1,7 +1,6 @@
 package com.artezio;
 
 import com.atomikos.icatch.jta.UserTransactionManager;
-import org.camunda.bpm.engine.spring.ProcessEngineFactoryBean;
 import org.camunda.bpm.engine.spring.SpringProcessEngineConfiguration;
 import org.camunda.bpm.spring.boot.starter.annotation.EnableProcessApplication;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,13 +56,6 @@ public class BpmsRestApplication {
         config.setJobExecutorActivate(true);
         config.setDefaultSerializationFormat("application/json");
         return config;
-    }
-
-    @Bean
-    public ProcessEngineFactoryBean processEngine() {
-        ProcessEngineFactoryBean factoryBean = new ProcessEngineFactoryBean();
-        factoryBean.setProcessEngineConfiguration(processEngineConfiguration());
-        return factoryBean;
     }
 
 }

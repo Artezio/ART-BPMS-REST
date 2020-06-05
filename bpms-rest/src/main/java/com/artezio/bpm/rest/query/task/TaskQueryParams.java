@@ -2,51 +2,36 @@ package com.artezio.bpm.rest.query.task;
 
 import io.swagger.v3.oas.annotations.Hidden;
 
-import javax.ws.rs.QueryParam;
 import java.util.Date;
 
 public class TaskQueryParams {
 
-    @QueryParam(value = "dueDate")
     @Hidden
     private Date dueDate;
-    @QueryParam(value = "dueDateExpression")
     @Hidden
     private String dueDateExpression;
-    @QueryParam(value = "dueAfter")
     @Hidden
     private Date dueAfter;
-    @QueryParam(value = "dueAfterExpression")
     @Hidden
     private String dueAfterExpression;
-    @QueryParam(value = "dueBefore")
     @Hidden
     private Date dueBefore;
-    @QueryParam(value = "dueBeforeExpression")
     @Hidden
     private String dueBeforeExpression;
-    @QueryParam(value = "followUpDate")
     @Hidden
     private Date followUpDate;
-    @QueryParam(value = "followUpDateExpression")
     @Hidden
     private String followUpDateExpression;
-    @QueryParam(value = "followUpAfter")
     @Hidden
     private Date followUpAfter;
-    @QueryParam(value = "followUpAfterExpression")
     @Hidden
     private String followUpAfterExpression;
-    @QueryParam(value = "followUpBefore")
     @Hidden
     private Date followUpBefore;
-    @QueryParam(value = "followUpBeforeExpression")
     @Hidden
     private String followUpBeforeExpression;
-    @QueryParam(value = "followUpBeforeOrNotExistent")
     @Hidden
     private Date followUpBeforeOrNotExistent;
-    @QueryParam(value = "followUpBeforeOrNotExistentExpression")
     @Hidden
     private String followUpBeforeOrNotExistentExpression;
 

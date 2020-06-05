@@ -17,21 +17,21 @@ import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.runtime.MessageCorrelationBuilder;
 import org.camunda.bpm.engine.runtime.MessageCorrelationResult;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.security.RolesAllowed;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import static com.artezio.logging.Log.Level.CONFIG;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @RestController
 @RequestMapping("/message")
@@ -47,7 +47,7 @@ public class MessageSvc {
         this.runtimeService = runtimeService;
     }
 
-    @GetMapping(consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
+    @GetMapping(consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
     @RolesAllowed("NotificationsReceiver")
     @Operation(
             description = "A signal is an event of global scope (broadcast semantics) and is delivered to all active handlers.",
@@ -56,7 +56,7 @@ public class MessageSvc {
                     @ApiResponse(
                             responseCode = "200",
                             description = "Request successful. The property resultEnabled in the request body was true.",
-                            content = @Content(mediaType = APPLICATION_JSON)
+                            content = @Content(mediaType = APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(
                             responseCode = "204",
@@ -65,12 +65,13 @@ public class MessageSvc {
                     @ApiResponse(
                             responseCode = "400",
                             description = "If no messageName was supplied. If both tenantId and withoutTenantId are supplied. If the message has not been correlated to exactly one entity (execution or process definition), or the variable value or type is invalid, for example if the value could not be parsed to an Integer value or the passed variable type is not supported.",
-                            content = @Content(mediaType = APPLICATION_JSON)
+                            content = @Content(mediaType = APPLICATION_JSON_VALUE)
                     )
             }
     )
     @Log(level = CONFIG, beforeExecuteMessage = "Sending a message", afterExecuteMessage = "Message is sent")
-    public Response deliverMessage(CorrelationMessageRepresentation correlationMessageRepresentation) {
+    public ResponseEntity<List<MessageCorrelationResultRepresentation>> deliverMessage(
+            CorrelationMessageRepresentation correlationMessageRepresentation) {
         if (correlationMessageRepresentation.getMessageName() == null) {
             throw new InvalidRequestException(BAD_REQUEST, "No message name supplied");
         }
@@ -99,12 +100,14 @@ public class MessageSvc {
     }
 
 
-    protected Response createResponse(List<MessageCorrelationResultRepresentation> resultRepresentations, CorrelationMessageRepresentation messageRepresentation) {
-        Response.ResponseBuilder response = Response.noContent();
+    protected ResponseEntity<List<MessageCorrelationResultRepresentation>> createResponse(List<MessageCorrelationResultRepresentation> resultRepresentations, CorrelationMessageRepresentation messageRepresentation) {
+        ResponseEntity<List<MessageCorrelationResultRepresentation>> response = ResponseEntity.noContent().build();
         if (messageRepresentation.isResultEnabled()) {
-            response = Response.ok(resultRepresentations, MediaType.APPLICATION_JSON);
+            response = ResponseEntity.ok()
+                    .contentType(APPLICATION_JSON)
+                    .body(resultRepresentations);
         }
-        return response.build();
+        return response;
     }
 
     protected MessageCorrelationBuilder createMessageCorrelationBuilder(CorrelationMessageRepresentation messageRepresentation) {

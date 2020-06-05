@@ -15,7 +15,7 @@ import spinjar.com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.Map;
 
-import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 public class VariableValueRepresentation {
 
@@ -78,7 +78,7 @@ public class VariableValueRepresentation {
                     }
                     return valueType.createValue(mappedValue, valueInfo);
                 } catch (Exception e) {
-                    throw new com.artezio.bpm.rest.exception.InvalidRequestException(BAD_REQUEST, e,
+                    throw new InvalidRequestException(BAD_REQUEST, e,
                             String.format("Cannot convert value '%s' of type '%s' to java type %s", value, type, javaType.getName()));
                 }
             } else if (valueType instanceof SerializableValueType) {
