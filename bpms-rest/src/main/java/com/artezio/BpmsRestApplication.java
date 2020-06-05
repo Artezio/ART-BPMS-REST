@@ -3,6 +3,8 @@ package com.artezio;
 import com.atomikos.icatch.jta.UserTransactionManager;
 import org.camunda.bpm.engine.spring.SpringProcessEngineConfiguration;
 import org.camunda.bpm.spring.boot.starter.annotation.EnableProcessApplication;
+import org.camunda.feel.CamundaFeelEnginePlugin;
+import org.camunda.spin.plugin.impl.SpinProcessEnginePlugin;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -15,6 +17,8 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import javax.sql.DataSource;
 import javax.transaction.TransactionManager;
+
+import static java.util.Arrays.asList;
 
 @SpringBootApplication
 @EnableWebMvc
@@ -55,6 +59,7 @@ public class BpmsRestApplication {
         config.setHistory("full");
         config.setJobExecutorActivate(true);
         config.setDefaultSerializationFormat("application/json");
+        config.setProcessEnginePlugins(asList(new SpinProcessEnginePlugin(), new CamundaFeelEnginePlugin()));
         return config;
     }
 
